@@ -2,5 +2,7 @@
 name = "nim"
 version = "0.0.0"
 edition = "2024"
+description = "placeholder"
+license = "MIT"
 
 [dependencies]

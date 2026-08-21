@@ -1,8 +1,32 @@
-[package]
-name = "nim"
+[workspace]
+resolver = "3"
+members = ["bins/*", "crates/*"]
+default-members = ["bins/*", "crates/*"]
+
+[workspace.package]
 version = "0.0.0"
 edition = "2024"
-description = "placeholder"
 license = "MIT"
+readme = "README.md"
+authors = ["Alexander Acebo <aacebowork@gmail.com>"]
+categories = ["command-line-utilities", "development-tools::cargo-plugins", "development-tools"]
+repository = "https://github.com/aacebo/nim"
+
+[workspace.lints.clippy]
+large_enum_variant = "allow"
+type_complexity = "allow"
+
+[workspace.dependencies]
+
+[package]
+name = "nim"
+description = "placeholder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+authors.workspace = true
+categories.workspace = true
+repository.workspace = true
 
 [dependencies]

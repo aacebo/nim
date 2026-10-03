@@ -9,6 +9,7 @@ pub use place::*;
 pub use time::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
 pub enum ContextId {
     Object(ObjectId),
     Person(PersonId),

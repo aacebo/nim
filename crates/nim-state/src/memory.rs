@@ -1,6 +1,6 @@
 use crate::{AnnotationId, ContextId, Embedding, Version};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemoryId(uuid::Uuid);
 
 impl std::fmt::Display for MemoryId {
@@ -9,8 +9,32 @@ impl std::fmt::Display for MemoryId {
     }
 }
 
+impl serde::Serialize for MemoryId {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        s.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MemoryId {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let v = String::deserialize(d)?;
+        let v = v
+            .strip_prefix("memory_")
+            .ok_or_else(|| serde::de::Error::custom("invalid memory id"))?;
+
+        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
+        Ok(Self(v))
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum MemoryType {
     /// ### Narrative
     ///
@@ -67,12 +91,17 @@ impl std::fmt::Display for MemoryType {
 pub struct Memory {
     pub id: MemoryId,
 
-    /// version gets incremented once
-    /// per update.
+    /// version gets incremented once per update.
     pub version: Version,
 
     #[serde(rename = "type")]
     pub ty: MemoryType,
+
+    /// provenance / derivation
+    pub parents: Vec<MemoryId>,
+
+    /// semantic/episodic links
+    pub associations: Vec<MemoryId>,
 
     /// the contexts this memory was created from.
     pub contexts: Vec<ContextId>,

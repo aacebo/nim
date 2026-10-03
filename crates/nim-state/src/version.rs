@@ -1,4 +1,5 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct Version(u64);
 
 impl Version {

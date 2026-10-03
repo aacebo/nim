@@ -7,7 +7,5 @@
   "rust-analyzer.check.workspace": true,
   "rust-analyzer.check.allTargets": true,
   "terminal.integrated.suggest.enabled": false,
-  "terminal.integrated.fontFamily": "Monaco, Menlo, monospace",
-  "terminal.integrated.cursorStyle": "block",
-  "terminal.integrated.cursorBlinking": true
+  "evenBetterToml.schema.enabled": false
 }

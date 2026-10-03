@@ -1,12 +1,15 @@
 [build]
 jobs = -1
+warnings = "deny"
+
+[doc]
+rustdocflags = ["-D", "warnings"]
 
 [env]
 RUST_BACKTRACE = "1"
-# RUST_TEST_NOCAPTURE = "1"
 
 [net]
 retry = 3
 
 [alias]
-lint = "clippy --workspace -- -D warnings"
+lint = "clippy --workspace --all-features --all-targets -- -D warnings"

@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["."]
-default-members = ["."]
+members = ["bins/*","crates/*"]
+default-members = ["bins/*", "crates/*"]
 
 [workspace.package]
 version = "0.0.0"
@@ -33,15 +33,7 @@ tokio-stream = { version = "0.1" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
-[package]
-name = "nim"
-description = "Neural Intelligence Mesh"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-readme.workspace = true
-authors.workspace = true
-categories.workspace = true
-repository.workspace = true
-
-[dependencies]
+nim = { path = "crates/nim", version = "0.0.0" }
+nim-mem = { path = "crates/nim-mem", version = "0.0.0" }
+nim-state = { path = "crates/nim-state", version = "0.0.0" }
+nim-store = { path = "crates/nim-store", version = "0.0.0" }

@@ -5,3 +5,24 @@ version = 4
 [[package]]
 name = "nim"
 version = "0.0.0"
+dependencies = [
+ "nim-mem",
+ "nim-state",
+ "nim-store",
+]
+
+[[package]]
+name = "nim-mem"
+version = "0.0.0"
+
+[[package]]
+name = "nim-state"
+version = "0.0.0"
+
+[[package]]
+name = "nim-store"
+version = "0.0.0"
+
+[[package]]
+name = "nimd"
+version = "0.0.0"

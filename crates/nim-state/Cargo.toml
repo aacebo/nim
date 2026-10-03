@@ -1,5 +1,6 @@
 [package]
 name = "nim-state"
+description = "shared protocol/domain types"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,3 +13,6 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+chrono.workspace = true
+serde.workspace = true
+uuid.workspace = true

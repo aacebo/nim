@@ -12,6 +12,5 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-nim-mem.workspace = true
 nim-state.workspace = true
 nim-store.workspace = true

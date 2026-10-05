@@ -732,7 +732,6 @@ dependencies = [
 name = "nim"
 version = "0.0.0"
 dependencies = [
- "nim-mem",
  "nim-state",
  "nim-store",
 ]
@@ -760,10 +759,6 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
 ]
-
-[[package]]
-name = "nim-mem"
-version = "0.0.0"
 
 [[package]]
 name = "nim-state"

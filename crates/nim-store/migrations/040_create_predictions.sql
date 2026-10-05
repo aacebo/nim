@@ -16,5 +16,5 @@ CREATE TABLE IF NOT EXISTS predictions_memories (
     PRIMARY KEY (prediction_id, memory_id)
 );
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS predictions_updated_at_idx
 ON predictions (updated_at DESC);

@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS steps (
     updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS plans_updated_at_idx
 ON plans (updated_at DESC);
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS steps_plan_idx
 ON steps (plan_id, position ASC);

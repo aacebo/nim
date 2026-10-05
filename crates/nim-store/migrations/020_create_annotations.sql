@@ -10,5 +10,5 @@ CREATE TABLE IF NOT EXISTS annotations (
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS annotations_memory_idx
 ON annotations (memory_id, created_at DESC);

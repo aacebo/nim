@@ -16,18 +16,18 @@ CREATE TABLE IF NOT EXISTS memories (
 );
 
 CREATE TABLE IF NOT EXISTS memories_relations (
-    source_id       UUID            NOT NULL FOREIGN KEY memories(id) ON DELETE CASCADE,
-    target_id       UUID            NOT NULL FOREIGN KEY memories(id) ON DELETE CASCADE,
+    source_id       UUID            NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+    target_id       UUID            NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
 
     PRIMARY KEY (source_id, target_id)
 );
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS memories_type_idx
 ON memories (type);
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS memories_updated_at_idx
 ON memories (updated_at DESC);
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS memories_embedding_idx
 ON memories USING hnsw (embedding vector_cosine_ops);

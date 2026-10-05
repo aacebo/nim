@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS entities_relations (
     PRIMARY KEY (source_id, target_id, type)
 );
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS entities_updated_at_idx
 ON entities (updated_at DESC);
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS entities_embedding_idx
 ON entities USING hnsw (embedding vector_cosine_ops);

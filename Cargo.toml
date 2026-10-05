@@ -15,6 +15,7 @@ repository = "https://github.com/aacebo/nim"
 [workspace.lints.clippy]
 large_enum_variant = "allow"
 type_complexity = "allow"
+new_without_default = "allow"
 
 [workspace.dependencies]
 chrono = { version = "0.4", features = ["serde"] }
@@ -23,6 +24,9 @@ uuid = { version = "1", features = ["v7", "serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_valid = { version = "2" }
+tokio = { version = "1" }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 nim = { path = "crates/nim", version = "0.0.0" }
 nim-mem = { path = "crates/nim-mem", version = "0.0.0" }

@@ -11,5 +11,5 @@ CREATE TABLE IF NOT EXISTS goals (
     updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS goals_updated_at_idx
 ON goals (updated_at DESC);

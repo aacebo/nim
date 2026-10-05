@@ -16,13 +16,47 @@ services:
       timeout: 5s
       retries: 5
 
-  nimd:
-    container_name: nimd
+  audio:
+    container_name: nim-audio
     image: rust:alpine
-    command: cargo run -p nimd --release
+    command: cargo run -p nim-audio --release
     working_dir: /app
     ports:
-      - 8080:8080
+      - 3000:8080
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+    volumes:
+      - type: bind
+        source: ./
+        target: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  exec:
+    container_name: nim-exec
+    image: rust:alpine
+    command: cargo run -p nim-exec --release
+    working_dir: /app
+    ports:
+      - 3001:8080
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+    volumes:
+      - type: bind
+        source: ./
+        target: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  vision:
+    container_name: nim-vision
+    image: rust:alpine
+    command: cargo run -p nim-vision --release
+    working_dir: /app
+    ports:
+      - 3002:8080
     environment:
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
     volumes:

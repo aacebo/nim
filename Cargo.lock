@@ -738,6 +738,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "nim-audio"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "nim-exec"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "nim-mem"
 version = "0.0.0"
 
@@ -762,7 +786,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nimd"
+name = "nim-vision"
 version = "0.0.0"
 dependencies = [
  "chrono",

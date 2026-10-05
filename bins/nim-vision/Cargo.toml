@@ -1,5 +1,5 @@
 [package]
-name = "nimd"
+name = "nim-vision"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

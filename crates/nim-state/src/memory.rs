@@ -11,13 +11,10 @@ pub struct Memory {
     pub ty: MemoryType,
 
     /// who/what/where the memory was derived from.
-    pub source: Source,
-
-    /// provenance / derivation
-    pub parents: Vec<MemoryId>,
+    pub sources: Vec<Source>,
 
     /// semantic/episodic links
-    pub associations: Vec<MemoryId>,
+    pub relations: Vec<MemoryId>,
 
     /// the contexts this memory was created from.
     pub contexts: Vec<Context>,
@@ -47,11 +44,17 @@ pub struct Memory {
     /// "I am 100% sure that happened" versus "I think that happened, but I might be wrong."
     pub confidence: f32,
 
-    /// vector embedding used for search.
-    pub embedding: Option<Embedding>,
-
     /// how many times has this memory been recalled since creation.
     pub recalls: u64,
+
+    /// a full detailed description of the memory.
+    pub description: String,
+
+    /// a short form tldr of the memory description.
+    pub summary: Option<String>,
+
+    /// vector embedding used for search.
+    pub embedding: Option<Embedding>,
 
     /// the most recent recall timestamp.
     pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,
@@ -65,6 +68,12 @@ pub struct MemoryId(uuid::Uuid);
 impl MemoryId {
     pub fn new() -> Self {
         Self(uuid::Uuid::now_v7())
+    }
+}
+
+impl From<uuid::Uuid> for MemoryId {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value)
     }
 }
 

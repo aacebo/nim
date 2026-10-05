@@ -9,6 +9,7 @@ pub struct Annotation {
     pub confidence: f32,
     pub embedding: Option<Embedding>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

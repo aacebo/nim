@@ -4,9 +4,10 @@ use crate::{Embedding, Source};
 pub struct Observation {
     pub id: ObservationId,
     pub source: Source,
-    pub content: String,
+    pub description: String,
     pub embedding: Option<Embedding>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

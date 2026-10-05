@@ -3,7 +3,7 @@ use crate::{EntityId, Version};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Goal {
     pub id: GoalId,
-    pub parent: Option<GoalId>,
+    pub parent_id: Option<GoalId>,
     pub version: Version,
     pub description: String,
     pub status: GoalStatus,

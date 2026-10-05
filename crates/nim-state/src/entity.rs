@@ -7,6 +7,7 @@ pub struct Entity {
     pub ty: EntityType,
     pub version: Version,
     pub name: String,
+    pub summary: Option<String>,
     pub confidence: f32,
     pub embedding: Option<Embedding>,
     pub created_at: chrono::DateTime<chrono::Utc>,

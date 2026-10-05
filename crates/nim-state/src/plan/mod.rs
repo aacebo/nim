@@ -27,7 +27,7 @@ impl PlanId {
 
 impl std::fmt::Display for PlanId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "plan_{}", self.0)
+        write!(f, "plan_{}", self.0.simple())
     }
 }
 
@@ -80,7 +80,7 @@ impl StepId {
 
 impl std::fmt::Display for StepId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "step_{}", self.0)
+        write!(f, "step_{}", self.0.simple())
     }
 }
 

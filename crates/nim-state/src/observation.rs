@@ -21,7 +21,7 @@ impl ObservationId {
 
 impl std::fmt::Display for ObservationId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "observe_{}", self.0)
+        write!(f, "observe_{}", self.0.simple())
     }
 }
 

@@ -25,7 +25,7 @@ impl GoalId {
 
 impl std::fmt::Display for GoalId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "goal_{}", self.0)
+        write!(f, "goal_{}", self.0.simple())
     }
 }
 

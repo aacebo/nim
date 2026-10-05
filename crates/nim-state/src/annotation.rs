@@ -23,7 +23,7 @@ impl AnnotationId {
 
 impl std::fmt::Display for AnnotationId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "annotation_{}", self.0)
+        write!(f, "annotation_{}", self.0.simple())
     }
 }
 
@@ -94,8 +94,8 @@ pub enum Label {
     /// when
     Temporal,
 
-    /// where
-    Spatial,
+    /// what/who
+    Entity,
 }
 
 impl std::fmt::Display for Label {
@@ -112,7 +112,7 @@ impl std::fmt::Display for Label {
             Self::SelfRelevance => write!(f, "self_relevance"),
             Self::SocialRelevance => write!(f, "social_relevance"),
             Self::Temporal => write!(f, "temporal"),
-            Self::Spatial => write!(f, "spatial"),
+            Self::Entity => write!(f, "entity"),
         }
     }
 }

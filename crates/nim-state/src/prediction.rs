@@ -22,7 +22,7 @@ impl PredictionId {
 
 impl std::fmt::Display for PredictionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "prediction_{}", self.0)
+        write!(f, "pred_{}", self.0.simple())
     }
 }
 
@@ -42,7 +42,7 @@ impl<'de> serde::Deserialize<'de> for PredictionId {
     {
         let v = String::deserialize(d)?;
         let v = v
-            .strip_prefix("prediction_")
+            .strip_prefix("pred_")
             .ok_or_else(|| serde::de::Error::custom("invalid prediction id"))?;
 
         let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;

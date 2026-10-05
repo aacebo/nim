@@ -79,7 +79,7 @@ impl From<uuid::Uuid> for MemoryId {
 
 impl std::fmt::Display for MemoryId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "memory_{}", self.0)
+        write!(f, "mem_{}", self.0.simple())
     }
 }
 
@@ -99,7 +99,7 @@ impl<'de> serde::Deserialize<'de> for MemoryId {
     {
         let v = String::deserialize(d)?;
         let v = v
-            .strip_prefix("memory_")
+            .strip_prefix("mem_")
             .ok_or_else(|| serde::de::Error::custom("invalid memory id"))?;
 
         let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;

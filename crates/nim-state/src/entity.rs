@@ -25,7 +25,7 @@ impl EntityId {
 
 impl std::fmt::Display for EntityId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "entity_{}", self.0)
+        write!(f, "entity_{}", self.0.simple())
     }
 }
 

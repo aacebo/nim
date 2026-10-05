@@ -1,4 +1,63 @@
-use crate::{AnnotationId, ContextId, Embedding, Version};
+use crate::{AnnotationId, Context, Embedding, Source, Version};
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Memory {
+    pub id: MemoryId,
+
+    /// version gets incremented once per update.
+    pub version: Version,
+
+    #[serde(rename = "type")]
+    pub ty: MemoryType,
+
+    /// who/what/where the memory was derived from.
+    pub source: Source,
+
+    /// provenance / derivation
+    pub parents: Vec<MemoryId>,
+
+    /// semantic/episodic links
+    pub associations: Vec<MemoryId>,
+
+    /// the contexts this memory was created from.
+    pub contexts: Vec<Context>,
+
+    /// the generated annotations describing the dimensions
+    /// of the memory that was inferred.
+    pub annotations: Vec<AnnotationId>,
+
+    /// ### Filter
+    ///
+    /// the subjective or physical distinctiveness of an event, object,
+    /// or piece of information that makes it stand out, grab attention,
+    /// and encode more deeply into memory.
+    pub salience: f32,
+
+    /// ### Trace
+    ///
+    /// the physical durability of the memory trace (the engram) in the brain.
+    /// Built primarily in the hippocampus and consolidated into the cortex,
+    /// strength determines how resistant a memory is to forgetting over time.
+    pub strength: f32,
+
+    /// ### Judgement
+    ///
+    /// metacognitive belief in the accuracy of a retrieved memory.
+    /// It is your subjective feeling of
+    /// "I am 100% sure that happened" versus "I think that happened, but I might be wrong."
+    pub confidence: f32,
+
+    /// vector embedding used for search.
+    pub embedding: Option<Embedding>,
+
+    /// how many times has this memory been recalled since creation.
+    pub recalls: u64,
+
+    /// the most recent recall timestamp.
+    pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemoryId(uuid::Uuid);
@@ -85,61 +144,4 @@ impl std::fmt::Display for MemoryType {
             Self::Working => write!(f, "working"),
         }
     }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Memory {
-    pub id: MemoryId,
-
-    /// version gets incremented once per update.
-    pub version: Version,
-
-    #[serde(rename = "type")]
-    pub ty: MemoryType,
-
-    /// provenance / derivation
-    pub parents: Vec<MemoryId>,
-
-    /// semantic/episodic links
-    pub associations: Vec<MemoryId>,
-
-    /// the contexts this memory was created from.
-    pub contexts: Vec<ContextId>,
-
-    /// the generated annotations describing the dimensions
-    /// of the memory that was inferred.
-    pub annotations: Vec<AnnotationId>,
-
-    /// ### Filter
-    ///
-    /// the subjective or physical distinctiveness of an event, object,
-    /// or piece of information that makes it stand out, grab attention,
-    /// and encode more deeply into memory.
-    pub salience: f32,
-
-    /// ### Trace
-    ///
-    /// the physical durability of the memory trace (the engram) in the brain.
-    /// Built primarily in the hippocampus and consolidated into the cortex,
-    /// strength determines how resistant a memory is to forgetting over time.
-    pub strength: f32,
-
-    /// ### Judgement
-    ///
-    /// metacognitive belief in the accuracy of a retrieved memory.
-    /// It is your subjective feeling of
-    /// "I am 100% sure that happened" versus "I think that happened, but I might be wrong."
-    pub confidence: f32,
-
-    /// vector embedding used for search.
-    pub embedding: Option<Embedding>,
-
-    /// how many times has this memory been recalled since creation.
-    pub recalls: u64,
-
-    /// the most recent recall timestamp.
-    pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,
-
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
 }

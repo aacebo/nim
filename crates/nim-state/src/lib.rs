@@ -1,11 +1,25 @@
 mod annotation;
 mod context;
 mod embed;
+mod entity;
+mod goal;
 mod memory;
+mod observation;
+mod plan;
+mod prediction;
+mod region;
+mod source;
 mod version;
 
 pub use annotation::*;
 pub use context::*;
 pub use embed::*;
+pub use entity::*;
+pub use goal::*;
 pub use memory::*;
+pub use observation::*;
+pub use plan::*;
+pub use prediction::*;
+pub use region::*;
+pub use source::*;
 pub use version::*;

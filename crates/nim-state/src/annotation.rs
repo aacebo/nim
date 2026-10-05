@@ -1,5 +1,16 @@
 use crate::Embedding;
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Annotation {
+    pub id: AnnotationId,
+    pub label: Label,
+    pub text: String,
+    pub spans: Vec<Span>,
+    pub confidence: f32,
+    pub embedding: Option<Embedding>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AnnotationId(uuid::Uuid);
 
@@ -97,15 +108,4 @@ impl std::fmt::Display for Label {
             Self::Spatial => write!(f, "spatial"),
         }
     }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Annotation {
-    pub id: AnnotationId,
-    pub label: Label,
-    pub text: String,
-    pub spans: Vec<Span>,
-    pub confidence: f32,
-    pub embedding: Option<Embedding>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
 }

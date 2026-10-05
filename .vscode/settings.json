@@ -7,5 +7,6 @@
   "rust-analyzer.check.workspace": true,
   "rust-analyzer.check.allTargets": true,
   "terminal.integrated.suggest.enabled": false,
+  "terminal.integrated.gpuAcceleration": "off",
   "evenBetterToml.schema.enabled": false
 }

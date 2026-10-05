@@ -3,6 +3,10 @@
 pub struct Version(u64);
 
 impl Version {
+    pub fn new() -> Self {
+        Self(0)
+    }
+
     pub fn inc(&mut self) {
         self.0 += 1;
     }

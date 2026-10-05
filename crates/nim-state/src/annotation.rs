@@ -14,6 +14,12 @@ pub struct Annotation {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AnnotationId(uuid::Uuid);
 
+impl AnnotationId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::now_v7())
+    }
+}
+
 impl std::fmt::Display for AnnotationId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "annotation_{}", self.0)

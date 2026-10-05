@@ -19,6 +19,12 @@ pub struct Plan {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PlanId(uuid::Uuid);
 
+impl PlanId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::now_v7())
+    }
+}
+
 impl std::fmt::Display for PlanId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "plan_{}", self.0)
@@ -65,6 +71,12 @@ pub struct Step {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StepId(uuid::Uuid);
+
+impl StepId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::now_v7())
+    }
+}
 
 impl std::fmt::Display for StepId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

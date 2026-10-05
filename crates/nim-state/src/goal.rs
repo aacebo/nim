@@ -17,6 +17,12 @@ pub struct Goal {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GoalId(uuid::Uuid);
 
+impl GoalId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::now_v7())
+    }
+}
+
 impl std::fmt::Display for GoalId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "goal_{}", self.0)

@@ -12,3 +12,10 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+uuid.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_valid.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "uuid", "chrono", "json"] }
+pgvector = { version = "0.4.2", features = ["sqlx"] }

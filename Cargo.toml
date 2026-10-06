@@ -20,6 +20,7 @@ new_without_default = "allow"
 [workspace.dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.9", default-features = false }
+url = { version = "2" }
 uuid = { version = "1", features = ["v7", "serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
@@ -27,8 +28,9 @@ serde_valid = { version = "2" }
 tokio = { version = "1" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+reqwest = { version = "0.13", default-features = false }
 
 nim = { path = "crates/nim", version = "0.0.0" }
-nim-mem = { path = "crates/nim-mem", version = "0.0.0" }
+nim-ai = { path = "crates/nim-ai", version = "0.0.0" }
 nim-state = { path = "crates/nim-state", version = "0.0.0" }
 nim-store = { path = "crates/nim-store", version = "0.0.0" }

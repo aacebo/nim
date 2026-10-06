@@ -1,17 +1,17 @@
 mod annotation;
 mod entity;
+mod fact;
 mod goal;
 mod memory;
-mod observation;
 mod plan;
 mod prediction;
 pub mod types;
 
 pub use annotation::*;
 pub use entity::*;
+pub use fact::*;
 pub use goal::*;
 pub use memory::*;
-pub use observation::*;
 pub use plan::*;
 pub use prediction::*;
 
@@ -20,7 +20,7 @@ pub struct Storage<'a> {
     pub entities: EntityStorage<'a>,
     pub goals: GoalStorage<'a>,
     pub memories: MemoryStorage<'a>,
-    pub observations: ObservationStorage<'a>,
+    pub facts: FactStorage<'a>,
     pub plans: PlanStorage<'a>,
     pub predictions: PredictionStorage<'a>,
 }
@@ -32,7 +32,7 @@ impl<'a> Storage<'a> {
             entities: EntityStorage::new(pool),
             goals: GoalStorage::new(pool),
             memories: MemoryStorage::new(pool),
-            observations: ObservationStorage::new(pool),
+            facts: FactStorage::new(pool),
             plans: PlanStorage::new(pool),
             predictions: PredictionStorage::new(pool),
         }

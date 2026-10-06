@@ -81,7 +81,7 @@ impl std::fmt::Display for GoalStatus {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum GoalCondition {
     EntityState { entity: EntityId, state: String },
-    Observation { description: String },
+    Fact { description: String },
     Time { before: chrono::DateTime<chrono::Utc> },
     Custom { description: String },
 }

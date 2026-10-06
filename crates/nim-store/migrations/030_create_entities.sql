@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS entities (
     summary     TEXT,
     confidence  FLOAT           NOT NULL,
     embedding   VECTOR(384),
+    recalls     BIGINT          NOT NULL,
+    recalled_at TIMESTAMPTZ,
     created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );

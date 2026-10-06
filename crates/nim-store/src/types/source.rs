@@ -8,5 +8,5 @@ pub enum Source {
     Memory(uuid::Uuid),
     Entity(uuid::Uuid),
     Prediction(uuid::Uuid),
-    Observation(uuid::Uuid),
+    Fact(uuid::Uuid),
 }

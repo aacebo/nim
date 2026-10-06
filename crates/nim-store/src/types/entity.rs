@@ -8,6 +8,8 @@ pub struct EntityRow {
     pub summary: Option<String>,
     pub confidence: f64,
     pub embedding: Option<pgvector::Vector>,
+    pub recalls: i64,
+    pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }

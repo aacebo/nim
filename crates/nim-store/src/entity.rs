@@ -20,6 +20,8 @@ impl<'a> EntityStorage<'a> {
                 summary,
                 confidence,
                 embedding,
+                recalls,
+                recalled_at,
                 created_at,
                 updated_at
             FROM entities
@@ -42,6 +44,8 @@ impl<'a> EntityStorage<'a> {
                 summary,
                 confidence,
                 embedding,
+                recalls,
+                recalled_at,
                 created_at,
                 updated_at
             )
@@ -54,7 +58,9 @@ impl<'a> EntityStorage<'a> {
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10,
+                $11
             )
             RETURNING
                 id,
@@ -64,6 +70,8 @@ impl<'a> EntityStorage<'a> {
                 summary,
                 confidence,
                 embedding,
+                recalls,
+                recalled_at,
                 created_at,
                 updated_at
             "#,
@@ -75,6 +83,8 @@ impl<'a> EntityStorage<'a> {
         .bind(value.summary)
         .bind(value.confidence)
         .bind(value.embedding)
+        .bind(value.recalls)
+        .bind(value.recalled_at)
         .bind(value.created_at)
         .bind(value.updated_at)
         .fetch_one(self.pool)
@@ -92,7 +102,9 @@ impl<'a> EntityStorage<'a> {
                 summary = $4,
                 confidence = $5,
                 embedding = $6,
-                updated_at = $7
+                recalls = $7,
+                recalled_at = $8,
+                updated_at = $9
             WHERE id = $1
             RETURNING
                 id,
@@ -102,6 +114,8 @@ impl<'a> EntityStorage<'a> {
                 summary,
                 confidence,
                 embedding,
+                recalls,
+                recalled_at,
                 created_at,
                 updated_at
             "#,
@@ -112,6 +126,8 @@ impl<'a> EntityStorage<'a> {
         .bind(value.summary)
         .bind(value.confidence)
         .bind(value.embedding)
+        .bind(value.recalls)
+        .bind(value.recalled_at)
         .bind(chrono::Utc::now())
         .fetch_one(self.pool)
         .await

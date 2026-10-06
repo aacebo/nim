@@ -6,6 +6,6 @@ use crate::{EntityId, GoalId};
 pub enum Condition {
     GoalCompleted { goal: GoalId },
     EntityState { entity: EntityId, state: String },
-    Observation { description: String },
+    Fact { description: String },
     Time { after: chrono::DateTime<chrono::Utc> },
 }

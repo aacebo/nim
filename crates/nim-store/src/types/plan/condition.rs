@@ -4,6 +4,6 @@
 pub enum Condition {
     GoalCompleted { goal: uuid::Uuid },
     EntityState { entity: uuid::Uuid, state: String },
-    Observation { description: String },
+    Fact { description: String },
     Time { after: chrono::DateTime<chrono::Utc> },
 }

@@ -1,4 +1,4 @@
-use crate::{EntityId, MemoryId, ObservationId, PredictionId, Region};
+use crate::{EntityId, FactId, MemoryId, PredictionId, Region};
 
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -9,7 +9,7 @@ pub enum Source {
     Memory(MemoryId),
     Entity(EntityId),
     Prediction(PredictionId),
-    Observation(ObservationId),
+    Fact(FactId),
 }
 
 impl std::fmt::Display for Source {
@@ -20,7 +20,7 @@ impl std::fmt::Display for Source {
             Self::Memory(v) => write!(f, "{v}"),
             Self::Entity(v) => write!(f, "{v}"),
             Self::Prediction(v) => write!(f, "{v}"),
-            Self::Observation(v) => write!(f, "{v}"),
+            Self::Fact(v) => write!(f, "{v}"),
         }
     }
 }

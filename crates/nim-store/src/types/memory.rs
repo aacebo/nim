@@ -10,7 +10,7 @@ pub struct MemoryRow {
     pub salience: f64,
     pub strength: f64,
     pub confidence: f64,
-    pub recalls: i32,
+    pub recalls: i64,
     pub description: String,
     pub summary: Option<String>,
     pub embedding: Option<pgvector::Vector>,

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS memories (
     salience        FLOAT           NOT NULL DEFAULT 0.0,
     strength        FLOAT           NOT NULL DEFAULT 0.0,
     confidence      FLOAT           NOT NULL DEFAULT 0.0,
-    recalls         INT             NOT NULL DEFAULT 0,
+    recalls         BIGINT          NOT NULL DEFAULT 0,
     description     TEXT            NOT NULL,
     summary         TEXT,
     embedding       VECTOR(384),

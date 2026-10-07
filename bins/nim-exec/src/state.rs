@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub struct State<'a> {
     pool: &'a sqlx::PgPool,
 }

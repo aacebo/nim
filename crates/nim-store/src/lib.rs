@@ -5,7 +5,7 @@ mod goal;
 mod memory;
 mod plan;
 mod prediction;
-pub mod types;
+mod types;
 
 pub use annotation::*;
 pub use entity::*;
@@ -14,6 +14,7 @@ pub use goal::*;
 pub use memory::*;
 pub use plan::*;
 pub use prediction::*;
+pub use types::*;
 
 pub struct Storage<'a> {
     pub annotations: AnnotationStorage<'a>,

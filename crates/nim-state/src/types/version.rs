@@ -12,6 +12,18 @@ impl Version {
     }
 }
 
+impl From<u64> for Version {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl From<i32> for Version {
+    fn from(value: i32) -> Self {
+        Self(value as u64)
+    }
+}
+
 impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

@@ -7,9 +7,9 @@ pub struct MemoryRow {
     #[sqlx(rename = "type")]
     pub ty: MemoryType,
     pub contexts: sqlx::types::Json<Vec<Context>>,
-    pub salience: f64,
-    pub strength: f64,
-    pub confidence: f64,
+    pub salience: f32,
+    pub strength: f32,
+    pub confidence: f32,
     pub recalls: i64,
     pub description: String,
     pub summary: Option<String>,

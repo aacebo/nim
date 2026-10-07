@@ -25,6 +25,12 @@ impl EntityId {
     }
 }
 
+impl From<uuid::Uuid> for EntityId {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+
 impl std::fmt::Display for EntityId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "entity_{}", self.0.simple())

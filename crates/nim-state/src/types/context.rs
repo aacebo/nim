@@ -28,3 +28,29 @@ pub enum Context {
         environment: Option<String>,
     },
 }
+
+impl From<nim_store::Context> for Context {
+    fn from(value: nim_store::Context) -> Self {
+        match value {
+            nim_store::Context::Temporal { start, end } => Self::Temporal { start, end },
+            nim_store::Context::Spatial {
+                place,
+                latitude,
+                longitude,
+            } => Self::Spatial {
+                place,
+                latitude,
+                longitude,
+            },
+            nim_store::Context::Social { entities } => Self::Social {
+                entities: entities.into_iter().map(EntityId::from).collect(),
+            },
+            nim_store::Context::Emotional { valence, arousal } => Self::Emotional { valence, arousal },
+            nim_store::Context::Goal { goals } => Self::Goal {
+                goals: goals.into_iter().map(GoalId::from).collect(),
+            },
+            nim_store::Context::Situational { activity, environment } => Self::Situational { activity, environment },
+            _ => unreachable!(),
+        }
+    }
+}

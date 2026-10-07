@@ -44,10 +44,9 @@ impl<'a> Context<'a> {
     }
 
     pub fn encode_one(&self, text: &str) -> Result<tokenizers::Encoding, Error> {
-        Ok(self
-            .tokenizer()?
+        self.tokenizer()?
             .encode(text, true)
-            .map_err(|err| Error::custom("ai::encode", err))?)
+            .map_err(|err| Error::custom("ai::encode", err))
     }
 }
 

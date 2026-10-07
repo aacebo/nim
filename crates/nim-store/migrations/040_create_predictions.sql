@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     id          UUID            PRIMARY KEY,
     version     INT             NOT NULL,
     hypothesis  TEXT            NOT NULL,
-    confidence  FLOAT           NOT NULL,
+    confidence  REAL            NOT NULL,
     deadline    TIMESTAMPTZ,
     created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()

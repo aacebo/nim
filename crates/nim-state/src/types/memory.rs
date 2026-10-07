@@ -160,3 +160,14 @@ impl std::fmt::Display for MemoryType {
         }
     }
 }
+
+impl From<nim_store::MemoryType> for MemoryType {
+    fn from(value: nim_store::MemoryType) -> Self {
+        match value {
+            nim_store::MemoryType::Episodic => Self::Episodic,
+            nim_store::MemoryType::Semantic => Self::Semantic,
+            nim_store::MemoryType::Procedural => Self::Procedural,
+            nim_store::MemoryType::Working => Self::Working,
+        }
+    }
+}

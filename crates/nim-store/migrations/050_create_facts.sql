@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS facts (
     id          UUID            PRIMARY KEY,
     description TEXT            NOT NULL,
-    confidence  FLOAT           NOT NULL,
+    confidence  REAL            NOT NULL,
     embedding   VECTOR(384),
     recalls     BIGINT          NOT NULL,
     recalled_at TIMESTAMPTZ,

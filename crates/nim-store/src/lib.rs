@@ -16,6 +16,10 @@ pub use plan::*;
 pub use prediction::*;
 pub use types::*;
 
+pub use sqlx::Error;
+pub use sqlx::PgPool;
+pub use sqlx::migrate;
+
 pub struct Storage<'a> {
     pub annotations: AnnotationStorage<'a>,
     pub entities: EntityStorage<'a>,

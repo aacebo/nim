@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS entities (
     version     INT             NOT NULL,
     name        TEXT            NOT NULL,
     summary     TEXT,
-    confidence  FLOAT           NOT NULL,
+    confidence  REAL            NOT NULL,
     embedding   VECTOR(384),
     recalls     BIGINT          NOT NULL,
     recalled_at TIMESTAMPTZ,

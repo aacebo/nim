@@ -2086,6 +2086,7 @@ name = "nim-state"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "nim-store",
  "serde",
  "uuid",
 ]

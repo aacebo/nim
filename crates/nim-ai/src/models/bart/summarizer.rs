@@ -66,10 +66,9 @@ impl Summarizer {
 
         let tokens = generate::run(&mut model, generation, &input, cx.device())?;
 
-        Ok(cx
-            .tokenizer()?
+        cx.tokenizer()?
             .decode(&tokens, true)
             .map(|summary| summary.trim().to_string())
-            .map_err(|err| Error::custom("ai::decoding", err))?)
+            .map_err(|err| Error::custom("ai::decoding", err))
     }
 }

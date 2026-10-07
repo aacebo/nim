@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS annotations (
     label           TEXT            NOT NULL,
     text            TEXT            NOT NULL,
     spans           JSONB           NOT NULL,
-    confidence      FLOAT           NOT NULL,
+    confidence      REAL            NOT NULL,
     embedding       VECTOR(384),
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS goals (
     version     INT             NOT NULL,
     description TEXT            NOT NULL,
     status      TEXT            NOT NUll,
-    priority    FLOAT           NOT NULL,
+    priority    REAL            NOT NULL,
     deadline    TIMESTAMPTZ,
     conditions  JSONB           NOT NULL,
     created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),

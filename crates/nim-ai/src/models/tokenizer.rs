@@ -9,7 +9,7 @@ use tokenizers::{Model, Tokenizer};
 use crate::Error;
 
 pub fn from_file(path: impl AsRef<Path>) -> Result<Tokenizer, Error> {
-    Ok(Tokenizer::from_file(path.as_ref()).map_err(|err| Error::custom("unknown", err))?)
+    Tokenizer::from_file(path.as_ref()).map_err(|err| Error::custom("unknown", err))
 }
 
 /// The SST-2 and CoNLL-03 checkpoints ship a WordPiece `vocab.txt` and no `tokenizer.json`.

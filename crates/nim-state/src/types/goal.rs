@@ -23,6 +23,12 @@ impl GoalId {
     }
 }
 
+impl From<uuid::Uuid> for GoalId {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+
 impl std::fmt::Display for GoalId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "goal_{}", self.0.simple())

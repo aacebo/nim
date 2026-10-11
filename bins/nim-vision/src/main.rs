@@ -25,24 +25,24 @@ async fn main() -> Result<(), Error> {
 
     sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
     let state = std::sync::Arc::new(State::new(pool));
-    let join = tokio::spawn(on_start());
-    let app = axum::Router::new().nest("/", routes::new()).with_state(state);
+    let join = tokio::spawn(start());
+    let app = axum::Router::new().merge(routes::new()).with_state(state);
     let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
 
-    axum::serve(listener, app).with_graceful_shutdown(on_stop()).await?;
+    axum::serve(listener, app).with_graceful_shutdown(stop()).await?;
     let _ = join.await?;
     Ok(())
 }
 
 #[tracing::instrument]
-async fn on_start() -> Result<(), nim::Error> {
+async fn start() -> Result<(), nim::Error> {
     tracing::info!("listening...");
     Ok(())
 }
 
 #[tracing::instrument]
-async fn on_stop() {
+async fn stop() {
     let ctrl_c = async {
         if let Err(error) = tokio::signal::ctrl_c().await {
             tracing::error!(%error, "failed to listen for Ctrl-C");

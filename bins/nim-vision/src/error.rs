@@ -7,6 +7,7 @@ pub enum Error {
     ParseInt(std::num::ParseIntError),
     Migrate(sqlx::migrate::MigrateError),
     Join(tokio::task::JoinError),
+    Multipart(axum::extract::multipart::MultipartError),
 }
 
 impl From<nim::Error> for Error {
@@ -51,6 +52,12 @@ impl From<tokio::task::JoinError> for Error {
     }
 }
 
+impl From<axum::extract::multipart::MultipartError> for Error {
+    fn from(value: axum::extract::multipart::MultipartError) -> Self {
+        Self::Multipart(value)
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -66,6 +73,7 @@ impl std::fmt::Display for Error {
             Self::Migrate(err) => write!(f, "[error::migrate] -> {err}"),
             Self::IO(err) => write!(f, "[error::io] -> {err}"),
             Self::Join(err) => write!(f, "[error::json] -> {err}"),
+            Self::Multipart(err) => write!(f, "[error::http::multipart] -> {err}"),
         }
     }
 }
@@ -78,6 +86,7 @@ impl std::error::Error for Error {
             Self::ParseInt(err) => Some(err),
             Self::Migrate(err) => Some(err),
             Self::IO(err) => Some(err),
+            Self::Multipart(err) => Some(err),
             _ => None,
         }
     }
@@ -87,6 +96,7 @@ impl axum::response::IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Self::Http(err) => err,
+            Self::Multipart(err) => err.into_response(),
             _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
     }

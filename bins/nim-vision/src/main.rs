@@ -26,7 +26,10 @@ async fn main() -> Result<(), Error> {
     sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
     let state = std::sync::Arc::new(State::new(pool));
     let join = tokio::spawn(start());
-    let app = axum::Router::new().merge(routes::new()).with_state(state);
+    let app = axum::Router::new()
+        .merge(routes::new())
+        .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024))
+        .with_state(state);
     let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
 

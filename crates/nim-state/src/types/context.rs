@@ -76,7 +76,6 @@ impl From<Context> for nim_store::Context {
                 goals: goals.into_iter().map(uuid::Uuid::from).collect(),
             },
             Context::Situational { activity, environment } => Self::Situational { activity, environment },
-            _ => unreachable!(),
         }
     }
 }

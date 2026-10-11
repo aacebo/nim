@@ -20,6 +20,7 @@ pub use sqlx::Error;
 pub use sqlx::PgPool;
 pub use sqlx::migrate;
 
+#[derive(Copy, Clone)]
 pub struct Storage<'a> {
     pub annotations: AnnotationStorage<'a>,
     pub entities: EntityStorage<'a>,

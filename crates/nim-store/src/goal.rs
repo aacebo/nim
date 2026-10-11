@@ -1,5 +1,6 @@
 use crate::types;
 
+#[derive(Copy, Clone)]
 pub struct GoalStorage<'a> {
     pool: &'a sqlx::PgPool,
 }

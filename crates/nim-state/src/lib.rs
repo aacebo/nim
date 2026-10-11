@@ -6,6 +6,7 @@ pub use error::*;
 pub use memory::*;
 pub use types::*;
 
+#[derive(Copy, Clone)]
 pub struct Services<'a> {
     pub memories: MemoryService<'a>,
 }

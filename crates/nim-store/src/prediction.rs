@@ -1,5 +1,6 @@
 use crate::types;
 
+#[derive(Copy, Clone)]
 pub struct PredictionStorage<'a> {
     pool: &'a sqlx::PgPool,
 }
@@ -115,6 +116,7 @@ impl<'a> PredictionStorage<'a> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct PredictionMemoriesStorage<'a> {
     pool: &'a sqlx::PgPool,
 }

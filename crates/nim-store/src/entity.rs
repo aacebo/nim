@@ -1,5 +1,6 @@
 use crate::types;
 
+#[derive(Copy, Clone)]
 pub struct EntityStorage<'a> {
     pool: &'a sqlx::PgPool,
 }
@@ -234,6 +235,7 @@ impl<'a> EntityMemoriesStorage<'a> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct EntityRelationsStorage<'a> {
     pool: &'a sqlx::PgPool,
 }

@@ -12,6 +12,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+nim.workspace = true
 axum = { workspace = true, features = ["http1", "json", "query", "tokio", "tracing", "ws"] }
 chrono = { workspace = true }
 uuid = { workspace = true }

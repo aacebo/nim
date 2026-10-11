@@ -1,5 +1,6 @@
 use crate::types;
 
+#[derive(Copy, Clone)]
 pub struct AnnotationStorage<'a> {
     pool: &'a sqlx::PgPool,
 }

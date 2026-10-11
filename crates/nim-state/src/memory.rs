@@ -2,6 +2,7 @@ use nim_store::{MemoryStorage, PgPool};
 
 use crate::{Context, Error, Memory};
 
+#[derive(Copy, Clone)]
 pub struct MemoryService<'a> {
     store: MemoryStorage<'a>,
 }

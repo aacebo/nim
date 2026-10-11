@@ -2109,7 +2109,9 @@ dependencies = [
 name = "nim-vision"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
+ "nim",
  "sqlx",
  "tokio",
  "tracing",

@@ -13,24 +13,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let port: u16 = std::env::var("PORT")?.parse()?;
     let database_url = std::env::var("DATABASE_URL")?;
-    let pool = std::sync::Arc::new(sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await?);
+    let pool = std::sync::Arc::new(
+        sqlx::postgres::PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&database_url)
+            .await?,
+    );
 
     sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
-    let state = State::new(pool);
-    let join = tokio::spawn(on_start(state));
+    let state = std::sync::Arc::new(State::new(pool));
+    let join = tokio::spawn(on_start(state.clone()));
     let app = axum::Router::new().with_state(state);
     let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
 
     axum::serve(listener, app).with_graceful_shutdown(on_shutdown()).await?;
-    join.await?;
+    let _ = join.await?;
     Ok(())
 }
 
-async fn on_start(_state: State<'_>) -> Result<(), nim::Error> {
+async fn on_start(_state: std::sync::Arc<State>) -> Result<(), nim::Error> {
     tracing::info!("listening for events...");
     Ok(())
 }

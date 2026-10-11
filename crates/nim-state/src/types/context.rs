@@ -54,3 +54,29 @@ impl From<nim_store::Context> for Context {
         }
     }
 }
+
+impl From<Context> for nim_store::Context {
+    fn from(value: Context) -> Self {
+        match value {
+            Context::Temporal { start, end } => Self::Temporal { start, end },
+            Context::Spatial {
+                place,
+                latitude,
+                longitude,
+            } => Self::Spatial {
+                place,
+                latitude,
+                longitude,
+            },
+            Context::Social { entities } => Self::Social {
+                entities: entities.into_iter().map(uuid::Uuid::from).collect(),
+            },
+            Context::Emotional { valence, arousal } => Self::Emotional { valence, arousal },
+            Context::Goal { goals } => Self::Goal {
+                goals: goals.into_iter().map(uuid::Uuid::from).collect(),
+            },
+            Context::Situational { activity, environment } => Self::Situational { activity, environment },
+            _ => unreachable!(),
+        }
+    }
+}

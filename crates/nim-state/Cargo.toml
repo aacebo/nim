@@ -16,5 +16,5 @@ workspace = true
 chrono.workspace = true
 serde.workspace = true
 uuid.workspace = true
-
+tracing.workspace = true
 nim-store.workspace = true

@@ -10,6 +10,7 @@ impl<'a> PredictionStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::PredictionRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -30,6 +31,7 @@ impl<'a> PredictionStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::PredictionRow) -> Result<types::PredictionRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -72,6 +74,7 @@ impl<'a> PredictionStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::PredictionRow) -> Result<types::PredictionRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -102,6 +105,7 @@ impl<'a> PredictionStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -126,6 +130,7 @@ impl<'a> PredictionMemoriesStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(
         &self,
         prediction_id: uuid::Uuid,
@@ -147,6 +152,7 @@ impl<'a> PredictionMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::PredictionMemoryRow) -> Result<types::PredictionMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -173,6 +179,7 @@ impl<'a> PredictionMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::PredictionMemoryRow) -> Result<types::PredictionMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -193,6 +200,7 @@ impl<'a> PredictionMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

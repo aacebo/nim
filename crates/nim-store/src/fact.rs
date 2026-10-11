@@ -10,6 +10,7 @@ impl<'a> FactStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::FactRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -31,6 +32,7 @@ impl<'a> FactStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::FactRow) -> Result<types::FactRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -77,6 +79,7 @@ impl<'a> FactStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::FactRow) -> Result<types::FactRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -111,6 +114,7 @@ impl<'a> FactStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -135,6 +139,7 @@ impl<'a> FactMemoriesStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, fact_id: uuid::Uuid, memory_id: uuid::Uuid) -> Result<types::FactMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -152,6 +157,7 @@ impl<'a> FactMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::FactMemoryRow) -> Result<types::FactMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -178,6 +184,7 @@ impl<'a> FactMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::FactMemoryRow) -> Result<types::FactMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -198,6 +205,7 @@ impl<'a> FactMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

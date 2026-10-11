@@ -10,6 +10,7 @@ impl<'a> AnnotationStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::AnnotationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -32,6 +33,7 @@ impl<'a> AnnotationStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::AnnotationRow) -> Result<types::AnnotationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -82,6 +84,7 @@ impl<'a> AnnotationStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::AnnotationRow) -> Result<types::AnnotationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -119,6 +122,7 @@ impl<'a> AnnotationStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

@@ -77,6 +77,12 @@ impl From<uuid::Uuid> for MemoryId {
     }
 }
 
+impl From<MemoryId> for uuid::Uuid {
+    fn from(value: MemoryId) -> Self {
+        value.0
+    }
+}
+
 impl std::fmt::Display for MemoryId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mem_{}", self.0.simple())
@@ -168,6 +174,17 @@ impl From<nim_store::MemoryType> for MemoryType {
             nim_store::MemoryType::Semantic => Self::Semantic,
             nim_store::MemoryType::Procedural => Self::Procedural,
             nim_store::MemoryType::Working => Self::Working,
+        }
+    }
+}
+
+impl From<MemoryType> for nim_store::MemoryType {
+    fn from(value: MemoryType) -> Self {
+        match value {
+            MemoryType::Episodic => Self::Episodic,
+            MemoryType::Semantic => Self::Semantic,
+            MemoryType::Procedural => Self::Procedural,
+            MemoryType::Working => Self::Working,
         }
     }
 }

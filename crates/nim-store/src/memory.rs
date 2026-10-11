@@ -10,6 +10,7 @@ impl<'a> MemoryStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::MemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -37,6 +38,7 @@ impl<'a> MemoryStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::MemoryRow) -> Result<types::MemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -107,6 +109,7 @@ impl<'a> MemoryStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::MemoryRow) -> Result<types::MemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -158,6 +161,7 @@ impl<'a> MemoryStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -183,6 +187,7 @@ impl<'a> MemoryRelationsStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(
         &self,
         source_id: uuid::Uuid,
@@ -204,6 +209,7 @@ impl<'a> MemoryRelationsStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::MemoryRelationRow) -> Result<types::MemoryRelationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -230,6 +236,7 @@ impl<'a> MemoryRelationsStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::MemoryRelationRow) -> Result<types::MemoryRelationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -250,6 +257,7 @@ impl<'a> MemoryRelationsStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

@@ -10,6 +10,7 @@ impl<'a> EntityStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::EntityRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -34,6 +35,7 @@ impl<'a> EntityStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::EntityRow) -> Result<types::EntityRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -92,6 +94,7 @@ impl<'a> EntityStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::EntityRow) -> Result<types::EntityRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -134,6 +137,7 @@ impl<'a> EntityStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -157,6 +161,7 @@ impl<'a> EntityMemoriesStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, entity_id: uuid::Uuid, memory_id: uuid::Uuid) -> Result<types::EntityMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -174,6 +179,7 @@ impl<'a> EntityMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::EntityMemoryRow) -> Result<types::EntityMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -200,6 +206,7 @@ impl<'a> EntityMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::EntityMemoryRow) -> Result<types::EntityMemoryRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -220,6 +227,7 @@ impl<'a> EntityMemoriesStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -245,6 +253,7 @@ impl<'a> EntityRelationsStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(
         &self,
         source_id: uuid::Uuid,
@@ -269,6 +278,7 @@ impl<'a> EntityRelationsStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::EntityRelationRow) -> Result<types::EntityRelationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -299,6 +309,7 @@ impl<'a> EntityRelationsStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::EntityRelationRow) -> Result<types::EntityRelationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -321,6 +332,7 @@ impl<'a> EntityRelationsStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid, types::EntityRelationType)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

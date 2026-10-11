@@ -10,6 +10,7 @@ impl<'a> PlanStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::PlanRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -29,6 +30,7 @@ impl<'a> PlanStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::PlanRow) -> Result<types::PlanRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -67,6 +69,7 @@ impl<'a> PlanStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::PlanRow) -> Result<types::PlanRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -95,6 +98,7 @@ impl<'a> PlanStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -119,6 +123,7 @@ impl<'a> StepStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::StepRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -142,6 +147,7 @@ impl<'a> StepStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::StepRow) -> Result<types::StepRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -196,6 +202,7 @@ impl<'a> StepStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::StepRow) -> Result<types::StepRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -236,6 +243,7 @@ impl<'a> StepStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

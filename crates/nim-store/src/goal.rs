@@ -10,6 +10,7 @@ impl<'a> GoalStorage<'a> {
         Self { pool }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::GoalRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -33,6 +34,7 @@ impl<'a> GoalStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::GoalRow) -> Result<types::GoalRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -87,6 +89,7 @@ impl<'a> GoalStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::GoalRow) -> Result<types::GoalRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -126,6 +129,7 @@ impl<'a> GoalStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

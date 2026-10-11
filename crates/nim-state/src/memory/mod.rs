@@ -1,3 +1,7 @@
+mod create;
+
+pub use create::*;
+
 use nim_store::{MemoryStorage, PgPool};
 
 use crate::{Context, Error, Memory};
@@ -16,6 +20,7 @@ impl<'a> MemoryService<'a> {
 }
 
 impl<'a> MemoryService<'a> {
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<Memory, Error> {
         let row = self.store.find_by_id(id).await?;
 

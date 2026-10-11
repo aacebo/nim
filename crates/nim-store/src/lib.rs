@@ -16,9 +16,11 @@ pub use plan::*;
 pub use prediction::*;
 pub use types::*;
 
+pub use pgvector::Vector;
 pub use sqlx::Error;
 pub use sqlx::PgPool;
 pub use sqlx::migrate;
+pub use sqlx::types::Json;
 
 #[derive(Copy, Clone)]
 pub struct Storage<'a> {

@@ -27,6 +27,12 @@ impl From<uuid::Uuid> for AnnotationId {
     }
 }
 
+impl From<AnnotationId> for uuid::Uuid {
+    fn from(value: AnnotationId) -> Self {
+        value.0
+    }
+}
+
 impl std::fmt::Display for AnnotationId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "annotation_{}", self.0.simple())

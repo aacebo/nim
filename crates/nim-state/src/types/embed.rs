@@ -13,3 +13,9 @@ impl<const N: usize> From<[f32; N]> for Embedding {
         Self(value.to_vec())
     }
 }
+
+impl From<nim_store::Vector> for Embedding {
+    fn from(value: nim_store::Vector) -> Self {
+        Self(value.to_vec())
+    }
+}

@@ -1,16 +1,16 @@
 #![allow(dead_code)]
 
 #[derive(Clone)]
-pub struct State<'a> {
-    pub pool: std::sync::Arc<sqlx::PgPool>,
-    pub services: nim::state::Services<'a>,
+pub struct State {
+    pool: std::sync::Arc<sqlx::PgPool>,
 }
 
-impl<'a> State<'a> {
+impl State {
     pub fn new(pool: std::sync::Arc<sqlx::PgPool>) -> Self {
-        Self {
-            pool,
-            services: nim::state::Services::new(pool.as_ref()),
-        }
+        Self { pool }
+    }
+
+    pub fn services(&self) -> nim::state::Services<'_> {
+        nim::state::Services::new(&self.pool)
     }
 }

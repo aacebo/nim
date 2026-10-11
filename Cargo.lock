@@ -2089,6 +2089,7 @@ dependencies = [
  "chrono",
  "nim-store",
  "serde",
+ "tracing",
  "uuid",
 ]
 
@@ -2100,6 +2101,7 @@ dependencies = [
  "pgvector",
  "serde",
  "sqlx",
+ "tracing",
  "uuid",
 ]
 

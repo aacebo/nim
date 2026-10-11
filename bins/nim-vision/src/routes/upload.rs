@@ -1,6 +1,7 @@
+use axum::response::IntoResponse;
+
 use crate::State;
 
-#[tracing::instrument(name = "upload", skip(state))]
-pub async fn route(state: State) -> axum::response::Response {
-    todo!()
+pub async fn route(_state: State, _multipart: axum::extract::Multipart) -> axum::response::Response {
+    axum::http::StatusCode::OK.into_response()
 }

@@ -8,14 +8,14 @@ pub use error::*;
 pub use state::*;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
         .compact()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("nim_vision=debug")))
         .init();
 
-    let port: u16 = std::env::var("PORT")?.parse()?;
-    let database_url = std::env::var("DATABASE_URL")?;
+    let port: u16 = std::env::var("PORT").unwrap_or("8080".into()).parse()?;
+    let database_url = std::env::var("DATABASE_URL").map_err(|err| ("DATABASE_URL", err))?;
     let pool = std::sync::Arc::new(
         sqlx::postgres::PgPoolOptions::new()
             .max_connections(5)

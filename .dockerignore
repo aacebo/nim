@@ -1,4 +1,22 @@
+# Ignore local compilation artifacts (prevents Mac/Windows/Linux mismatches)
 target/
-**/target/
+
+# Ignore cargo credentials and local registry overrides
+.cargo/
+
+# Ignore git history to keep the build context lightweight
 .git/
-*.md
+.gitignore
+
+# Ignore local environment variables and secrets
+.env
+*.env
+
+# Ignore IDE specific setups
+.vscode/
+.idea/
+
+# Ignore Docker files themselves
+Dockerfile
+docker-compose.yml
+.dockerignore

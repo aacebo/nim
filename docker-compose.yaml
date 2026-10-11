@@ -53,16 +53,18 @@ services:
   vision:
     container_name: nim-vision
     image: rust:alpine
-    command: cargo run -p nim-vision --release
+    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-vision --release"
     working_dir: /app
     ports:
       - 3002:8080
     environment:
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      OPENSSL_STATIC: 1
+      OPENSSL_DIR: /usr
+      RUST_LOG: info
     volumes:
-      - type: bind
-        source: ./
-        target: /app
+      - .:/app
+      - /app/target
     depends_on:
       postgres:
         condition: service_healthy

@@ -12,6 +12,8 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+nim.workspace = true
+axum = { workspace = true, features = ["multipart"] }
 chrono = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros", "migrate"] }

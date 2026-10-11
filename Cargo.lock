@@ -2069,7 +2069,9 @@ dependencies = [
 name = "nim-audio"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "chrono",
+ "nim",
  "sqlx",
  "tokio",
  "tracing",

@@ -19,36 +19,42 @@ services:
   audio:
     container_name: nim-audio
     image: rust:alpine
-    command: cargo run -p nim-audio --release
+    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-audio --release"
     working_dir: /app
     ports:
       - 3000:8080
     environment:
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      OPENSSL_STATIC: 1
+      OPENSSL_DIR: /usr
+      RUST_LOG: info
     volumes:
-      - type: bind
-        source: ./
-        target: /app
+      - .:/app
+      - /app/target
     depends_on:
       postgres:
         condition: service_healthy
 
+
   exec:
     container_name: nim-exec
     image: rust:alpine
-    command: cargo run -p nim-exec --release
+    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-exec --release"
     working_dir: /app
     ports:
       - 3001:8080
     environment:
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      OPENSSL_STATIC: 1
+      OPENSSL_DIR: /usr
+      RUST_LOG: info
     volumes:
-      - type: bind
-        source: ./
-        target: /app
+      - .:/app
+      - /app/target
     depends_on:
       postgres:
         condition: service_healthy
+
 
   vision:
     container_name: nim-vision

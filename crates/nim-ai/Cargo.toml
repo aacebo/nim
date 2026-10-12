@@ -1,6 +1,6 @@
 [package]
 name = "nim-ai"
-description = "Mage AI routines (embeddings, entities, keywords, PII, sentiment, summarization)"
+description = "NIM AI routines (embeddings, entities, keywords, PII, sentiment, summarization)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

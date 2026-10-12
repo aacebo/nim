@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-/// Where downloaded model weights live: `$MAGE_CACHE`, else a `.cache/` directory at the root of
+/// Where downloaded model weights live: `$NIM_CACHE`, else a `.cache/` directory at the root of
 /// the enclosing repository, else `hf-hub`'s own default (`$HF_HOME`, else `~/.cache/huggingface`).
 ///
-/// The fallback matters: a published `mage-ai` may run with no repository above it at all.
+/// The fallback matters: a published `nim-ai` may run with no repository above it at all.
 pub fn dir() -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("MAGE_CACHE") {
+    if let Some(path) = std::env::var_os("NIM_CACHE") {
         return Some(PathBuf::from(path));
     }
 

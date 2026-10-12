@@ -1,18 +1,20 @@
+mod error;
 mod state;
 
-use state::*;
+pub use error::*;
+pub use state::*;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Error> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
-        .with(tracing_subscriber::filter::Targets::new().with_target("nim_exec", tracing::Level::DEBUG))
+        .with(tracing_subscriber::filter::Targets::new().with_target("nim_vision", tracing::Level::DEBUG))
         .init();
 
-    let port: u16 = std::env::var("PORT")?.parse()?;
-    let database_url = std::env::var("DATABASE_URL")?;
+    let port: u16 = std::env::var("PORT").unwrap_or("8080".into()).parse()?;
+    let database_url = std::env::var("DATABASE_URL").map_err(|err| ("DATABASE_URL", err))?;
     let pool = std::sync::Arc::new(
         sqlx::postgres::PgPoolOptions::new()
             .max_connections(5)

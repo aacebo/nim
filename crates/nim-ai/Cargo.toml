@@ -26,6 +26,7 @@ candle-nn = { version = "0.11" }
 candle-transformers = { version = "0.11" }
 tokenizers = { version = "0.22" }
 hf-hub = { version = "0.5" }
+image = { version = "0.25", default-features = false, features = ["bmp", "gif", "ico", "jpeg", "png", "tiff", "webp"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 candle-core = { version = "0.11", features = ["accelerate"] }

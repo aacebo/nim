@@ -93,6 +93,10 @@ pub trait Classify: Send + Sync {
     fn classify(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error>;
 }
 
+pub trait VisionClassify: Send + Sync {
+    fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
+}
+
 /// Token classification: labelled spans per input.
 ///
 /// Two methods, because the two tasks want different decodes of the same forward pass. A local

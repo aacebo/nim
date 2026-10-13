@@ -1,6 +1,7 @@
 pub mod bart;
 pub mod bert;
 pub mod distilbert;
+pub mod mobilenet;
 
 mod capability;
 mod loader;
@@ -13,10 +14,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use candle_core::{DType, Device};
-pub use capability::{Classify, Context, Embed, GenOpts, Generate, Label, TokenClassify, Word};
-pub use loader::Loader;
-pub use model_id::ModelId;
-pub use provider::Provider;
+
+pub use capability::*;
+pub use loader::*;
+pub use model_id::*;
+pub use provider::*;
 
 use crate::Error;
 use crate::clients::fs::FileSystem;
@@ -45,6 +47,7 @@ pub enum Architecture {
     Llama,
     Mistral,
     T5,
+    MobileNetV2,
     #[default]
     #[serde(other)]
     Unknown,
@@ -62,6 +65,7 @@ impl Architecture {
             Self::Llama => "llama",
             Self::Mistral => "mistral",
             Self::T5 => "t5",
+            Self::MobileNetV2 => "mobilenet_v2",
             Self::Unknown => "??",
         }
     }
@@ -81,6 +85,7 @@ impl FromStr for Architecture {
             "llama" => Self::Llama,
             "mistral" => Self::Mistral,
             "t5" => Self::T5,
+            "mobilenet_v2" => Self::MobileNetV2,
             _ => Self::Unknown,
         })
     }
@@ -99,6 +104,7 @@ pub enum AnyModel {
     TokenClassifier(bert::TokenClassifier),
     SequenceClassifier(distilbert::SequenceClassifier),
     Summarizer(bart::Summarizer),
+    VisionClassifier(mobilenet::Classifier),
     Remote(RemoteModel),
 }
 
@@ -129,10 +135,6 @@ impl Model {
     pub fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> Result<Self, Error> {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
-        let tokenizer = repo.tokenizer()?;
-
-        // `config.json` names the architecture; the architecture decides which capabilities the
-        // weights can serve.
         let architecture: Probe = repo.config()?;
         let model = match architecture.architecture {
             Architecture::Bart => {
@@ -142,6 +144,15 @@ impl Model {
             Architecture::DistilBert => {
                 let config: distilbert::Config = repo.config()?;
                 AnyModel::SequenceClassifier(distilbert::SequenceClassifier::new(repo.vars()?, &config)?)
+            }
+            Architecture::MobileNetV2 => {
+                let config: mobilenet::Config = repo.config()?;
+                let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
+                AnyModel::VisionClassifier(mobilenet::Classifier::new(
+                    mobilenet::MobileNetV2::new(repo.vars()?, &config)?,
+                    config,
+                    processor,
+                ))
             }
             // A BERT checkpoint is an embedder or a token classifier depending on whether it
             // carries a label map -- a classification head is exactly what `id2label` announces.
@@ -163,7 +174,10 @@ impl Model {
 
         Ok(Self {
             model,
-            tokenizer: Some(tokenizer),
+            tokenizer: match architecture.architecture {
+                Architecture::MobileNetV2 => None,
+                _ => Some(repo.tokenizer()?),
+            },
             device,
             name,
         })
@@ -185,6 +199,13 @@ impl Model {
         match &self.model {
             AnyModel::SequenceClassifier(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_vision_classify(&self) -> Option<&dyn VisionClassify> {
+        match &self.model {
+            AnyModel::VisionClassifier(model) => Some(model),
             _ => None,
         }
     }

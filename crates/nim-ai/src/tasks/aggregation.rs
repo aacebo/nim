@@ -1,9 +1,10 @@
 use tokenizers::Encoding;
 
-use super::char_offset;
 use crate::Error;
 use crate::models::Word;
 use crate::types::{Entity, Offset};
+
+use super::char_offset;
 
 /// Merges sub-word pieces back into whole words, averaging their scores. The label of a word's
 /// first piece wins, matching HuggingFace's aggregation.

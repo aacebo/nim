@@ -1,12 +1,13 @@
 use candle_core::Tensor;
 use candle_nn::{Linear, Module, VarBuilder, ops};
 
-use super::config::Config;
-use super::model::Bert;
 use crate::Error;
 use crate::models::{Context, Forward, TokenClassify, Word};
 use crate::tasks::{aggregation, bioes};
 use crate::types::Entity;
+
+use super::config::Config;
+use super::model::Bert;
 
 pub struct TokenClassifier {
     bert: Bert,

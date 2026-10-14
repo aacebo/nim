@@ -1,6 +1,7 @@
-use super::char_offset;
 use crate::models::Word;
 use crate::types::{Entity, Offset};
+
+use super::char_offset;
 
 /// BIOES decoding, distinct from the plain IOB1 aggregation used for NER: it honours `E-`/`S-`
 /// tags, merges adjacent same-label entities, and weights merged scores by token count.

@@ -3,11 +3,12 @@ use std::sync::Mutex;
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use super::config::Config;
-use super::model::Bart;
 use crate::Error;
 use crate::models::{Context, GenOpts, Generate};
 use crate::pipelines::generate;
+
+use super::config::Config;
+use super::model::Bart;
 
 /// BART behind the `Generate` capability.
 ///

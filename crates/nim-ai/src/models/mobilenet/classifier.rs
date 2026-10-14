@@ -1,10 +1,11 @@
 use candle_nn::ops;
 
+use crate::Error;
+use crate::models::{Context, Label, VisionClassify};
+
 use super::config::Config;
 use super::model::MobileNetV2;
 use super::processor::Processor;
-use crate::Error;
-use crate::models::{Context, Label, VisionClassify};
 
 pub struct Classifier {
     model: MobileNetV2,

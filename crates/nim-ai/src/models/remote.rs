@@ -1,8 +1,9 @@
-use super::RemoteModel;
-use super::capability::{Classify, Context, Embed, GenOpts, Generate, Label, TokenClassify};
 use crate::Error;
 use crate::tasks::anchor;
 use crate::types::Entity;
+
+use super::RemoteModel;
+use super::capability::{Classify, Context, Embed, GenOpts, Generate, Label, TokenClassify};
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
                         schema: `label` is your chosen class and `score` is your confidence from \

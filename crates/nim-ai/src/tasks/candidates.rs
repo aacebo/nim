@@ -1,5 +1,6 @@
-use super::stopwords;
 use crate::types::Offset;
+
+use super::stopwords;
 
 const MIN_LENGTH: usize = 3;
 

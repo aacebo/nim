@@ -2,8 +2,9 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 use candle_transformers::models::distilbert;
 
-use super::config::Config;
 use crate::{Error, models::Forward};
+
+use super::config::Config;
 
 pub struct DistilBert {
     inner: distilbert::DistilBertModel,

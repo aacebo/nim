@@ -1,12 +1,13 @@
 use candle_core::{DType, Tensor};
 use candle_nn::VarBuilder;
 
-use super::config::Config;
-use super::model::Bert;
 use crate::{
     Error,
     models::{Context, Embed, Forward},
 };
+
+use super::config::Config;
+use super::model::Bert;
 
 pub struct Embedder {
     bert: Bert,

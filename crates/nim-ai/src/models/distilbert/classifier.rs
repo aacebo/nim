@@ -1,12 +1,13 @@
 use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, Module, VarBuilder, ops};
 
-use super::config::Config;
-use super::model::DistilBert;
 use crate::{
     Error,
     models::{Classify, Context, Forward, Label},
 };
+
+use super::config::Config;
+use super::model::DistilBert;
 
 const LABELS: usize = 2;
 

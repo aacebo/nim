@@ -12,7 +12,8 @@ pub struct MobileNetV2 {
 
 impl MobileNetV2 {
     pub fn new(vars: VarBuilder, config: &Config) -> Result<Self> {
-        let channels = [16, 24, 24, 32, 32, 32, 64, 64, 64, 64, 96, 96, 96, 160, 160, 160, 320].map(|v| config.channels(v));
+        let channels =
+            [16, 24, 24, 32, 32, 32, 64, 64, 64, 64, 96, 96, 96, 160, 160, 160, 320].map(|channels| config.channels(channels));
         let strides = [2, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1];
         let stem = Stem::new(
             vars.pp("mobilenet_v2.conv_stem"),
@@ -21,11 +22,15 @@ impl MobileNetV2 {
             config.channels(32),
             channels[0],
         )?;
+
         let mut current_stride = 2;
         let mut layers = Vec::with_capacity(strides.len());
+
         for (index, stride) in strides.into_iter().enumerate() {
             let stride = if current_stride == config.output_stride { 1 } else { stride };
+
             current_stride *= stride;
+
             layers.push(Block::new(
                 vars.pp(format!("mobilenet_v2.layer.{index}")),
                 config,
@@ -34,7 +39,9 @@ impl MobileNetV2 {
                 stride,
             )?);
         }
+
         let outputs = config.output_channels();
+
         Ok(Self {
             stem,
             layers,
@@ -48,6 +55,7 @@ impl MobileNetV2 {
         for layer in &self.layers {
             output = layer.forward(&output)?;
         }
+
         self.classifier.forward(&self.head.forward(&output)?.mean((2, 3))?)
     }
 }
@@ -75,9 +83,11 @@ impl Stem {
 
     fn forward(&self, input: &Tensor) -> Result<Tensor> {
         let mut output = self.first.forward(input)?;
+
         if let Some(expand) = &self.expand {
             output = expand.forward(&output)?;
         }
+
         self.reduce.forward(&self.depthwise.forward(&output)?)
     }
 }
@@ -92,6 +102,7 @@ struct Block {
 impl Block {
     fn new(vars: VarBuilder, c: &Config, input: usize, output: usize, stride: usize) -> Result<Self> {
         let expanded = c.channels((input as f64 * c.expand_ratio).round() as usize);
+
         Ok(Self {
             expand: Layer::new(vars.pp("expand_1x1"), c, input, expanded, 1, 1, 1, true)?,
             depthwise: Layer::new(vars.pp("conv_3x3"), c, expanded, expanded, 3, stride, expanded, true)?,
@@ -102,7 +113,12 @@ impl Block {
 
     fn forward(&self, input: &Tensor) -> Result<Tensor> {
         let output = self.reduce.forward(&self.depthwise.forward(&self.expand.forward(input)?)?)?;
-        if self.residual { input + output } else { Ok(output) }
+
+        if self.residual {
+            return input + output;
+        }
+
+        Ok(output)
     }
 }
 
@@ -152,7 +168,9 @@ impl Layer {
         } else {
             input.clone()
         };
+
         let output = input.apply(&self.convolution)?.apply_t(&self.normalization, false)?;
+
         if self.activation {
             output.clamp(0f32, 6f32)
         } else {
@@ -172,6 +190,7 @@ fn pad_same(input: &Tensor, kernel: usize, stride: usize) -> Result<Tensor> {
     };
     let vertical = padding(height);
     let horizontal = padding(width);
+
     input
         .pad_with_zeros(2, vertical / 2, vertical - vertical / 2)?
         .pad_with_zeros(3, horizontal / 2, horizontal - horizontal / 2)

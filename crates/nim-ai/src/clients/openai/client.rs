@@ -2,11 +2,12 @@ use std::time::Duration;
 
 use reqwest::blocking::Client;
 
-use super::types::{ChatResponse, EmbeddingsResponse, Message};
 use crate::{
     Error,
     models::{ModelId, Provider},
 };
+
+use super::types::{ChatResponse, EmbeddingsResponse, Message};
 
 /// An OpenAI-compatible client. The same schema is spoken by Azure OpenAI, Ollama, vLLM,
 /// LM Studio, OpenRouter and Together, so `base_url` is all that differs between them.

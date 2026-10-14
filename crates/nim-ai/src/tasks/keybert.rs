@@ -1,7 +1,8 @@
-use super::{candidates, scorer};
 use crate::Error;
 use crate::models::{Context, Embed};
 use crate::types::Keyword;
+
+use super::{candidates, scorer};
 
 /// KeyBERT: embed the document, embed each candidate phrase, rank candidates by cosine similarity
 /// to the document. Any embedder will do -- which is the point of taking `&dyn Embed` rather than

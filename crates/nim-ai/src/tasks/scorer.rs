@@ -1,5 +1,6 @@
-use super::candidates::Candidate;
 use crate::types::Keyword;
+
+use super::candidates::Candidate;
 
 /// Ranks candidates by cosine similarity to the document. Vectors are L2-normalized, so the
 /// dot product is the cosine.

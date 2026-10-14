@@ -1,5 +1,6 @@
-use super::char_offset;
 use crate::types::Offset;
+
+use super::char_offset;
 
 /// Locates `needle` in `text` so a remote result can carry a real span.
 ///

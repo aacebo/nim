@@ -1,83 +1,103 @@
 use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, Module, VarBuilder, ops};
 
-use crate::{
-    Error,
-    models::{Classify, Context, Forward, Label},
-};
+use crate::Error;
+use crate::models::{Context, EntityClassify, Forward, Label, SequenceClassify};
+use crate::tasks::{aggregation, decode_entities};
+use crate::types::Entity;
 
 use super::config::Config;
 use super::model::DistilBert;
 
-const LABELS: usize = 2;
-
-pub struct SequenceClassifier {
+pub struct Classifier {
     distilbert: DistilBert,
-    pre_classifier: Linear,
+    pre_classifier: Option<Linear>,
     classifier: Linear,
+    labels: Vec<String>,
 }
 
-impl SequenceClassifier {
+impl Classifier {
     pub fn new(vars: VarBuilder, config: &Config) -> Result<Self, Error> {
         let hidden = config.hidden_size();
+        let labels = config.labels()?;
+        let pre_classifier = vars
+            .contains_tensor("pre_classifier.weight")
+            .then(|| candle_nn::linear(hidden, hidden, vars.pp("pre_classifier")))
+            .transpose()?;
 
         Ok(Self {
             distilbert: DistilBert::new(vars.clone(), config)?,
-            pre_classifier: candle_nn::linear(hidden, hidden, vars.pp("pre_classifier"))?,
-            classifier: candle_nn::linear(hidden, LABELS, vars.pp("classifier"))?,
+            pre_classifier,
+            classifier: candle_nn::linear(hidden, labels.len(), vars.pp("classifier"))?,
+            labels,
         })
     }
-
-    pub fn forward(&self, ids: &Tensor, padding: &Tensor) -> Result<Vec<Vec<f32>>, Error> {
-        let hidden = self.distilbert.forward(ids, padding)?;
-        let pooled = hidden.i((.., 0))?;
-
-        Ok(self
-            .pre_classifier
-            .forward(&pooled)
-            .and_then(|v| v.relu())
-            .and_then(|v| self.classifier.forward(&v))
-            .and_then(|logits| ops::softmax(&logits, 1))
-            .and_then(|probs| probs.to_vec2::<f32>())?)
-    }
 }
 
-impl Forward for SequenceClassifier {
+impl Forward for Classifier {
     type Input = (Tensor, Tensor);
-    type Output = Vec<Vec<f32>>;
+    type Output = Tensor;
 
     fn forward(&self, (ids, padding): Self::Input) -> Result<Self::Output, Error> {
-        self.forward(&ids, &padding)
+        let hidden = self.distilbert.forward(&ids, &padding)?;
+        let hidden = match &self.pre_classifier {
+            Some(layer) => layer.forward(&hidden)?.relu()?,
+            None => hidden,
+        };
+
+        Ok(self.classifier.forward(&hidden)?)
     }
 }
 
-impl Classify for SequenceClassifier {
-    fn classify(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error> {
+impl SequenceClassify for Classifier {
+    fn classify_sequence(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error> {
         if text.is_empty() {
             return Ok(Vec::new());
         }
 
         let batch = cx.encode(text)?;
-        let probs = self.forward(&batch.ids, &batch.padding()?)?;
+        let padding = batch.padding()?;
+        let logits = Forward::forward(self, (batch.ids, padding))?.i((.., 0))?;
+        let probabilities = ops::softmax(&logits, 1)?.to_vec2::<f32>()?;
 
-        Ok(probs
+        probabilities
             .into_iter()
-            .map(|row| {
-                // SST-2 label order: 0 = NEGATIVE, 1 = POSITIVE. The head emits the label; reading
-                // it as a sentiment polarity is the task's task, not the model's.
-                let (negative, positive) = (row[0], row[1]);
+            .map(|scores| {
+                let (index, score) = scores
+                    .iter()
+                    .enumerate()
+                    .max_by(|(_, left), (_, right)| left.total_cmp(right))
+                    .ok_or_else(|| Error::custom("ai::invalid", "empty classification output"))?;
 
-                match positive >= negative {
-                    true => Label {
-                        label: "positive".to_string(),
-                        score: positive as f64,
-                    },
-                    false => Label {
-                        label: "negative".to_string(),
-                        score: negative as f64,
-                    },
-                }
+                Ok(Label {
+                    label: self.labels[index].clone(),
+                    score: *score as f64,
+                })
             })
-            .collect())
+            .collect()
+    }
+}
+
+impl EntityClassify for Classifier {
+    fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
+        text.iter()
+            .map(|text| {
+                let encoding = cx.encode_one(text)?;
+                let ids = encoding.get_ids();
+
+                if ids.is_empty() {
+                    return Ok(Vec::new());
+                }
+
+                let shape = (1, ids.len());
+                let input = Tensor::from_slice(ids, shape, cx.device())?;
+                let padding = Tensor::from_slice(encoding.get_attention_mask(), shape, cx.device())?;
+                let logits = Forward::forward(self, (input, padding))?;
+                let probabilities = ops::softmax(&logits, 2)?.squeeze(0)?.to_vec2::<f32>()?;
+                let words = aggregation::words(&probabilities, &encoding, &self.labels)?;
+
+                Ok(decode_entities(words, text, &self.labels))
+            })
+            .collect()
     }
 }

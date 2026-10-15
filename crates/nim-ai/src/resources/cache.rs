@@ -9,21 +9,18 @@ pub fn dir() -> Option<PathBuf> {
         return Some(PathBuf::from(path));
     }
 
-    root().map(|root| root.join(".cache"))
-}
+    {
+        let current = std::env::current_dir().ok()?;
 
-/// `.git` marks the repository root. Falling back to the *outermost* `Cargo.toml` finds the
-/// workspace root -- the nearest one would resolve to whichever crate happens to be the cwd.
-fn root() -> Option<PathBuf> {
-    let current = std::env::current_dir().ok()?;
+        if let Some(git) = current.ancestors().find(|dir| dir.join(".git").exists()) {
+            return Some(git.to_path_buf());
+        }
 
-    if let Some(git) = current.ancestors().find(|dir| dir.join(".git").exists()) {
-        return Some(git.to_path_buf());
+        current
+            .ancestors()
+            .filter(|dir| dir.join("Cargo.toml").exists())
+            .last()
+            .map(PathBuf::from)
     }
-
-    current
-        .ancestors()
-        .filter(|dir| dir.join("Cargo.toml").exists())
-        .last()
-        .map(PathBuf::from)
+    .map(|root| root.join(".cache"))
 }

@@ -83,33 +83,26 @@ impl Default for GenOpts {
     }
 }
 
+/// Text in, text out. BART does this by beam search; a hosted model by its completion endpoint.
+pub trait Generate: Send + Sync {
+    fn generate(&self, cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error>;
+}
+
 /// A sentence vector per input.
 pub trait Embed: Send + Sync {
     fn embed(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error>;
 }
 
 /// Sequence classification: one label per input.
-pub trait Classify: Send + Sync {
-    fn classify(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error>;
+pub trait SequenceClassify: Send + Sync {
+    fn classify_sequence(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error>;
 }
 
-pub trait VisionClassify: Send + Sync {
+/// Image classification
+pub trait ImageClassify: Send + Sync {
     fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
 }
 
-/// Token classification: labelled spans per input.
-///
-/// Two methods, because the two tasks want different decodes of the same forward pass. A local
-/// model labels sub-word tokens, and NER (IOB1) and PII (BIOES) disagree on how to stitch those
-/// into spans -- so both decodes live here rather than one being derived from the other. A hosted
-/// model has no tokens at all; it returns spans directly and decodes nothing.
-pub trait TokenClassify: Send + Sync {
-    fn entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error>;
-
-    fn pii(&self, cx: &Context, text: &[&str], min_score: f64) -> Result<Vec<Vec<Entity>>, Error>;
-}
-
-/// Text in, text out. BART does this by beam search; a hosted model by its completion endpoint.
-pub trait Generate: Send + Sync {
-    fn generate(&self, cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error>;
+pub trait EntityClassify: Send + Sync {
+    fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error>;
 }

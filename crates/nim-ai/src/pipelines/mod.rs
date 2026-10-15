@@ -133,7 +133,9 @@ pub fn keywords(args: ScoredArgs) -> Result<Vec<Annotation>, Error> {
 pub fn sentiment(args: ScoredArgs) -> Result<Vec<Annotation>, Error> {
     let api_key = args.model.api_key.clone();
     let model = load(&args.model.resolve(defaults::classify())?, &api_key)?;
-    let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
+    let capable = model
+        .as_sequence_classify()
+        .ok_or_else(|| model.cannot("sequence-classify"))?;
     let out = tasks::sentiment(capable, &model.context(), &borrow(&args.text))?;
     let mut annotations: Vec<Annotation> = Vec::new();
 
@@ -159,7 +161,7 @@ pub fn sentiment(args: ScoredArgs) -> Result<Vec<Annotation>, Error> {
 
 pub fn entities(args: ScoredArgs) -> Result<Vec<Annotation>, Error> {
     let (text, min_score, model) = token_args(args)?;
-    let capable = model.as_token_classify().ok_or_else(|| model.cannot("token-classify"))?;
+    let capable = model.as_entity_classify().ok_or_else(|| model.cannot("entity-classify"))?;
     let out = tasks::entities(capable, &model.context(), &borrow(&text))?;
     let mut annotations: Vec<Annotation> = Vec::new();
 
@@ -185,8 +187,13 @@ pub fn entities(args: ScoredArgs) -> Result<Vec<Annotation>, Error> {
 
 pub fn pii(args: ScoredArgs) -> Result<Vec<Vec<Entity>>, Error> {
     let (text, min_score, model) = token_args(args)?;
-    let capable = model.as_token_classify().ok_or_else(|| model.cannot("token-classify"))?;
-    let out = tasks::pii(capable, &model.context(), &borrow(&text), min_score)?;
+    let capable = model.as_entity_classify().ok_or_else(|| model.cannot("entity-classify"))?;
+    let mut out = tasks::entities(capable, &model.context(), &borrow(&text))?;
+
+    for entities in &mut out {
+        entities.retain(|entity| entity.score >= min_score);
+    }
+
     Ok(out)
 }
 

@@ -101,8 +101,12 @@ impl std::fmt::Display for Architecture {
 /// determines which capabilities exist: the `None` arms below are the empty cells of the matrix.
 pub enum AnyModel {
     Embedder(bert::Embedder),
-    TokenClassifier(bert::TokenClassifier),
-    SequenceClassifier(distilbert::SequenceClassifier),
+    BartEntityClassifier(bart::Classifier),
+    BartSequenceClassifier(bart::Classifier),
+    BertEntityClassifier(bert::Classifier),
+    BertSequenceClassifier(bert::Classifier),
+    DistilBertEntityClassifier(distilbert::Classifier),
+    DistilBertSequenceClassifier(distilbert::Classifier),
     Summarizer(bart::Summarizer),
     VisionClassifier(mobilenet::Classifier),
     Remote(RemoteModel),
@@ -139,29 +143,53 @@ impl Model {
         let model = match architecture.architecture {
             Architecture::Bart => {
                 let config: bart::Config = repo.config()?;
-                AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?)
+
+                match (
+                    architecture.is_sequence_classification(),
+                    architecture.is_token_classification(),
+                    config.id2label.is_empty(),
+                ) {
+                    (true, _, false) => AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?)?),
+                    (_, true, false) => AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?)?),
+                    _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
+                }
             }
             Architecture::DistilBert => {
                 let config: distilbert::Config = repo.config()?;
-                AnyModel::SequenceClassifier(distilbert::SequenceClassifier::new(repo.vars()?, &config)?)
+
+                match (
+                    architecture.is_sequence_classification(),
+                    architecture.is_token_classification(),
+                    !config.id2label.is_empty(),
+                ) {
+                    (true, _, true) => {
+                        AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(repo.vars()?, &config)?)
+                    }
+                    (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(repo.vars()?, &config)?),
+                    _ => {
+                        return Err(Error::custom(
+                            "ai::invalid",
+                            format!("{name} has no compatible classification head"),
+                        ));
+                    }
+                }
             }
             Architecture::MobileNetV2 => {
                 let config: mobilenet::Config = repo.config()?;
                 let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
-                AnyModel::VisionClassifier(mobilenet::Classifier::new(
-                    mobilenet::MobileNetV2::new(repo.vars()?, &config)?,
-                    config,
-                    processor,
-                ))
+                AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
             }
-            // A BERT checkpoint is an embedder or a token classifier depending on whether it
-            // carries a label map -- a classification head is exactly what `id2label` announces.
             Architecture::Bert | Architecture::Unknown => {
                 let config: bert::Config = repo.config()?;
 
-                match config.has_labels() {
-                    true => AnyModel::TokenClassifier(bert::TokenClassifier::new(repo.vars()?, &config)?),
-                    false => AnyModel::Embedder(bert::Embedder::new(repo.vars()?, &config)?),
+                match (
+                    architecture.is_sequence_classification(),
+                    architecture.is_token_classification(),
+                    !config.id2label.is_empty(),
+                ) {
+                    (true, _, true) => AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config)?),
+                    (_, true, true) => AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config)?),
+                    _ => AnyModel::Embedder(bert::Embedder::new(repo.vars()?, &config)?),
                 }
             }
             other => {
@@ -195,24 +223,28 @@ impl Model {
         }
     }
 
-    pub fn as_classify(&self) -> Option<&dyn Classify> {
+    pub fn as_sequence_classify(&self) -> Option<&dyn SequenceClassify> {
         match &self.model {
-            AnyModel::SequenceClassifier(model) => Some(model),
+            AnyModel::BartSequenceClassifier(model) => Some(model),
+            AnyModel::BertSequenceClassifier(model) => Some(model),
+            AnyModel::DistilBertSequenceClassifier(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
         }
     }
 
-    pub fn as_vision_classify(&self) -> Option<&dyn VisionClassify> {
+    pub fn as_image_classify(&self) -> Option<&dyn ImageClassify> {
         match &self.model {
             AnyModel::VisionClassifier(model) => Some(model),
             _ => None,
         }
     }
 
-    pub fn as_token_classify(&self) -> Option<&dyn TokenClassify> {
+    pub fn as_entity_classify(&self) -> Option<&dyn EntityClassify> {
         match &self.model {
-            AnyModel::TokenClassifier(model) => Some(model),
+            AnyModel::BartEntityClassifier(model) => Some(model),
+            AnyModel::BertEntityClassifier(model) => Some(model),
+            AnyModel::DistilBertEntityClassifier(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
         }
@@ -236,6 +268,22 @@ impl Model {
 struct Probe {
     #[serde(default, rename = "model_type")]
     architecture: Architecture,
+    #[serde(default)]
+    architectures: Vec<String>,
+}
+
+impl Probe {
+    fn is_token_classification(&self) -> bool {
+        self.architectures
+            .iter()
+            .any(|architecture| architecture.ends_with("ForTokenClassification"))
+    }
+
+    fn is_sequence_classification(&self) -> bool {
+        self.architectures
+            .iter()
+            .any(|architecture| architecture.ends_with("ForSequenceClassification"))
+    }
 }
 
 /// A model whose weights we load and run ourselves. Every variant has weights, so `repository`

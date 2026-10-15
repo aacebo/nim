@@ -1,89 +1,102 @@
-use candle_core::Tensor;
+use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, Module, VarBuilder, ops};
 
 use crate::Error;
-use crate::models::{Context, Forward, TokenClassify, Word};
-use crate::tasks::{aggregation, bioes};
+use crate::models::{Context, EntityClassify, Forward, Label, SequenceClassify};
+use crate::tasks::{aggregation, decode_entities};
 use crate::types::Entity;
 
 use super::config::Config;
 use super::model::Bert;
 
-pub struct TokenClassifier {
+pub struct Classifier {
     bert: Bert,
+    pooler: Option<Linear>,
     classifier: Linear,
     labels: Vec<String>,
 }
 
-impl TokenClassifier {
+impl Classifier {
     pub fn new(vars: VarBuilder, config: &Config) -> Result<Self, Error> {
         let labels = config.labels()?;
+        let pooler = vars
+            .contains_tensor("pooler.dense.weight")
+            .then(|| candle_nn::linear(config.hidden_size, config.hidden_size, vars.pp("pooler").pp("dense")))
+            .transpose()?;
         let classifier = candle_nn::linear(config.hidden_size, labels.len(), vars.pp("classifier"))?;
 
         Ok(Self {
             bert: Bert::new(vars, config)?,
+            pooler,
             classifier,
             labels,
         })
     }
-
-    pub fn labels(&self) -> &[String] {
-        &self.labels
-    }
-
-    /// Per-token label probabilities, shaped `(batch, seq, labels)`.
-    pub fn forward(&self, ids: &Tensor, mask: &Tensor) -> Result<Tensor, Error> {
-        let hidden = self.bert.forward(ids, mask)?;
-
-        Ok(self.classifier.forward(&hidden).and_then(|logits| ops::softmax(&logits, 2))?)
-    }
 }
 
-impl Forward for TokenClassifier {
+impl Forward for Classifier {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
     fn forward(&self, (ids, mask): Self::Input) -> Result<Self::Output, Error> {
-        self.forward(&ids, &mask)
+        let hidden = self.bert.forward(&ids, &mask)?;
+        let hidden = match &self.pooler {
+            Some(pooler) => pooler.forward(&hidden)?.tanh()?,
+            None => hidden,
+        };
+
+        Ok(self.classifier.forward(&hidden)?)
     }
 }
 
-impl TokenClassify for TokenClassifier {
-    /// IOB1 decoding: CoNLL-03 entities may start with `I-`, and `B-` only splits adjacent
-    /// same-type entities.
-    fn entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
-        text.iter()
-            .map(|text| Ok(aggregation::entities(self.words(cx, text)?, text)))
-            .collect()
-    }
-
-    /// BIOES decoding plus a score filter -- a different decode of the same labelled words.
-    fn pii(&self, cx: &Context, text: &[&str], min_score: f64) -> Result<Vec<Vec<Entity>>, Error> {
-        text.iter()
-            .map(|text| Ok(bioes::entities(self.words(cx, text)?, text, min_score)))
-            .collect()
-    }
-}
-
-impl TokenClassifier {
-    /// Sub-word pieces merged into whole words, each carrying the label its tokens voted for.
-    /// Both decodes above start here.
-    fn words(&self, cx: &Context, text: &str) -> Result<Vec<Word>, Error> {
-        let encoding = cx.encode_one(text)?;
-        let ids = encoding.get_ids();
-
-        if ids.is_empty() {
+impl SequenceClassify for Classifier {
+    fn classify_sequence(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error> {
+        if text.is_empty() {
             return Ok(Vec::new());
         }
 
-        let shape = (1, ids.len());
-        let input = Tensor::from_slice(ids, shape, cx.device())?;
-        let mask = Tensor::from_slice(encoding.get_attention_mask(), shape, cx.device())?;
-        let probs = self
-            .forward(&input, &mask)?
-            .squeeze(0)
-            .and_then(|probs| probs.to_vec2::<f32>())?;
+        let batch = cx.encode(text)?;
+        let logits = Forward::forward(self, (batch.ids, batch.mask))?.i((.., 0))?;
+        let probabilities = ops::softmax(&logits, 1)?.to_vec2::<f32>()?;
 
-        aggregation::words(&probs, &encoding, self.labels())
+        probabilities
+            .into_iter()
+            .map(|scores| {
+                let (index, score) = scores
+                    .iter()
+                    .enumerate()
+                    .max_by(|(_, left), (_, right)| left.total_cmp(right))
+                    .ok_or_else(|| Error::custom("ai::invalid", "empty classification output"))?;
+
+                Ok(Label {
+                    label: self.labels[index].clone(),
+                    score: *score as f64,
+                })
+            })
+            .collect()
+    }
+}
+
+impl EntityClassify for Classifier {
+    fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
+        text.iter()
+            .map(|text| {
+                let encoding = cx.encode_one(text)?;
+                let ids = encoding.get_ids();
+
+                if ids.is_empty() {
+                    return Ok(Vec::new());
+                }
+
+                let shape = (1, ids.len());
+                let input = Tensor::from_slice(ids, shape, cx.device())?;
+                let mask = Tensor::from_slice(encoding.get_attention_mask(), shape, cx.device())?;
+                let logits = Forward::forward(self, (input, mask))?;
+                let probabilities = ops::softmax(&logits, 2)?.squeeze(0)?.to_vec2::<f32>()?;
+                let words = aggregation::words(&probabilities, &encoding, &self.labels)?;
+
+                Ok(decode_entities(words, text, &self.labels))
+            })
+            .collect()
     }
 }

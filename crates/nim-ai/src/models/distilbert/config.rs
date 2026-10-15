@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use candle_transformers::models::distilbert;
 
 use crate::{Error, models::Architecture};
@@ -15,6 +17,8 @@ pub struct Config {
     pub pad_token_id: usize,
     #[serde(default)]
     pub model_type: Architecture,
+    #[serde(default)]
+    pub id2label: HashMap<String, String>,
 }
 
 impl Config {
@@ -57,9 +61,42 @@ impl Config {
         self
     }
 
+    pub fn labels(&self) -> Result<Vec<String>, Error> {
+        let mut labels = vec![String::new(); self.id2label.len()];
+
+        for (index, label) in &self.id2label {
+            let index: usize = index.parse().map_err(crate::ParseError::from)?;
+            let slot = labels
+                .get_mut(index)
+                .ok_or_else(|| Error::custom("invalid", format!("label index out of range: {index}")))?;
+
+            *slot = label.clone();
+        }
+
+        Ok(labels)
+    }
+
     pub fn to_candle(&self) -> Result<distilbert::Config, Error> {
         let json = serde_json::to_value(self)?;
         Ok(serde_json::from_value(json)?)
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            vocab_size: 30_522,
+            dim: 768,
+            n_layers: 6,
+            n_heads: 12,
+            hidden_dim: 3_072,
+            activation: Activation::Gelu,
+            max_position_embeddings: 512,
+            initializer_range: 0.02,
+            pad_token_id: 0,
+            model_type: Architecture::DistilBert,
+            id2label: HashMap::new(),
+        }
     }
 }
 

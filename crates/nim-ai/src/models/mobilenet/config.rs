@@ -35,3 +35,21 @@ impl Config {
         }
     }
 }
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            num_channels: 3,
+            depth_multiplier: 1.0,
+            depth_divisible_by: 8,
+            min_depth: 8,
+            expand_ratio: 6.0,
+            output_stride: 32,
+            first_layer_is_expansion: true,
+            finegrained_output: true,
+            tf_padding: true,
+            layer_norm_eps: 0.001,
+            id2label: Default::default(),
+        }
+    }
+}

@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::{Error, ParseError};
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub vocab_size: usize,
@@ -26,6 +30,8 @@ pub struct Config {
     pub length_penalty: f64,
     #[serde(default)]
     pub no_repeat_ngram_size: usize,
+    #[serde(default)]
+    pub id2label: HashMap<String, String>,
 }
 
 impl Config {
@@ -82,6 +88,49 @@ impl Config {
     pub fn no_repeat_ngram_size(mut self, size: usize) -> Self {
         self.no_repeat_ngram_size = size;
         self
+    }
+
+    pub fn labels(&self) -> Result<Vec<String>, Error> {
+        let mut labels = vec![String::new(); self.id2label.len()];
+
+        for (index, label) in &self.id2label {
+            let index: usize = index.parse().map_err(ParseError::from)?;
+            let slot = labels
+                .get_mut(index)
+                .ok_or_else(|| Error::custom("invalid", format!("label index out of range: {index}")))?;
+
+            *slot = label.clone();
+        }
+
+        Ok(labels)
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            vocab_size: 50_265,
+            d_model: 1_024,
+            encoder_layers: 12,
+            decoder_layers: 12,
+            encoder_attention_heads: 16,
+            decoder_attention_heads: 16,
+            encoder_ffn_dim: 4_096,
+            decoder_ffn_dim: 4_096,
+            activation_function: candle_nn::Activation::Gelu,
+            max_position_embeddings: 1_024,
+            eos_token_id: 2,
+            decoder_start_token_id: 2,
+            forced_bos_token_id: None,
+            forced_eos_token_id: Some(2),
+            scale_embedding: false,
+            num_beams: default_beams(),
+            max_length: default_max_length(),
+            min_length: 0,
+            length_penalty: default_length_penalty(),
+            no_repeat_ngram_size: 0,
+            id2label: HashMap::new(),
+        }
     }
 }
 

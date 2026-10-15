@@ -3,7 +3,7 @@ use crate::tasks::anchor;
 use crate::types::Entity;
 
 use super::RemoteModel;
-use super::capability::{Classify, Context, Embed, GenOpts, Generate, Label, TokenClassify};
+use super::capability::{Context, Embed, EntityClassify, GenOpts, Generate, Label, SequenceClassify};
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
                         schema: `label` is your chosen class and `score` is your confidence from \
@@ -47,8 +47,8 @@ impl Embed for RemoteModel {
     }
 }
 
-impl Classify for RemoteModel {
-    fn classify(&self, _cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error> {
+impl SequenceClassify for RemoteModel {
+    fn classify_sequence(&self, _cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error> {
         text.iter()
             .map(|text| {
                 let out: Classified = self.client().json(CLASSIFY, text, classify_schema())?;
@@ -62,21 +62,9 @@ impl Classify for RemoteModel {
     }
 }
 
-/// A hosted model has no sub-word tokens to decode: it returns spans directly. So both methods
-/// come off one prompt, and `pii` differs only by the score filter.
-impl TokenClassify for RemoteModel {
-    fn entities(&self, _cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
+impl EntityClassify for RemoteModel {
+    fn classify_entities(&self, _cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
         text.iter().map(|text| self.spans(text)).collect()
-    }
-
-    fn pii(&self, cx: &Context, text: &[&str], min_score: f64) -> Result<Vec<Vec<Entity>>, Error> {
-        let mut out = self.entities(cx, text)?;
-
-        for entities in &mut out {
-            entities.retain(|entity| entity.score >= min_score);
-        }
-
-        Ok(out)
     }
 }
 

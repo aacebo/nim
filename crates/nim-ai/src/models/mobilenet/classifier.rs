@@ -1,7 +1,8 @@
-use candle_nn::ops;
+use candle_core::Tensor;
+use candle_nn::{Linear, Module, VarBuilder, linear, ops};
 
 use crate::Error;
-use crate::models::{Context, Label, VisionClassify};
+use crate::models::{Context, Forward, ImageClassify, Label};
 
 use super::config::Config;
 use super::model::MobileNetV2;
@@ -9,24 +10,38 @@ use super::processor::Processor;
 
 pub struct Classifier {
     model: MobileNetV2,
+    classifier: Linear,
     processor: Processor,
     labels: Vec<String>,
 }
 
 impl Classifier {
-    pub fn new(model: MobileNetV2, config: Config, processor: Processor) -> Self {
-        Self {
+    pub fn new(vars: VarBuilder, config: Config, processor: Processor) -> Result<Self, Error> {
+        let labels: Vec<String> = config.id2label.clone().into_values().collect();
+        let model = MobileNetV2::new(vars.clone(), &config)?;
+
+        Ok(Self {
             model,
+            classifier: linear(config.output_channels(), labels.len(), vars.pp("classifier"))?,
             processor,
-            labels: config.id2label.into_values().collect(),
-        }
+            labels,
+        })
     }
 }
 
-impl VisionClassify for Classifier {
+impl Forward for Classifier {
+    type Input = Tensor;
+    type Output = Tensor;
+
+    fn forward(&self, input: Self::Input) -> Result<Self::Output, Error> {
+        Ok(self.classifier.forward(&self.model.features(&input)?)?)
+    }
+}
+
+impl ImageClassify for Classifier {
     fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
         let input = self.processor.tensor(image, cx.device())?;
-        let probabilities = ops::softmax(&self.model.forward(&input)?, 1)?.to_vec2::<f32>()?;
+        let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
         let mut labels: Vec<Label> = probabilities[0]
             .iter()
             .enumerate()

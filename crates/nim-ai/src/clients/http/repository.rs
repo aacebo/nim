@@ -13,14 +13,6 @@ impl Http {
     pub fn new(base: Uri) -> Self {
         Self { base }
     }
-
-    fn cached(&self, file: &str) -> PathBuf {
-        cache::dir()
-            .unwrap_or_else(std::env::temp_dir)
-            .join("urls")
-            .join(slug(&self.base.to_string()))
-            .join(file)
-    }
 }
 
 impl Repository for Http {
@@ -39,7 +31,11 @@ impl Repository for Http {
 
     fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
         let url = url::Url::from_file_path(path).map_err(|_| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
-        let cached = self.cached(url.as_str());
+        let cached = cache::dir()
+            .unwrap_or_else(std::env::temp_dir)
+            .join("urls")
+            .join(slug(&self.base.to_string()))
+            .join(url.as_str());
 
         if cached.exists() {
             return Ok(cached);

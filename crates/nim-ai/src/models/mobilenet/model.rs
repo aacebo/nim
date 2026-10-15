@@ -1,5 +1,5 @@
 use candle_core::{Result, Tensor};
-use candle_nn::{BatchNorm, Conv2d, Conv2dConfig, Linear, Module, VarBuilder, batch_norm, conv2d_no_bias, linear};
+use candle_nn::{BatchNorm, Conv2d, Conv2dConfig, VarBuilder, batch_norm, conv2d_no_bias};
 
 use super::Config;
 
@@ -7,7 +7,6 @@ pub struct MobileNetV2 {
     stem: Stem,
     layers: Vec<Block>,
     head: Layer,
-    classifier: Linear,
 }
 
 impl MobileNetV2 {
@@ -40,23 +39,30 @@ impl MobileNetV2 {
             )?);
         }
 
-        let outputs = config.output_channels();
-
         Ok(Self {
             stem,
             layers,
-            head: Layer::new(vars.pp("mobilenet_v2.conv_1x1"), config, channels[16], outputs, 1, 1, 1, true)?,
-            classifier: linear(outputs, config.id2label.len(), vars.pp("classifier"))?,
+            head: Layer::new(
+                vars.pp("mobilenet_v2.conv_1x1"),
+                config,
+                channels[16],
+                config.output_channels(),
+                1,
+                1,
+                1,
+                true,
+            )?,
         })
     }
 
-    pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
+    pub fn features(&self, input: &Tensor) -> Result<Tensor> {
         let mut output = self.stem.forward(input)?;
+
         for layer in &self.layers {
             output = layer.forward(&output)?;
         }
 
-        self.classifier.forward(&self.head.forward(&output)?.mean((2, 3))?)
+        self.head.forward(&output)?.mean((2, 3))
     }
 }
 
@@ -182,7 +188,7 @@ impl Layer {
 fn pad_same(input: &Tensor, kernel: usize, stride: usize) -> Result<Tensor> {
     let (_, _, height, width) = input.dims4()?;
     let padding = |length: usize| {
-        if length % stride == 0 {
+        if length.is_multiple_of(stride) {
             kernel.saturating_sub(stride)
         } else {
             kernel.saturating_sub(length % stride)

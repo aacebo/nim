@@ -8,7 +8,7 @@ mod scorer;
 mod stopwords;
 
 use crate::Error;
-use crate::models::{Classify, Context, Embed, GenOpts, Generate, TokenClassify};
+use crate::models::{Context, Embed, EntityClassify, GenOpts, Generate, SequenceClassify, Word};
 use crate::types::{Entity, Keyword, Polarity, Sentiment};
 
 /// The user-facing routines, each a presentation over one model capability.
@@ -28,9 +28,9 @@ pub fn keywords<E: Embed + ?Sized>(model: &E, cx: &Context, text: &[&str], top_n
 
 /// Sentiment is a *presentation* of sequence classification: the model returns a label, and this
 /// maps it onto the binary polarity the routine promises.
-pub fn sentiment<C: Classify + ?Sized>(model: &C, cx: &Context, text: &[&str]) -> Result<Vec<Sentiment>, Error> {
+pub fn sentiment<C: SequenceClassify + ?Sized>(model: &C, cx: &Context, text: &[&str]) -> Result<Vec<Sentiment>, Error> {
     Ok(model
-        .classify(cx, text)?
+        .classify_sequence(cx, text)?
         .into_iter()
         .map(|label| Sentiment {
             polarity: Polarity::from_label(&label.label),
@@ -39,12 +39,15 @@ pub fn sentiment<C: Classify + ?Sized>(model: &C, cx: &Context, text: &[&str]) -
         .collect())
 }
 
-pub fn entities<T: TokenClassify + ?Sized>(model: &T, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
-    model.entities(cx, text)
+pub fn entities<T: EntityClassify + ?Sized>(model: &T, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
+    model.classify_entities(cx, text)
 }
 
-pub fn pii<T: TokenClassify + ?Sized>(model: &T, cx: &Context, text: &[&str], min_score: f64) -> Result<Vec<Vec<Entity>>, Error> {
-    model.pii(cx, text, min_score)
+pub(crate) fn decode_entities(words: Vec<Word>, text: &str, labels: &[String]) -> Vec<Entity> {
+    match labels.iter().any(|label| label.starts_with("E-") || label.starts_with("S-")) {
+        true => bioes::entities(words, text, 0.0),
+        false => aggregation::entities(words, text),
+    }
 }
 
 pub fn summarize<G: Generate + ?Sized>(model: &G, cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error> {

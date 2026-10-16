@@ -55,6 +55,16 @@ pub struct ImageArgs {
     pub limit: usize,
 }
 
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ImageToTextArgs {
+    pub images: Vec<Vec<u8>>,
+    pub model: ModelArgs,
+    #[serde(default)]
+    pub beams: Option<usize>,
+    #[serde(default)]
+    pub max_len: Option<usize>,
+}
+
 impl Default for ImageArgs {
     fn default() -> Self {
         Self {
@@ -268,6 +278,22 @@ pub fn images(args: ImageArgs) -> Result<Vec<Vec<Annotation>>, Error> {
     Ok(out)
 }
 
+pub fn image_to_text(args: ImageToTextArgs) -> Result<Vec<Artifact>, Error> {
+    let api_key = args.model.api_key.clone();
+    let model = load(&args.model.resolve(defaults::image_to_text())?, &api_key)?;
+    let capable = model.as_image_to_text().ok_or_else(|| model.cannot("image-to-text"))?;
+    let captions = capable.image_to_text(&model.context(), &args.images, args.beams, args.max_len)?;
+
+    Ok(captions
+        .into_iter()
+        .map(|caption| Artifact {
+            name: "caption".to_string(),
+            value: ArtifactContent::text(caption),
+            vector: None,
+        })
+        .collect())
+}
+
 fn token_args(args: ScoredArgs) -> Result<TokenArgs, Error> {
     let api_key = args.model.api_key.clone();
     let model = load(&args.model.resolve(defaults::token_classify())?, &api_key)?;
@@ -305,6 +331,10 @@ pub mod defaults {
 
     pub fn image() -> ModelRef {
         hub("google/mobilenet_v2_1.0_224")
+    }
+
+    pub fn image_to_text() -> ModelRef {
+        hub("microsoft/git-base")
     }
 }
 

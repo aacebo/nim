@@ -1,6 +1,7 @@
 pub mod bart;
 pub mod bert;
 pub mod distilbert;
+pub mod git;
 pub mod mobilenet;
 
 mod capability;
@@ -48,6 +49,7 @@ pub enum Architecture {
     Mistral,
     T5,
     MobileNetV2,
+    Git,
     #[default]
     #[serde(other)]
     Unknown,
@@ -66,6 +68,7 @@ impl Architecture {
             Self::Mistral => "mistral",
             Self::T5 => "t5",
             Self::MobileNetV2 => "mobilenet_v2",
+            Self::Git => "git",
             Self::Unknown => "??",
         }
     }
@@ -86,6 +89,7 @@ impl FromStr for Architecture {
             "mistral" => Self::Mistral,
             "t5" => Self::T5,
             "mobilenet_v2" => Self::MobileNetV2,
+            "git" => Self::Git,
             _ => Self::Unknown,
         })
     }
@@ -109,6 +113,7 @@ pub enum AnyModel {
     DistilBertSequenceClassifier(distilbert::Classifier),
     Summarizer(bart::Summarizer),
     VisionClassifier(mobilenet::Classifier),
+    ImageToText(git::Captioner),
     Remote(RemoteModel),
 }
 
@@ -179,6 +184,11 @@ impl Model {
                 let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
                 AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
             }
+            Architecture::Git => {
+                let config: git::Config = repo.config()?;
+                let processor: git::Processor = repo.json("preprocessor_config.json")?;
+                AnyModel::ImageToText(git::Captioner::new(config, processor, repo.vars()?)?)
+            }
             Architecture::Bert | Architecture::Unknown => {
                 let config: bert::Config = repo.config()?;
 
@@ -236,6 +246,13 @@ impl Model {
     pub fn as_image_classify(&self) -> Option<&dyn ImageClassify> {
         match &self.model {
             AnyModel::VisionClassifier(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_image_to_text(&self) -> Option<&dyn ImageToText> {
+        match &self.model {
+            AnyModel::ImageToText(model) => Some(model),
             _ => None,
         }
     }

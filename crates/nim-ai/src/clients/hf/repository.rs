@@ -41,7 +41,9 @@ impl Repository for HuggingFace {
     }
 
     fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
-        let url = url::Url::from_file_path(path).map_err(|_| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
-        Ok(self.repo.get(url.as_str())?)
+        let path = path
+            .to_str()
+            .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
+        Ok(self.repo.get(path)?)
     }
 }

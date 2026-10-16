@@ -5,6 +5,40 @@ use crate::Error;
 use crate::pipelines::common::Batch;
 use crate::types::Entity;
 
+/// Text in, text out. BART does this by beam search; a hosted model by its completion endpoint.
+pub trait Generate: Send + Sync {
+    fn generate(&self, cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error>;
+}
+
+/// A sentence vector per input.
+pub trait Embed: Send + Sync {
+    fn embed(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error>;
+}
+
+/// Sequence classification: one label per input.
+pub trait SequenceClassify: Send + Sync {
+    fn classify_sequence(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error>;
+}
+
+/// Image classification
+pub trait ImageClassify: Send + Sync {
+    fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
+}
+
+pub trait ImageToText: Send + Sync {
+    fn image_to_text(
+        &self,
+        cx: &Context,
+        images: &[Vec<u8>],
+        beams: Option<usize>,
+        max_len: Option<usize>,
+    ) -> Result<Vec<String>, Error>;
+}
+
+pub trait EntityClassify: Send + Sync {
+    fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error>;
+}
+
 /// Borrows what a model needs to turn text into tensors. A loaded model owns its weights; the
 /// tokenizer and device are lent per call, so one set of weights can serve several capabilities.
 ///
@@ -81,28 +115,4 @@ impl Default for GenOpts {
             beams: None,
         }
     }
-}
-
-/// Text in, text out. BART does this by beam search; a hosted model by its completion endpoint.
-pub trait Generate: Send + Sync {
-    fn generate(&self, cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error>;
-}
-
-/// A sentence vector per input.
-pub trait Embed: Send + Sync {
-    fn embed(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error>;
-}
-
-/// Sequence classification: one label per input.
-pub trait SequenceClassify: Send + Sync {
-    fn classify_sequence(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error>;
-}
-
-/// Image classification
-pub trait ImageClassify: Send + Sync {
-    fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
-}
-
-pub trait EntityClassify: Send + Sync {
-    fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error>;
 }

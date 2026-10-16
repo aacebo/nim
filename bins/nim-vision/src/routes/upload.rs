@@ -1,9 +1,12 @@
 use axum::response::IntoResponse;
 
-use crate::State;
+use crate::http::HttpContext;
 
-pub async fn route(_state: State, mut multipart: axum::extract::Multipart) -> axum::response::Result<axum::response::Response> {
-    let mut files = vec![];
+pub async fn route(
+    _ctx: HttpContext,
+    mut multipart: axum::extract::Multipart,
+) -> axum::response::Result<axum::response::Response> {
+    let mut images = vec![];
 
     while let Some(field) = multipart.next_field().await? {
         let content_type = field.content_type().unwrap_or("application/octet-stream");
@@ -13,8 +16,14 @@ pub async fn route(_state: State, mut multipart: axum::extract::Multipart) -> ax
         }
 
         let bytes = field.bytes().await?;
-        files.push(bytes.to_vec());
+        images.push(bytes.to_vec());
     }
 
-    Ok(axum::http::StatusCode::OK.into_response())
+    let artifacts = nim::ai::pipelines::image_to_text(nim::ai::pipelines::ImageToTextArgs {
+        images,
+        ..Default::default()
+    })
+    .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    Ok(axum::Json(artifacts).into_response())
 }

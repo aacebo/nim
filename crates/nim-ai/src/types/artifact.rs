@@ -2,6 +2,7 @@
 pub struct Artifact {
     pub name: String,
     pub value: ArtifactContent,
+    #[serde(skip)]
     pub vector: Option<Vec<f32>>,
 }
 

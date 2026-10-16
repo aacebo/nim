@@ -9,18 +9,16 @@ pub fn dir() -> Option<PathBuf> {
         return Some(PathBuf::from(path));
     }
 
-    {
-        let current = std::env::current_dir().ok()?;
-
-        if let Some(git) = current.ancestors().find(|dir| dir.join(".git").exists()) {
-            return Some(git.to_path_buf());
-        }
-
+    let current = std::env::current_dir().ok()?;
+    let current = if let Some(git) = current.ancestors().find(|dir| dir.join(".git").exists()) {
+        Some(git.to_path_buf())
+    } else {
         current
             .ancestors()
             .filter(|dir| dir.join("Cargo.toml").exists())
             .last()
             .map(PathBuf::from)
-    }
-    .map(|root| root.join(".cache"))
+    };
+
+    current.map(|root| root.join(".cache"))
 }

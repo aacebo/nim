@@ -283,15 +283,12 @@ pub fn image_to_text(args: ImageToTextArgs) -> Result<Vec<Artifact>, Error> {
     let model = load(&args.model.resolve(defaults::image_to_text())?, &api_key)?;
     let capable = model.as_image_to_text().ok_or_else(|| model.cannot("image-to-text"))?;
     let captions = capable.image_to_text(&model.context(), &args.images, args.beams, args.max_len)?;
+    let out = embeddings(TextArgs {
+        text: captions,
+        ..Default::default()
+    })?;
 
-    Ok(captions
-        .into_iter()
-        .map(|caption| Artifact {
-            name: "caption".to_string(),
-            value: ArtifactContent::text(caption),
-            vector: None,
-        })
-        .collect())
+    Ok(out)
 }
 
 fn token_args(args: ScoredArgs) -> Result<TokenArgs, Error> {

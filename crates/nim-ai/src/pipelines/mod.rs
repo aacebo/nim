@@ -31,11 +31,38 @@ pub struct SummarizeArgs {
     pub max_len: Option<usize>,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ScoredArgs {
     pub text: Vec<String>,
-    pub min_score: f64,
     pub model: ModelArgs,
+    pub min_score: f64,
+}
+
+impl Default for ScoredArgs {
+    fn default() -> Self {
+        Self {
+            text: Default::default(),
+            model: Default::default(),
+            min_score: 0.8,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ImageArgs {
+    pub images: Vec<Vec<u8>>,
+    pub model: ModelArgs,
+    pub limit: usize,
+}
+
+impl Default for ImageArgs {
+    fn default() -> Self {
+        Self {
+            images: Default::default(),
+            model: Default::default(),
+            limit: 5,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -215,6 +242,32 @@ pub fn summarize(args: SummarizeArgs) -> Result<Vec<Artifact>, Error> {
     Ok(artifacts)
 }
 
+pub fn images(args: ImageArgs) -> Result<Vec<Vec<Annotation>>, Error> {
+    let api_key = args.model.api_key.clone();
+    let model = load(&args.model.resolve(defaults::image())?, &api_key)?;
+    let capable = model.as_image_classify().ok_or_else(|| model.cannot("image-classify"))?;
+    let mut out = vec![];
+
+    for image in &args.images {
+        let labels = capable.classify_image(&model.context(), image, args.limit)?;
+
+        out.push(
+            labels
+                .iter()
+                .map(|label| Annotation {
+                    name: label.label.clone(),
+                    label: label.label.clone(),
+                    text: label.label.clone(),
+                    score: label.score,
+                    spans: Default::default(),
+                })
+                .collect(),
+        );
+    }
+
+    Ok(out)
+}
+
 fn token_args(args: ScoredArgs) -> Result<TokenArgs, Error> {
     let api_key = args.model.api_key.clone();
     let model = load(&args.model.resolve(defaults::token_classify())?, &api_key)?;
@@ -248,6 +301,10 @@ pub mod defaults {
 
     pub fn generate() -> ModelRef {
         hub("facebook/bart-large-cnn")
+    }
+
+    pub fn image() -> ModelRef {
+        hub("google/mobilenet_v2_1.0_224")
     }
 }
 

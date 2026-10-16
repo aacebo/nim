@@ -66,10 +66,6 @@ impl ModelArgs {
     }
 }
 
-pub fn borrow(text: &[String]) -> Vec<&str> {
-    text.iter().map(String::as_str).collect()
-}
-
 /// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
 /// for two routines now loads its weights once.
 pub fn load(model: &ModelRef, api_key: &Option<String>) -> Result<std::sync::Arc<crate::models::Model>, Error> {
@@ -253,6 +249,10 @@ pub mod defaults {
     pub fn generate() -> ModelRef {
         hub("facebook/bart-large-cnn")
     }
+}
+
+fn borrow(text: &[String]) -> Vec<&str> {
+    text.iter().map(String::as_str).collect()
 }
 
 #[cfg(test)]

@@ -58,6 +58,10 @@ impl Loader {
         Ok(serde_json::from_slice(&bytes)?)
     }
 
+    pub fn string(&self, file: &str) -> Result<String, Error> {
+        Ok(std::fs::read_to_string(self.repo.resolve(Path::new(file))?)?)
+    }
+
     /// ModelRef-specific: SST-2 is uncased, CoNLL-03 is cased. Lowercasing a cased model wrecks it.
     fn lowercase(&self) -> Result<bool, Error> {
         #[derive(serde::Deserialize)]

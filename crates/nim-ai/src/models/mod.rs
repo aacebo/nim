@@ -1,6 +1,7 @@
 pub mod audiocap;
 pub mod bart;
 pub mod bert;
+pub mod cnn8rnn;
 pub mod distilbert;
 pub mod git;
 pub mod mobilenet;
@@ -119,6 +120,7 @@ pub enum AnyModel {
     Summarizer(bart::Summarizer),
     VisionClassifier(mobilenet::Classifier),
     ImageToText(git::Captioner),
+    AudioClassifier(cnn8rnn::Classifier),
     Transcriber(whisper::Transcriber),
     AudioToText(whisper::Captioner),
     AudioCaptioner(audiocap::Captioner),
@@ -153,7 +155,11 @@ impl Model {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
         let architecture: Probe = repo.config()?;
-        let model = if architecture.is_cnn14_audio_captioning() {
+        let model = if architecture.is_cnn8rnn_audio_classification() {
+            let config: cnn8rnn::Config = repo.config()?;
+            let labels = repo.string("classes.txt")?.lines().map(str::to_string).collect();
+            AnyModel::AudioClassifier(cnn8rnn::Classifier::new(config, labels, repo.vars()?)?)
+        } else if architecture.is_cnn14_audio_captioning() {
             let config: audiocap::Config = repo.config()?;
             AnyModel::AudioCaptioner(audiocap::Captioner::new(config, repo.vars()?)?)
         } else {
@@ -237,9 +243,13 @@ impl Model {
 
         Ok(Self {
             model,
-            tokenizer: match architecture.is_cnn14_audio_captioning() {
-                true => Some(audiocap::tokenizer()?),
-                false => match architecture.architecture {
+            tokenizer: match (
+                architecture.is_cnn8rnn_audio_classification(),
+                architecture.is_cnn14_audio_captioning(),
+            ) {
+                (true, _) => None,
+                (_, true) => Some(audiocap::tokenizer()?),
+                _ => match architecture.architecture {
                     Architecture::MobileNetV2 => None,
                     _ => Some(repo.tokenizer()?),
                 },
@@ -281,6 +291,13 @@ impl Model {
     pub fn as_image_to_text(&self) -> Option<&dyn ImageToText> {
         match &self.model {
             AnyModel::ImageToText(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_audio_classify(&self) -> Option<&dyn AudioClassify> {
+        match &self.model {
+            AnyModel::AudioClassifier(model) => Some(model),
             _ => None,
         }
     }
@@ -355,6 +372,12 @@ impl Probe {
         self.architectures
             .iter()
             .any(|architecture| architecture == "Cnn14RnnTempAttnGruModel")
+    }
+
+    fn is_cnn8rnn_audio_classification(&self) -> bool {
+        self.architectures
+            .iter()
+            .any(|architecture| architecture == "Cnn8RnnSoundEventDetection")
     }
 }
 

@@ -25,6 +25,10 @@ pub trait ImageClassify: Send + Sync {
     fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
 }
 
+pub trait AudioClassify: Send + Sync {
+    fn classify_audio(&self, cx: &Context, audio: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
+}
+
 pub trait ImageToText: Send + Sync {
     fn image_to_text(
         &self,

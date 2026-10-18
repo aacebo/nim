@@ -100,8 +100,7 @@ impl AudioToText for Captioner {
         max_len: Option<usize>,
     ) -> Result<Vec<String>, Error> {
         let beams = beams.unwrap_or(3).max(1);
-        let max_len = max_len.unwrap_or(MAX_LEN).min(MAX_LEN).max(1);
-
+        let max_len = max_len.unwrap_or(MAX_LEN).min(MAX_LEN).clamp(1, MAX_LEN);
         audio.iter().map(|bytes| self.one(cx, bytes, beams, max_len)).collect()
     }
 }

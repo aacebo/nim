@@ -55,6 +55,13 @@ pub struct ImageArgs {
     pub limit: usize,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AudioArgs {
+    pub audio: Vec<Vec<u8>>,
+    pub model: ModelArgs,
+    pub limit: usize,
+}
+
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImageToTextArgs {
     pub images: Vec<Vec<u8>>,
@@ -91,6 +98,16 @@ impl Default for ImageArgs {
     fn default() -> Self {
         Self {
             images: Default::default(),
+            model: Default::default(),
+            limit: 5,
+        }
+    }
+}
+
+impl Default for AudioArgs {
+    fn default() -> Self {
+        Self {
+            audio: Default::default(),
             model: Default::default(),
             limit: 5,
         }
@@ -300,6 +317,32 @@ pub fn images(args: ImageArgs) -> Result<Vec<Vec<Annotation>>, Error> {
     Ok(out)
 }
 
+pub fn audio(args: AudioArgs) -> Result<Vec<Vec<Annotation>>, Error> {
+    let api_key = args.model.api_key.clone();
+    let model = load(&args.model.resolve(defaults::audio())?, &api_key)?;
+    let capable = model.as_audio_classify().ok_or_else(|| model.cannot("audio-classify"))?;
+    let mut out = vec![];
+
+    for audio in &args.audio {
+        let labels = capable.classify_audio(&model.context(), audio, args.limit)?;
+
+        out.push(
+            labels
+                .iter()
+                .map(|label| Annotation {
+                    name: label.label.clone(),
+                    label: label.label.clone(),
+                    text: label.label.clone(),
+                    score: label.score,
+                    spans: Default::default(),
+                })
+                .collect(),
+        );
+    }
+
+    Ok(out)
+}
+
 pub fn image_to_text(args: ImageToTextArgs) -> Result<Vec<Artifact>, Error> {
     let api_key = args.model.api_key.clone();
     let model = load(&args.model.resolve(defaults::image_to_text())?, &api_key)?;
@@ -390,6 +433,10 @@ pub mod defaults {
 
     pub fn image_to_text() -> ModelRef {
         hub("microsoft/git-base")
+    }
+
+    pub fn audio() -> ModelRef {
+        hub("wsntxxn/cnn8rnn-audioset-sed")
     }
 
     pub fn transcribe() -> ModelRef {

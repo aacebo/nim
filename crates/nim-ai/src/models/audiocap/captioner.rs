@@ -57,7 +57,7 @@ impl Captioner {
             let mut candidates = Vec::new();
 
             for (score, tokens) in &live {
-                let probabilities = candle_nn::ops::log_softmax(&model.logits(&audio, tokens)?, 0)?.to_vec1::<f32>()?;
+                let probabilities = candle_nn::ops::log_softmax(&model.logits(audio, tokens)?, 0)?.to_vec1::<f32>()?;
                 let mut next: Vec<_> = probabilities.iter().enumerate().collect();
 
                 next.sort_by(|(_, left), (_, right)| right.total_cmp(left));

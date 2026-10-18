@@ -8,9 +8,59 @@ pub struct Annotation {
     pub text: String,
     pub spans: Vec<Span>,
     pub confidence: f32,
+    #[serde(skip)]
     pub embedding: Option<Embedding>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::AnnotationRow> for Annotation {
+    fn from(value: nim_store::AnnotationRow) -> Self {
+        Self {
+            id: value.id.into(),
+            memory_id: value.memory_id.into(),
+            label: value.label.into(),
+            text: value.text,
+            spans: value.spans.into_inner().into_iter().map(Into::into).collect(),
+            confidence: value.confidence,
+            embedding: value.embedding.map(Into::into),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AnnotationPartial {
+    pub id: AnnotationId,
+    pub label: Label,
+    pub text: String,
+    pub spans: Vec<Span>,
+    pub confidence: f32,
+}
+
+impl From<nim_store::AnnotationRow> for AnnotationPartial {
+    fn from(value: nim_store::AnnotationRow) -> Self {
+        Self {
+            id: value.id.into(),
+            label: value.label.into(),
+            text: value.text,
+            spans: value.spans.into_inner().into_iter().map(Into::into).collect(),
+            confidence: value.confidence,
+        }
+    }
+}
+
+impl From<Annotation> for AnnotationPartial {
+    fn from(value: Annotation) -> Self {
+        Self {
+            id: value.id,
+            label: value.label,
+            text: value.text,
+            spans: value.spans,
+            confidence: value.confidence,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -64,14 +114,8 @@ impl<'de> serde::Deserialize<'de> for AnnotationId {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Span {
-    pub start: u32,
-    pub end: u32,
-}
-
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Label {
     /// positive ↔ negative affect
@@ -109,6 +153,10 @@ pub enum Label {
 
     /// where
     Spatial,
+
+    /// unknown
+    #[default]
+    Unknown,
 }
 
 impl std::fmt::Display for Label {
@@ -126,22 +174,7 @@ impl std::fmt::Display for Label {
             Self::SocialRelevance => write!(f, "social_relevance"),
             Self::Temporal => write!(f, "temporal"),
             Self::Spatial => write!(f, "spatial"),
-        }
-    }
-}
-
-impl From<nim_store::AnnotationRow> for Annotation {
-    fn from(value: nim_store::AnnotationRow) -> Self {
-        Self {
-            id: value.id.into(),
-            memory_id: value.memory_id.into(),
-            label: value.label.into(),
-            text: value.text,
-            spans: value.spans.into_inner().into_iter().map(Into::into).collect(),
-            confidence: value.confidence as f32,
-            embedding: value.embedding.map(Into::into),
-            created_at: value.created_at,
-            updated_at: value.updated_at,
+            Self::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -161,6 +194,7 @@ impl From<nim_store::Label> for Label {
             nim_store::Label::SocialRelevance => Self::SocialRelevance,
             nim_store::Label::Temporal => Self::Temporal,
             nim_store::Label::Spatial => Self::Spatial,
+            nim_store::Label::Unknown => Self::Unknown,
             _ => unreachable!(),
         }
     }
@@ -181,8 +215,15 @@ impl From<Label> for nim_store::Label {
             Label::SocialRelevance => Self::SocialRelevance,
             Label::Temporal => Self::Temporal,
             Label::Spatial => Self::Spatial,
+            Label::Unknown => Self::Unknown,
         }
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Span {
+    pub start: u32,
+    pub end: u32,
 }
 
 impl From<nim_store::Span> for Span {

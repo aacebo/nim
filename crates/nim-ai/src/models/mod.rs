@@ -1,10 +1,15 @@
+#[cfg(feature = "audio")]
 pub mod audiocap;
 pub mod bart;
 pub mod bert;
+#[cfg(feature = "audio")]
 pub mod cnn8rnn;
 pub mod distilbert;
+#[cfg(feature = "vision")]
 pub mod git;
+#[cfg(feature = "vision")]
 pub mod mobilenet;
+#[cfg(feature = "audio")]
 pub mod whisper;
 
 mod cache;
@@ -98,6 +103,7 @@ pub enum Architecture {
     Llama,
     Mistral,
     T5,
+    #[serde(rename = "mobilenet_v2")]
     MobileNetV2,
     Git,
     Whisper,
@@ -165,11 +171,17 @@ pub enum AnyModel {
     DistilBertEntityClassifier(distilbert::Classifier),
     DistilBertSequenceClassifier(distilbert::Classifier),
     Summarizer(bart::Summarizer),
+    #[cfg(feature = "vision")]
     VisionClassifier(mobilenet::Classifier),
+    #[cfg(feature = "vision")]
     ImageToText(git::Captioner),
+    #[cfg(feature = "audio")]
     AudioClassifier(cnn8rnn::Classifier),
+    #[cfg(feature = "audio")]
     Transcriber(whisper::Transcriber),
+    #[cfg(feature = "audio")]
     AudioToText(whisper::Captioner),
+    #[cfg(feature = "audio")]
     AudioCaptioner(audiocap::Captioner),
     Remote(RemoteModel),
 }
@@ -203,14 +215,32 @@ impl Model {
         let device = repo.device().clone();
         let architecture: Probe = repo.config()?;
         let model = if architecture.is_cnn8rnn_audio_classification() {
-            let config: cnn8rnn::Config = repo.config()?;
-            let labels = repo.string("classes.txt")?.lines().map(str::to_string).collect();
-            AnyModel::AudioClassifier(cnn8rnn::Classifier::new(config, labels, repo.vars()?)?)
+            #[cfg(feature = "audio")]
+            {
+                let config: cnn8rnn::Config = repo.config()?;
+                let labels = repo.string("classes.txt")?.lines().map(str::to_string).collect();
+                AnyModel::AudioClassifier(cnn8rnn::Classifier::new(config, labels, repo.vars()?)?)
+            }
+            #[cfg(not(feature = "audio"))]
+            return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
         } else if architecture.is_cnn14_audio_captioning() {
-            let config: audiocap::Config = repo.config()?;
-            AnyModel::AudioCaptioner(audiocap::Captioner::new(config, repo.vars()?)?)
+            #[cfg(feature = "audio")]
+            {
+                let config: audiocap::Config = repo.config()?;
+                AnyModel::AudioCaptioner(audiocap::Captioner::new(config, repo.vars()?)?)
+            }
+            #[cfg(not(feature = "audio"))]
+            return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
         } else {
             match architecture.architecture {
+                #[cfg(not(feature = "vision"))]
+                Architecture::MobileNetV2 | Architecture::Git => {
+                    return Err(Error::custom("ai::config", format!("{name} requires the `vision` feature")));
+                }
+                #[cfg(not(feature = "audio"))]
+                Architecture::Whisper => {
+                    return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
+                }
                 Architecture::Bart => {
                     let config: bart::Config = repo.config()?;
 
@@ -246,16 +276,19 @@ impl Model {
                         }
                     }
                 }
+                #[cfg(feature = "vision")]
                 Architecture::MobileNetV2 => {
                     let config: mobilenet::Config = repo.config()?;
                     let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
                     AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
                 }
+                #[cfg(feature = "vision")]
                 Architecture::Git => {
                     let config: git::Config = repo.config()?;
                     let processor: git::Processor = repo.json("preprocessor_config.json")?;
                     AnyModel::ImageToText(git::Captioner::new(config, processor, repo.vars()?)?)
                 }
+                #[cfg(feature = "audio")]
                 Architecture::Whisper => {
                     let config: whisper::Config = repo.config()?;
                     let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
@@ -295,6 +328,7 @@ impl Model {
                 architecture.is_cnn14_audio_captioning(),
             ) {
                 (true, _) => None,
+                #[cfg(feature = "audio")]
                 (_, true) => Some(audiocap::tokenizer()?),
                 _ => match architecture.architecture {
                     Architecture::MobileNetV2 => None,
@@ -328,6 +362,7 @@ impl Model {
         }
     }
 
+    #[cfg(feature = "vision")]
     pub fn as_image_classify(&self) -> Option<&dyn ImageClassify> {
         match &self.model {
             AnyModel::VisionClassifier(model) => Some(model),
@@ -335,6 +370,7 @@ impl Model {
         }
     }
 
+    #[cfg(feature = "vision")]
     pub fn as_image_to_text(&self) -> Option<&dyn ImageToText> {
         match &self.model {
             AnyModel::ImageToText(model) => Some(model),
@@ -342,6 +378,7 @@ impl Model {
         }
     }
 
+    #[cfg(feature = "audio")]
     pub fn as_audio_classify(&self) -> Option<&dyn AudioClassify> {
         match &self.model {
             AnyModel::AudioClassifier(model) => Some(model),
@@ -349,6 +386,7 @@ impl Model {
         }
     }
 
+    #[cfg(feature = "audio")]
     pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
         match &self.model {
             AnyModel::Transcriber(model) => Some(model),
@@ -356,6 +394,7 @@ impl Model {
         }
     }
 
+    #[cfg(feature = "audio")]
     pub fn as_audio_to_text(&self) -> Option<&dyn AudioToText> {
         match &self.model {
             AnyModel::AudioToText(model) => Some(model),
@@ -392,6 +431,7 @@ impl Model {
 struct Probe {
     #[serde(default, rename = "model_type")]
     architecture: Architecture,
+
     #[serde(default)]
     architectures: Vec<String>,
 }
@@ -409,6 +449,7 @@ impl Probe {
             .any(|architecture| architecture.ends_with("ForSequenceClassification"))
     }
 
+    #[cfg(feature = "audio")]
     fn is_audio_captioning(&self) -> bool {
         self.architectures
             .iter()

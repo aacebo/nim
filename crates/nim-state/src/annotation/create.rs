@@ -8,6 +8,8 @@ pub struct AnnotationCreate<'a> {
     pub label: Label,
     pub text: String,
     pub spans: &'a [Span],
+    pub confidence: f32,
+    pub embedding: Option<&'a [f32]>,
 }
 
 impl<'a> AnnotationService<'a> {
@@ -22,8 +24,8 @@ impl<'a> AnnotationService<'a> {
                 label: value.label.into(),
                 text: value.text,
                 spans: nim_store::Json(value.spans.iter().copied().map(Into::into).collect()),
-                confidence: 0.0,
-                embedding: None,
+                confidence: value.confidence,
+                embedding: value.embedding.map(|v| v.to_vec().into()),
                 created_at: now,
                 updated_at: now,
             })

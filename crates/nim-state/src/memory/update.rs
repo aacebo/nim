@@ -1,20 +1,20 @@
 use crate::{Error, Memory, MemoryId, MemoryService};
 
 #[derive(Debug, Default)]
-pub struct MemoryUpdate {
+pub struct MemoryUpdate<'a> {
     pub salience: Option<f32>,
     pub strength: Option<f32>,
     pub confidence: Option<f32>,
     pub recalls: Option<u64>,
-    pub summary: Option<String>,
+    pub summary: Option<&'a str>,
     pub embedding: Option<Vec<f32>>,
     pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, id: MemoryId, value: MemoryUpdate) -> Result<Memory, Error> {
-        let mut row = self.store.find_by_id(id.into()).await?;
+    pub async fn update<'b>(&self, id: MemoryId, value: MemoryUpdate<'b>) -> Result<Memory, Error> {
+        let mut row = self.storage.memories().find_by_id(id.into()).await?;
 
         if let Some(v) = value.salience {
             row.salience = v;
@@ -33,7 +33,7 @@ impl<'a> MemoryService<'a> {
         }
 
         if let Some(v) = value.summary {
-            row.summary = Some(v);
+            row.summary = Some(v.to_string());
         }
 
         if let Some(v) = value.embedding {
@@ -44,21 +44,21 @@ impl<'a> MemoryService<'a> {
             row.recalled_at = Some(v);
         }
 
-        let row = self.store.update(row).await?;
+        let row = self.storage.memories().update(row).await?;
+        let annotations = self.storage.annotations().find_by_memory_id(id.into()).await?;
 
         Ok(Memory {
             id: row.id.into(),
             version: Default::default(),
             ty: row.ty.into(),
             contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
-            sources: Default::default(),
+            sources: row.sources.iter().map(|v| (*v).into()).collect(),
             relations: Default::default(),
-            annotations: Default::default(),
+            annotations: annotations.iter().map(|a| a.clone().into()).collect(),
             salience: row.salience,
             strength: row.strength,
             confidence: row.confidence,
             recalls: row.recalls as u64,
-            description: row.description,
             summary: row.summary,
             embedding: row.embedding.map(|v| v.into()),
             recalled_at: row.recalled_at,

@@ -7,10 +7,12 @@ pub struct Options {
     pub model: ModelArgs,
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()))]
 pub fn run(input: &[&str]) -> Result<Vec<Artifact>, Error> {
     run_with(input, Default::default())
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&str], options: Options) -> Result<Vec<Artifact>, Error> {
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::embed())?, &api_key)?;

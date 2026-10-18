@@ -13,10 +13,12 @@ pub struct Options {
     pub max_len: Option<usize>,
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()))]
 pub fn run(input: &[Vec<u8>]) -> Result<Vec<Artifact>, Error> {
     run_with(input, Default::default())
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[Vec<u8>], options: Options) -> Result<Vec<Artifact>, Error> {
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::captions())?, &api_key)?;

@@ -34,6 +34,29 @@ impl<'a> AnnotationStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn find_by_memory_id(&self, memory_id: uuid::Uuid) -> Result<Vec<types::AnnotationRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                memory_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            FROM annotations
+            WHERE memory_id = $1
+            "#,
+        )
+        .bind(memory_id)
+        .fetch_all(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::AnnotationRow) -> Result<types::AnnotationRow, sqlx::Error> {
         sqlx::query_as(
             r#"

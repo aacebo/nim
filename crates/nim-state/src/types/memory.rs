@@ -1,4 +1,4 @@
-use crate::{AnnotationId, Context, Embedding, Source, Version};
+use crate::{AnnotationPartial, Context, Embedding, Source, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Memory {
@@ -21,7 +21,7 @@ pub struct Memory {
 
     /// the generated annotations describing the dimensions
     /// of the memory that was inferred.
-    pub annotations: Vec<AnnotationId>,
+    pub annotations: Vec<AnnotationPartial>,
 
     /// ### Filter
     ///
@@ -47,13 +47,11 @@ pub struct Memory {
     /// how many times has this memory been recalled since creation.
     pub recalls: u64,
 
-    /// a full detailed description of the memory.
-    pub description: String,
-
-    /// a short form tldr of the memory description.
+    /// a short description of the memory.
     pub summary: Option<String>,
 
     /// vector embedding used for search.
+    #[serde(skip)]
     pub embedding: Option<Embedding>,
 
     /// the most recent recall timestamp.

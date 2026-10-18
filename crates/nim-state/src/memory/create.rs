@@ -7,7 +7,22 @@ pub struct MemoryCreate<'a> {
     pub ty: MemoryType,
     pub sources: &'a [Source],
     pub contexts: &'a [Context],
-    pub description: &'a str,
+    pub summary: Option<&'a str>,
+    pub confidence: f32,
+    pub embedding: Option<&'a [f32]>,
+}
+
+impl<'a> Default for MemoryCreate<'a> {
+    fn default() -> Self {
+        Self {
+            ty: MemoryType::Working,
+            sources: Default::default(),
+            contexts: Default::default(),
+            summary: None,
+            confidence: 0.0,
+            embedding: None,
+        }
+    }
 }
 
 impl<'a> MemoryService<'a> {
@@ -17,7 +32,8 @@ impl<'a> MemoryService<'a> {
         let sources = value.sources.iter().map(|v| (*v).into()).collect();
         let contexts = value.contexts.iter().map(|c| c.clone().into()).collect();
         let row = self
-            .store
+            .storage
+            .memories()
             .create(MemoryRow {
                 id: uuid::Uuid::now_v7(),
                 version: 0,
@@ -26,11 +42,10 @@ impl<'a> MemoryService<'a> {
                 contexts: nim_store::Json(contexts),
                 salience: 0.0,
                 strength: 0.0,
-                confidence: 0.0,
+                confidence: value.confidence,
                 recalls: 0,
-                description: value.description.to_string(),
-                summary: None,
-                embedding: None,
+                summary: value.summary.map(|v| v.to_string()),
+                embedding: value.embedding.map(|v| v.to_vec().into()),
                 recalled_at: None,
                 created_at: now,
                 updated_at: now,
@@ -49,7 +64,6 @@ impl<'a> MemoryService<'a> {
             strength: row.strength,
             confidence: row.confidence,
             recalls: row.recalls as u64,
-            description: row.description,
             summary: row.summary,
             embedding: row.embedding.map(|v| v.into()),
             recalled_at: row.recalled_at,

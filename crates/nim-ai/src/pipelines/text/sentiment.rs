@@ -17,10 +17,12 @@ impl Default for Options {
     }
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()))]
 pub fn run(input: &[&str]) -> Result<Vec<Annotation>, Error> {
     run_with(input, Default::default())
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Error> {
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::classify())?, &api_key)?;

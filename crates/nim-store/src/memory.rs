@@ -24,7 +24,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                description,
                 summary,
                 embedding,
                 recalled_at,
@@ -53,7 +52,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                description,
                 summary,
                 embedding,
                 recalled_at,
@@ -74,8 +72,7 @@ impl<'a> MemoryStorage<'a> {
                 $11,
                 $12,
                 $13,
-                $14,
-                $15
+                $14
             )
             RETURNING
                 id,
@@ -87,7 +84,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                description,
                 summary,
                 embedding,
                 recalled_at,
@@ -104,7 +100,6 @@ impl<'a> MemoryStorage<'a> {
         .bind(value.strength)
         .bind(value.confidence)
         .bind(value.recalls)
-        .bind(value.description)
         .bind(value.summary)
         .bind(value.embedding)
         .bind(value.recalled_at)
@@ -127,11 +122,10 @@ impl<'a> MemoryStorage<'a> {
                 strength = $5,
                 confidence = $6,
                 recalls = $7,
-                description = $8,
-                summary = $9,
-                embedding = $10,
-                recalled_at = $11,
-                updated_at = $12
+                summary = $8,
+                embedding = $9,
+                recalled_at = $10,
+                updated_at = $11
             WHERE id = $1
             RETURNING
                 id,
@@ -143,7 +137,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                description,
                 summary,
                 embedding,
                 recalled_at,
@@ -158,7 +151,6 @@ impl<'a> MemoryStorage<'a> {
         .bind(value.strength)
         .bind(value.confidence)
         .bind(value.recalls)
-        .bind(value.description)
         .bind(value.summary)
         .bind(value.embedding)
         .bind(value.recalled_at)

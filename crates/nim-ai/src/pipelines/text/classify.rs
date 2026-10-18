@@ -18,10 +18,12 @@ impl Default for Options {
     }
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()))]
 pub fn keywords(input: &[&str]) -> Result<Vec<Annotation>, Error> {
     keywords_with(input, Default::default())
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn keywords_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Error> {
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::keywords())?, &api_key)?;
@@ -44,10 +46,12 @@ pub fn keywords_with(input: &[&str], options: Options) -> Result<Vec<Annotation>
     Ok(annotations)
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()))]
 pub fn entities(input: &[&str]) -> Result<Vec<Annotation>, Error> {
     entities_with(input, Default::default())
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn entities_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Error> {
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::keywords())?, &api_key)?;
@@ -75,10 +79,12 @@ pub fn entities_with(input: &[&str], options: Options) -> Result<Vec<Annotation>
     Ok(annotations)
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()))]
 pub fn pii(input: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
     pii_with(input, Default::default())
 }
 
+#[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn pii_with(input: &[&str], options: Options) -> Result<Vec<Vec<Entity>>, Error> {
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::keywords())?, &api_key)?;

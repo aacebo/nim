@@ -6,6 +6,7 @@ mod goal;
 mod memory;
 mod plan;
 mod prediction;
+mod region;
 mod source;
 
 pub use annotation::*;
@@ -16,4 +17,5 @@ pub use goal::*;
 pub use memory::*;
 pub use plan::*;
 pub use prediction::*;
+pub use region::*;
 pub use source::*;

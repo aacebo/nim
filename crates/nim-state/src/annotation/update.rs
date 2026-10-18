@@ -32,7 +32,7 @@ impl<'a> AnnotationService<'a> {
         }
 
         if let Some(value) = value.confidence {
-            row.confidence = value as f64;
+            row.confidence = value;
         }
 
         if let Some(value) = value.embedding {

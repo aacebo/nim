@@ -6,17 +6,17 @@ mod update;
 pub use create::*;
 pub use update::*;
 
-use nim_store::{MemoryStorage, PgPool};
+use nim_store::{PgPool, Storage};
 
 #[derive(Copy, Clone)]
 pub struct MemoryService<'a> {
-    store: MemoryStorage<'a>,
+    storage: Storage<'a>,
 }
 
 impl<'a> MemoryService<'a> {
     pub fn new(pool: &'a PgPool) -> Self {
         Self {
-            store: MemoryStorage::new(pool),
+            storage: Storage::new(pool),
         }
     }
 }

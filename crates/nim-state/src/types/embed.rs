@@ -19,3 +19,9 @@ impl From<nim_store::Vector> for Embedding {
         Self(value.to_vec())
     }
 }
+
+impl From<Embedding> for nim_store::Vector {
+    fn from(value: Embedding) -> Self {
+        Self::from(value.0)
+    }
+}

@@ -88,6 +88,48 @@ impl std::fmt::Display for GoalStatus {
     }
 }
 
+impl From<nim_store::GoalRow> for Goal {
+    fn from(value: nim_store::GoalRow) -> Self {
+        Self {
+            id: value.id.into(),
+            parent_id: value.parent_id.map(Into::into),
+            version: value.version.into(),
+            description: value.description,
+            status: value.status.into(),
+            priority: value.priority as f32,
+            deadline: value.deadline,
+            conditions: value.conditions.into_inner().into_iter().map(Into::into).collect(),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
+}
+
+impl From<nim_store::GoalStatus> for GoalStatus {
+    fn from(value: nim_store::GoalStatus) -> Self {
+        match value {
+            nim_store::GoalStatus::Active => Self::Active,
+            nim_store::GoalStatus::Suspended => Self::Suspended,
+            nim_store::GoalStatus::Completed => Self::Completed,
+            nim_store::GoalStatus::Failed => Self::Failed,
+            nim_store::GoalStatus::Cancelled => Self::Cancelled,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<GoalStatus> for nim_store::GoalStatus {
+    fn from(value: GoalStatus) -> Self {
+        match value {
+            GoalStatus::Active => Self::Active,
+            GoalStatus::Suspended => Self::Suspended,
+            GoalStatus::Completed => Self::Completed,
+            GoalStatus::Failed => Self::Failed,
+            GoalStatus::Cancelled => Self::Cancelled,
+        }
+    }
+}
+
 #[non_exhaustive]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -96,4 +138,33 @@ pub enum GoalCondition {
     Fact { description: String },
     Time { before: chrono::DateTime<chrono::Utc> },
     Custom { description: String },
+}
+
+impl From<nim_store::GoalCondition> for GoalCondition {
+    fn from(value: nim_store::GoalCondition) -> Self {
+        match value {
+            nim_store::GoalCondition::EntityState { entity, state } => Self::EntityState {
+                entity: entity.into(),
+                state,
+            },
+            nim_store::GoalCondition::Fact { description } => Self::Fact { description },
+            nim_store::GoalCondition::Time { before } => Self::Time { before },
+            nim_store::GoalCondition::Custom { description } => Self::Custom { description },
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<GoalCondition> for nim_store::GoalCondition {
+    fn from(value: GoalCondition) -> Self {
+        match value {
+            GoalCondition::EntityState { entity, state } => Self::EntityState {
+                entity: entity.into(),
+                state,
+            },
+            GoalCondition::Fact { description } => Self::Fact { description },
+            GoalCondition::Time { before } => Self::Time { before },
+            GoalCondition::Custom { description } => Self::Custom { description },
+        }
+    }
 }

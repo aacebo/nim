@@ -25,6 +25,18 @@ impl PlanId {
     }
 }
 
+impl From<uuid::Uuid> for PlanId {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+
+impl From<PlanId> for uuid::Uuid {
+    fn from(value: PlanId) -> Self {
+        value.0
+    }
+}
+
 impl std::fmt::Display for PlanId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "plan_{}", self.0.simple())
@@ -52,6 +64,19 @@ impl<'de> serde::Deserialize<'de> for PlanId {
 
         let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
         Ok(Self(v))
+    }
+}
+
+impl From<nim_store::PlanRow> for Plan {
+    fn from(value: nim_store::PlanRow) -> Self {
+        Self {
+            id: value.id.into(),
+            title: value.title,
+            status: value.status.into(),
+            description: value.description,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
     }
 }
 

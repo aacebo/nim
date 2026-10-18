@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS goals (
     id          UUID            PRIMARY KEY,
-    parent_id   UUID            NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    parent_id   UUID            REFERENCES goals(id) ON DELETE CASCADE,
     version     INT             NOT NULL,
     description TEXT            NOT NULL,
     status      TEXT            NOT NUll,

@@ -21,6 +21,18 @@ impl FactId {
     }
 }
 
+impl From<uuid::Uuid> for FactId {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+
+impl From<FactId> for uuid::Uuid {
+    fn from(value: FactId) -> Self {
+        value.0
+    }
+}
+
 impl std::fmt::Display for FactId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "fact_{}", self.0.simple())
@@ -48,5 +60,20 @@ impl<'de> serde::Deserialize<'de> for FactId {
 
         let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
         Ok(Self(v))
+    }
+}
+
+impl From<nim_store::FactRow> for Fact {
+    fn from(value: nim_store::FactRow) -> Self {
+        Self {
+            id: value.id.into(),
+            description: value.description,
+            confidence: value.confidence,
+            embedding: value.embedding.map(Into::into),
+            recalls: value.recalls as u64,
+            recalled_at: value.recalled_at,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
     }
 }

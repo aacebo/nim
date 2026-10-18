@@ -27,6 +27,37 @@ impl std::fmt::Display for PlanStatus {
     }
 }
 
+impl From<nim_store::PlanStatus> for PlanStatus {
+    fn from(value: nim_store::PlanStatus) -> Self {
+        match value {
+            nim_store::PlanStatus::Draft => Self::Draft,
+            nim_store::PlanStatus::Submitted => Self::Submitted,
+            nim_store::PlanStatus::Approved => Self::Approved,
+            nim_store::PlanStatus::Rejected => Self::Rejected,
+            nim_store::PlanStatus::Active => Self::Active,
+            nim_store::PlanStatus::Completed => Self::Completed,
+            nim_store::PlanStatus::Failed => Self::Failed,
+            nim_store::PlanStatus::Cancelled => Self::Cancelled,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<PlanStatus> for nim_store::PlanStatus {
+    fn from(value: PlanStatus) -> Self {
+        match value {
+            PlanStatus::Draft => Self::Draft,
+            PlanStatus::Submitted => Self::Submitted,
+            PlanStatus::Approved => Self::Approved,
+            PlanStatus::Rejected => Self::Rejected,
+            PlanStatus::Active => Self::Active,
+            PlanStatus::Completed => Self::Completed,
+            PlanStatus::Failed => Self::Failed,
+            PlanStatus::Cancelled => Self::Cancelled,
+        }
+    }
+}
+
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]

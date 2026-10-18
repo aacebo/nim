@@ -20,6 +20,18 @@ impl PredictionId {
     }
 }
 
+impl From<uuid::Uuid> for PredictionId {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+
+impl From<PredictionId> for uuid::Uuid {
+    fn from(value: PredictionId) -> Self {
+        value.0
+    }
+}
+
 impl std::fmt::Display for PredictionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "pred_{}", self.0.simple())
@@ -47,5 +59,19 @@ impl<'de> serde::Deserialize<'de> for PredictionId {
 
         let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
         Ok(Self(v))
+    }
+}
+
+impl From<nim_store::PredictionRow> for Prediction {
+    fn from(value: nim_store::PredictionRow) -> Self {
+        Self {
+            id: value.id.into(),
+            version: value.version.into(),
+            hypothesis: value.hypothesis,
+            confidence: value.confidence as f32,
+            deadline: value.deadline,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
     }
 }

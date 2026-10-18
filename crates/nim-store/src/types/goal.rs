@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct GoalRow {
     pub id: uuid::Uuid,
-    pub parent_id: uuid::Uuid,
+    pub parent_id: Option<uuid::Uuid>,
     pub version: i32,
     pub description: String,
     pub status: GoalStatus,

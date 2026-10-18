@@ -94,6 +94,53 @@ impl std::fmt::Display for EntityType {
     }
 }
 
+impl From<nim_store::EntityRow> for Entity {
+    fn from(value: nim_store::EntityRow) -> Self {
+        Self {
+            id: value.id.into(),
+            ty: value.ty.into(),
+            version: value.version.into(),
+            name: value.name,
+            summary: value.summary,
+            confidence: value.confidence as f32,
+            embedding: value.embedding.map(Into::into),
+            recalls: value.recalls as u64,
+            recalled_at: value.recalled_at,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
+}
+
+impl From<nim_store::EntityType> for EntityType {
+    fn from(value: nim_store::EntityType) -> Self {
+        match value {
+            nim_store::EntityType::Person => Self::Person,
+            nim_store::EntityType::Place => Self::Place,
+            nim_store::EntityType::Organization => Self::Organization,
+            nim_store::EntityType::Project => Self::Project,
+            nim_store::EntityType::Object => Self::Object,
+            nim_store::EntityType::Event => Self::Event,
+            nim_store::EntityType::Other => Self::Other,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<EntityType> for nim_store::EntityType {
+    fn from(value: EntityType) -> Self {
+        match value {
+            EntityType::Person => Self::Person,
+            EntityType::Place => Self::Place,
+            EntityType::Organization => Self::Organization,
+            EntityType::Project => Self::Project,
+            EntityType::Object => Self::Object,
+            EntityType::Event => Self::Event,
+            EntityType::Other => Self::Other,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EntityRelation {
     #[serde(rename = "type")]

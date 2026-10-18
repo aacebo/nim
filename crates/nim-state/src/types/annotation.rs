@@ -1,8 +1,9 @@
-use crate::Embedding;
+use crate::{Embedding, MemoryId};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Annotation {
     pub id: AnnotationId,
+    pub memory_id: MemoryId,
     pub label: Label,
     pub text: String,
     pub spans: Vec<Span>,
@@ -106,8 +107,8 @@ pub enum Label {
     /// when
     Temporal,
 
-    /// what/who
-    Entity,
+    /// where
+    Spatial,
 }
 
 impl std::fmt::Display for Label {
@@ -124,7 +125,80 @@ impl std::fmt::Display for Label {
             Self::SelfRelevance => write!(f, "self_relevance"),
             Self::SocialRelevance => write!(f, "social_relevance"),
             Self::Temporal => write!(f, "temporal"),
-            Self::Entity => write!(f, "entity"),
+            Self::Spatial => write!(f, "spatial"),
+        }
+    }
+}
+
+impl From<nim_store::AnnotationRow> for Annotation {
+    fn from(value: nim_store::AnnotationRow) -> Self {
+        Self {
+            id: value.id.into(),
+            memory_id: value.memory_id.into(),
+            label: value.label.into(),
+            text: value.text,
+            spans: value.spans.into_inner().into_iter().map(Into::into).collect(),
+            confidence: value.confidence as f32,
+            embedding: value.embedding.map(Into::into),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
+}
+
+impl From<nim_store::Label> for Label {
+    fn from(value: nim_store::Label) -> Self {
+        match value {
+            nim_store::Label::Valence => Self::Valence,
+            nim_store::Label::Emotion => Self::Emotion,
+            nim_store::Label::Salience => Self::Salience,
+            nim_store::Label::Threat => Self::Threat,
+            nim_store::Label::Reward => Self::Reward,
+            nim_store::Label::Novelty => Self::Novelty,
+            nim_store::Label::Familiarity => Self::Familiarity,
+            nim_store::Label::Confidence => Self::Confidence,
+            nim_store::Label::SelfRelevance => Self::SelfRelevance,
+            nim_store::Label::SocialRelevance => Self::SocialRelevance,
+            nim_store::Label::Temporal => Self::Temporal,
+            nim_store::Label::Spatial => Self::Spatial,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<Label> for nim_store::Label {
+    fn from(value: Label) -> Self {
+        match value {
+            Label::Valence => Self::Valence,
+            Label::Emotion => Self::Emotion,
+            Label::Salience => Self::Salience,
+            Label::Threat => Self::Threat,
+            Label::Reward => Self::Reward,
+            Label::Novelty => Self::Novelty,
+            Label::Familiarity => Self::Familiarity,
+            Label::Confidence => Self::Confidence,
+            Label::SelfRelevance => Self::SelfRelevance,
+            Label::SocialRelevance => Self::SocialRelevance,
+            Label::Temporal => Self::Temporal,
+            Label::Spatial => Self::Spatial,
+        }
+    }
+}
+
+impl From<nim_store::Span> for Span {
+    fn from(value: nim_store::Span) -> Self {
+        Self {
+            start: value.start,
+            end: value.end,
+        }
+    }
+}
+
+impl From<Span> for nim_store::Span {
+    fn from(value: Span) -> Self {
+        Self {
+            start: value.start,
+            end: value.end,
         }
     }
 }

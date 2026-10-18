@@ -1,4 +1,5 @@
 mod create;
+mod delete;
 mod find_by_id;
 mod update;
 

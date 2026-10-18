@@ -3,6 +3,7 @@ pub mod bert;
 pub mod distilbert;
 pub mod git;
 pub mod mobilenet;
+pub mod whisper;
 
 mod capability;
 mod loader;
@@ -50,6 +51,7 @@ pub enum Architecture {
     T5,
     MobileNetV2,
     Git,
+    Whisper,
     #[default]
     #[serde(other)]
     Unknown,
@@ -69,6 +71,7 @@ impl Architecture {
             Self::T5 => "t5",
             Self::MobileNetV2 => "mobilenet_v2",
             Self::Git => "git",
+            Self::Whisper => "whisper",
             Self::Unknown => "??",
         }
     }
@@ -90,6 +93,7 @@ impl FromStr for Architecture {
             "t5" => Self::T5,
             "mobilenet_v2" => Self::MobileNetV2,
             "git" => Self::Git,
+            "whisper" => Self::Whisper,
             _ => Self::Unknown,
         })
     }
@@ -114,6 +118,8 @@ pub enum AnyModel {
     Summarizer(bart::Summarizer),
     VisionClassifier(mobilenet::Classifier),
     ImageToText(git::Captioner),
+    Transcriber(whisper::Transcriber),
+    AudioToText(whisper::Captioner),
     Remote(RemoteModel),
 }
 
@@ -189,6 +195,16 @@ impl Model {
                 let processor: git::Processor = repo.json("preprocessor_config.json")?;
                 AnyModel::ImageToText(git::Captioner::new(config, processor, repo.vars()?)?)
             }
+            Architecture::Whisper => {
+                let config: whisper::Config = repo.config()?;
+                let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
+
+                if architecture.is_audio_captioning() {
+                    AnyModel::AudioToText(whisper::Captioner::new(config, processor, repo.vars()?)?)
+                } else {
+                    AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
+                }
+            }
             Architecture::Bert | Architecture::Unknown => {
                 let config: bert::Config = repo.config()?;
 
@@ -257,6 +273,20 @@ impl Model {
         }
     }
 
+    pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
+        match &self.model {
+            AnyModel::Transcriber(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_audio_to_text(&self) -> Option<&dyn AudioToText> {
+        match &self.model {
+            AnyModel::AudioToText(model) => Some(model),
+            _ => None,
+        }
+    }
+
     pub fn as_entity_classify(&self) -> Option<&dyn EntityClassify> {
         match &self.model {
             AnyModel::BartEntityClassifier(model) => Some(model),
@@ -300,6 +330,12 @@ impl Probe {
         self.architectures
             .iter()
             .any(|architecture| architecture.ends_with("ForSequenceClassification"))
+    }
+
+    fn is_audio_captioning(&self) -> bool {
+        self.architectures
+            .iter()
+            .any(|architecture| architecture == "WhisperForAudioCaptioning")
     }
 }
 

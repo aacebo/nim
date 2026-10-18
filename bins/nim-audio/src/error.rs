@@ -16,6 +16,12 @@ impl From<nim::Error> for Error {
     }
 }
 
+impl From<nim::ai::Error> for Error {
+    fn from(value: nim::ai::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
 impl From<std::io::Error> for Error {
     fn from(value: std::io::Error) -> Self {
         Self::IO(value)

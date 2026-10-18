@@ -65,6 +65,28 @@ pub struct ImageToTextArgs {
     pub max_len: Option<usize>,
 }
 
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TranscribeArgs {
+    pub audio: Vec<Vec<u8>>,
+    pub model: ModelArgs,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub beams: Option<usize>,
+    #[serde(default)]
+    pub max_len: Option<usize>,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AudioToTextArgs {
+    pub audio: Vec<Vec<u8>>,
+    pub model: ModelArgs,
+    #[serde(default)]
+    pub beams: Option<usize>,
+    #[serde(default)]
+    pub max_len: Option<usize>,
+}
+
 impl Default for ImageArgs {
     fn default() -> Self {
         Self {
@@ -291,6 +313,42 @@ pub fn image_to_text(args: ImageToTextArgs) -> Result<Vec<Artifact>, Error> {
     Ok(out)
 }
 
+pub fn transcribe(args: TranscribeArgs) -> Result<Vec<Artifact>, Error> {
+    let api_key = args.model.api_key.clone();
+    let model = load(&args.model.resolve(defaults::transcribe())?, &api_key)?;
+    let capable = model.as_transcribe().ok_or_else(|| model.cannot("transcribe"))?;
+    let transcripts = capable.transcribe(
+        &model.context(),
+        &args.audio,
+        args.language.as_deref(),
+        args.beams,
+        args.max_len,
+    )?;
+
+    let out = embeddings(TextArgs {
+        text: transcripts,
+        ..Default::default()
+    })?;
+
+    Ok(out)
+}
+
+pub fn audio_to_text(args: AudioToTextArgs) -> Result<Vec<Artifact>, Error> {
+    let api_key = args.model.api_key.clone();
+    let model = load(&args.model.resolve(defaults::audio_to_text())?, &api_key)?;
+    let capable = model.as_audio_to_text().ok_or_else(|| model.cannot("audio-to-text"))?;
+    let captions = capable.audio_to_text(&model.context(), &args.audio, args.beams, args.max_len)?;
+
+    Ok(captions
+        .into_iter()
+        .map(|caption| Artifact {
+            name: "caption".to_string(),
+            value: ArtifactContent::text(caption),
+            vector: None,
+        })
+        .collect())
+}
+
 fn token_args(args: ScoredArgs) -> Result<TokenArgs, Error> {
     let api_key = args.model.api_key.clone();
     let model = load(&args.model.resolve(defaults::token_classify())?, &api_key)?;
@@ -332,6 +390,14 @@ pub mod defaults {
 
     pub fn image_to_text() -> ModelRef {
         hub("microsoft/git-base")
+    }
+
+    pub fn transcribe() -> ModelRef {
+        hub("openai/whisper-small")
+    }
+
+    pub fn audio_to_text() -> ModelRef {
+        hub("cahya/whisper-small-audio-captioning-v1.5")
     }
 }
 

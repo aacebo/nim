@@ -33,6 +33,14 @@ impl Loader {
             return tokenizer::from_file(path);
         }
 
+        if self.repo.exists(Path::new("vocab.json")) {
+            let vocab = self.repo.resolve(Path::new("vocab.json"))?;
+            let merges = self.repo.resolve(Path::new("merges.txt"))?;
+            let added = self.repo.resolve(Path::new("added_tokens.json"))?;
+
+            return tokenizer::from_bpe(vocab, merges, added);
+        }
+
         let path = self.repo.resolve(Path::new("vocab.txt"))?;
         tokenizer::from_vocab(path, self.lowercase()?)
     }

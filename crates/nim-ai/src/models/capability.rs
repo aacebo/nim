@@ -35,6 +35,27 @@ pub trait ImageToText: Send + Sync {
     ) -> Result<Vec<String>, Error>;
 }
 
+pub trait Transcribe: Send + Sync {
+    fn transcribe(
+        &self,
+        cx: &Context,
+        audio: &[Vec<u8>],
+        language: Option<&str>,
+        beams: Option<usize>,
+        max_len: Option<usize>,
+    ) -> Result<Vec<String>, Error>;
+}
+
+pub trait AudioToText: Send + Sync {
+    fn audio_to_text(
+        &self,
+        cx: &Context,
+        audio: &[Vec<u8>],
+        beams: Option<usize>,
+        max_len: Option<usize>,
+    ) -> Result<Vec<String>, Error>;
+}
+
 pub trait EntityClassify: Send + Sync {
     fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error>;
 }

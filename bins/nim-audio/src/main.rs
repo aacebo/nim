@@ -1,9 +1,9 @@
+mod context;
 mod error;
 mod routes;
-mod state;
 
+pub use context::*;
 pub use error::*;
-pub use state::*;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -24,11 +24,12 @@ async fn main() -> Result<(), Error> {
     );
 
     sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
-    let state = std::sync::Arc::new(State::new(pool));
+    let state = std::sync::Arc::new(Context::new(pool));
     let join = tokio::spawn(start());
     let app = axum::Router::new()
         .merge(routes::new())
         .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), context::http::middleware))
         .with_state(state);
     let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;

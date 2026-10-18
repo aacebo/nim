@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Artifact {
     pub name: String,
+    #[serde(flatten)]
     pub value: ArtifactContent,
     #[serde(skip)]
     pub vector: Option<Vec<f32>>,
@@ -13,7 +14,7 @@ impl std::fmt::Display for Artifact {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum ArtifactContent {
     Text { text: String },
     File { path: std::path::PathBuf },

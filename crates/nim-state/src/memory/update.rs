@@ -1,6 +1,6 @@
 use crate::{Error, Memory, MemoryId, MemoryService};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MemoryUpdate {
     pub salience: Option<f32>,
     pub strength: Option<f32>,

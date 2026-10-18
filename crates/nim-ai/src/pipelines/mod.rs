@@ -397,7 +397,7 @@ pub mod defaults {
     }
 
     pub fn audio_to_text() -> ModelRef {
-        hub("cahya/whisper-small-audio-captioning-v1.5")
+        hub("wsntxxn/cnn14rnn-tempgru-audiocaps-captioning")
     }
 }
 

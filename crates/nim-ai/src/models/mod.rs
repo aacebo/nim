@@ -1,3 +1,4 @@
+pub mod audiocap;
 pub mod bart;
 pub mod bert;
 pub mod distilbert;
@@ -120,6 +121,7 @@ pub enum AnyModel {
     ImageToText(git::Captioner),
     Transcriber(whisper::Transcriber),
     AudioToText(whisper::Captioner),
+    AudioCaptioner(audiocap::Captioner),
     Remote(RemoteModel),
 }
 
@@ -151,86 +153,96 @@ impl Model {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
         let architecture: Probe = repo.config()?;
-        let model = match architecture.architecture {
-            Architecture::Bart => {
-                let config: bart::Config = repo.config()?;
+        let model = if architecture.is_cnn14_audio_captioning() {
+            let config: audiocap::Config = repo.config()?;
+            AnyModel::AudioCaptioner(audiocap::Captioner::new(config, repo.vars()?)?)
+        } else {
+            match architecture.architecture {
+                Architecture::Bart => {
+                    let config: bart::Config = repo.config()?;
 
-                match (
-                    architecture.is_sequence_classification(),
-                    architecture.is_token_classification(),
-                    config.id2label.is_empty(),
-                ) {
-                    (true, _, false) => AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?)?),
-                    (_, true, false) => AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?)?),
-                    _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
-                }
-            }
-            Architecture::DistilBert => {
-                let config: distilbert::Config = repo.config()?;
-
-                match (
-                    architecture.is_sequence_classification(),
-                    architecture.is_token_classification(),
-                    !config.id2label.is_empty(),
-                ) {
-                    (true, _, true) => {
-                        AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(repo.vars()?, &config)?)
-                    }
-                    (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(repo.vars()?, &config)?),
-                    _ => {
-                        return Err(Error::custom(
-                            "ai::invalid",
-                            format!("{name} has no compatible classification head"),
-                        ));
+                    match (
+                        architecture.is_sequence_classification(),
+                        architecture.is_token_classification(),
+                        config.id2label.is_empty(),
+                    ) {
+                        (true, _, false) => AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?)?),
+                        (_, true, false) => AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?)?),
+                        _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
                     }
                 }
-            }
-            Architecture::MobileNetV2 => {
-                let config: mobilenet::Config = repo.config()?;
-                let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
-                AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
-            }
-            Architecture::Git => {
-                let config: git::Config = repo.config()?;
-                let processor: git::Processor = repo.json("preprocessor_config.json")?;
-                AnyModel::ImageToText(git::Captioner::new(config, processor, repo.vars()?)?)
-            }
-            Architecture::Whisper => {
-                let config: whisper::Config = repo.config()?;
-                let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
+                Architecture::DistilBert => {
+                    let config: distilbert::Config = repo.config()?;
 
-                if architecture.is_audio_captioning() {
-                    AnyModel::AudioToText(whisper::Captioner::new(config, processor, repo.vars()?)?)
-                } else {
-                    AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
+                    match (
+                        architecture.is_sequence_classification(),
+                        architecture.is_token_classification(),
+                        !config.id2label.is_empty(),
+                    ) {
+                        (true, _, true) => {
+                            AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(repo.vars()?, &config)?)
+                        }
+                        (_, true, true) => {
+                            AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(repo.vars()?, &config)?)
+                        }
+                        _ => {
+                            return Err(Error::custom(
+                                "ai::invalid",
+                                format!("{name} has no compatible classification head"),
+                            ));
+                        }
+                    }
                 }
-            }
-            Architecture::Bert | Architecture::Unknown => {
-                let config: bert::Config = repo.config()?;
+                Architecture::MobileNetV2 => {
+                    let config: mobilenet::Config = repo.config()?;
+                    let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
+                    AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
+                }
+                Architecture::Git => {
+                    let config: git::Config = repo.config()?;
+                    let processor: git::Processor = repo.json("preprocessor_config.json")?;
+                    AnyModel::ImageToText(git::Captioner::new(config, processor, repo.vars()?)?)
+                }
+                Architecture::Whisper => {
+                    let config: whisper::Config = repo.config()?;
+                    let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
 
-                match (
-                    architecture.is_sequence_classification(),
-                    architecture.is_token_classification(),
-                    !config.id2label.is_empty(),
-                ) {
-                    (true, _, true) => AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config)?),
-                    (_, true, true) => AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config)?),
-                    _ => AnyModel::Embedder(bert::Embedder::new(repo.vars()?, &config)?),
+                    if architecture.is_audio_captioning() {
+                        AnyModel::AudioToText(whisper::Captioner::new(config, processor, repo.vars()?)?)
+                    } else {
+                        AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
+                    }
                 }
-            }
-            other => {
-                return Err(Error::custom(
-                    "ai::invalid",
-                    format!("{name} has unsupported architecture `{other}`"),
-                ));
+                Architecture::Bert | Architecture::Unknown => {
+                    let config: bert::Config = repo.config()?;
+
+                    match (
+                        architecture.is_sequence_classification(),
+                        architecture.is_token_classification(),
+                        !config.id2label.is_empty(),
+                    ) {
+                        (true, _, true) => AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config)?),
+                        (_, true, true) => AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config)?),
+                        _ => AnyModel::Embedder(bert::Embedder::new(repo.vars()?, &config)?),
+                    }
+                }
+                other => {
+                    return Err(Error::custom(
+                        "ai::invalid",
+                        format!("{name} has unsupported architecture `{other}`"),
+                    ));
+                }
             }
         };
 
         Ok(Self {
             model,
-            tokenizer: match architecture.architecture {
-                Architecture::MobileNetV2 => None,
-                _ => Some(repo.tokenizer()?),
+            tokenizer: match architecture.is_cnn14_audio_captioning() {
+                true => Some(audiocap::tokenizer()?),
+                false => match architecture.architecture {
+                    Architecture::MobileNetV2 => None,
+                    _ => Some(repo.tokenizer()?),
+                },
             },
             device,
             name,
@@ -283,6 +295,7 @@ impl Model {
     pub fn as_audio_to_text(&self) -> Option<&dyn AudioToText> {
         match &self.model {
             AnyModel::AudioToText(model) => Some(model),
+            AnyModel::AudioCaptioner(model) => Some(model),
             _ => None,
         }
     }
@@ -336,6 +349,12 @@ impl Probe {
         self.architectures
             .iter()
             .any(|architecture| architecture == "WhisperForAudioCaptioning")
+    }
+
+    fn is_cnn14_audio_captioning(&self) -> bool {
+        self.architectures
+            .iter()
+            .any(|architecture| architecture == "Cnn14RnnTempAttnGruModel")
     }
 }
 

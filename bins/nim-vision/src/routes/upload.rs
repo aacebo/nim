@@ -12,7 +12,7 @@ pub async fn route(
         let content_type = field.content_type().unwrap_or("application/octet-stream");
 
         if !content_type.starts_with("image/") {
-            return Err((axum::http::StatusCode::BAD_REQUEST, "File must be an image".to_string()).into());
+            return Err((axum::http::StatusCode::BAD_REQUEST, "file must be an image".to_string()).into());
         }
 
         let bytes = field.bytes().await?;

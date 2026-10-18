@@ -1,6 +1,7 @@
 use crate::Error;
 use crate::models::{ModelArgs, load};
-use crate::types::{Artifact, ArtifactContent};
+use crate::pipelines::text;
+use crate::types::Artifact;
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
@@ -24,13 +25,6 @@ pub fn run_with(input: &[Vec<u8>], options: Options) -> Result<Vec<Artifact>, Er
     let model = load(&options.model.resolve(super::defaults::captions())?, &api_key)?;
     let capable = model.as_audio_to_text().ok_or_else(|| model.cannot("audio-to-text"))?;
     let captions = capable.audio_to_text(&model.context(), input, options.beams, options.max_len)?;
-
-    Ok(captions
-        .into_iter()
-        .map(|caption| Artifact {
-            name: "caption".to_string(),
-            value: ArtifactContent::text(caption),
-            vector: None,
-        })
-        .collect())
+    let out = text::embeddings::run(&captions.iter().map(String::as_str).collect::<Vec<_>>())?;
+    Ok(out)
 }

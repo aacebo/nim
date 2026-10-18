@@ -1,50 +1,36 @@
-use crate::models::{Model, ModelArgs, load};
+use crate::models::{ModelArgs, load};
 use crate::pipelines::TOP_N;
 use crate::types::{Annotation, Entity, Offset};
 use crate::{Error, tasks};
 
-type TokenArgs = (Vec<String>, f64, std::sync::Arc<Model>);
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Args {
-    pub text: Vec<String>,
+pub struct Options {
     pub model: ModelArgs,
     pub min_score: f64,
 }
 
-impl Args {
-    pub fn into_token_args(self) -> Result<TokenArgs, Error> {
-        let api_key = self.model.api_key.clone();
-        let model = load(&self.model.resolve(super::defaults::token_classify())?, &api_key)?;
-        Ok((self.text, self.min_score, model))
-    }
-}
-
-impl Default for Args {
+impl Default for Options {
     fn default() -> Self {
         Self {
-            text: Default::default(),
             model: Default::default(),
             min_score: 0.8,
         }
     }
 }
 
-pub fn keywords(args: Args) -> Result<Vec<Annotation>, Error> {
-    let api_key = args.model.api_key.clone();
-    let model = load(&args.model.resolve(super::defaults::keywords())?, &api_key)?;
+pub fn keywords(input: &[&str]) -> Result<Vec<Annotation>, Error> {
+    keywords_with(input, Default::default())
+}
+
+pub fn keywords_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Error> {
+    let api_key = options.model.api_key.clone();
+    let model = load(&options.model.resolve(super::defaults::keywords())?, &api_key)?;
     let capable = model.as_embed().ok_or_else(|| model.cannot("embed"))?;
-    let out = tasks::keywords(
-        capable,
-        &model.context(),
-        &args.text.iter().map(String::as_str).collect::<Vec<_>>(),
-        TOP_N,
-    )?;
-    let min_score = args.min_score as f32;
+    let out = tasks::keywords(capable, &model.context(), input, TOP_N)?;
     let mut annotations: Vec<Annotation> = Vec::new();
 
     for keywords in out {
-        for keyword in keywords.into_iter().filter(|k| k.score >= min_score) {
+        for keyword in keywords.into_iter().filter(|k| k.score >= options.min_score as f32) {
             annotations.push(Annotation {
                 name: String::from("keyword"),
                 label: keyword.text.clone(),
@@ -58,18 +44,19 @@ pub fn keywords(args: Args) -> Result<Vec<Annotation>, Error> {
     Ok(annotations)
 }
 
-pub fn entities(args: Args) -> Result<Vec<Annotation>, Error> {
-    let (text, min_score, model) = args.into_token_args()?;
+pub fn entities(input: &[&str]) -> Result<Vec<Annotation>, Error> {
+    entities_with(input, Default::default())
+}
+
+pub fn entities_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Error> {
+    let api_key = options.model.api_key.clone();
+    let model = load(&options.model.resolve(super::defaults::keywords())?, &api_key)?;
     let capable = model.as_entity_classify().ok_or_else(|| model.cannot("entity-classify"))?;
-    let out = tasks::entities(
-        capable,
-        &model.context(),
-        &text.iter().map(String::as_str).collect::<Vec<_>>(),
-    )?;
+    let out = tasks::entities(capable, &model.context(), input)?;
     let mut annotations: Vec<Annotation> = Vec::new();
 
     for entities in out {
-        for entity in entities.into_iter().filter(|e| e.score >= min_score) {
+        for entity in entities.into_iter().filter(|e| e.score >= options.min_score) {
             annotations.push(Annotation {
                 name: "entity".to_string(),
                 text: entity.word,
@@ -88,17 +75,18 @@ pub fn entities(args: Args) -> Result<Vec<Annotation>, Error> {
     Ok(annotations)
 }
 
-pub fn pii(args: Args) -> Result<Vec<Vec<Entity>>, Error> {
-    let (text, min_score, model) = args.into_token_args()?;
+pub fn pii(input: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
+    pii_with(input, Default::default())
+}
+
+pub fn pii_with(input: &[&str], options: Options) -> Result<Vec<Vec<Entity>>, Error> {
+    let api_key = options.model.api_key.clone();
+    let model = load(&options.model.resolve(super::defaults::keywords())?, &api_key)?;
     let capable = model.as_entity_classify().ok_or_else(|| model.cannot("entity-classify"))?;
-    let mut out = tasks::entities(
-        capable,
-        &model.context(),
-        &text.iter().map(String::as_str).collect::<Vec<_>>(),
-    )?;
+    let mut out = tasks::entities(capable, &model.context(), input)?;
 
     for entities in &mut out {
-        entities.retain(|entity| entity.score >= min_score);
+        entities.retain(|entity| entity.score >= options.min_score);
     }
 
     Ok(out)

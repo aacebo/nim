@@ -28,9 +28,10 @@ pub enum Context {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Region {
-    Visual,
+    Vision,
     Audio,
     Memory,
     Emotion,

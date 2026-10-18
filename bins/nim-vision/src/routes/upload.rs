@@ -19,11 +19,19 @@ pub async fn route(
         images.push(bytes.to_vec());
     }
 
-    let artifacts = nim::ai::pipelines::images::captions::run(nim::ai::pipelines::images::captions::Args {
-        images,
-        ..Default::default()
-    })
-    .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    let artifacts = nim::ai::pipelines::images::captions::run(&images)
+        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    // let memory = ctx.services()
+    //     .memories()
+    //     .create(nim::state::MemoryCreate {
+    //         ty: nim::state::MemoryType::Working,
+    //         sources: &[nim::state::Source::Region(nim::state::Region::Vision)],
+    //         contexts: &[],
+    //         description: artifacts
+    //             .,
+    //     })
+    //     .await?;
 
     Ok(axum::Json(artifacts).into_response())
 }

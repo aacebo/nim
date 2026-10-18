@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS memories (
     id              UUID            PRIMARY KEY,
     version         INT             NOT NULL DEFAULT 0,
     type            TEXT            NOT NULL,
+    sources         JSON            NOT NULL,
     contexts        JSONB           NOT NULL,
     salience        REAL            NOT NULL DEFAULT 0.0,
     strength        REAL            NOT NULL DEFAULT 0.0,

@@ -4,31 +4,31 @@ use crate::types::{Artifact, ArtifactContent};
 use crate::{Error, tasks};
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Args {
-    pub text: Vec<String>,
+pub struct Options {
     pub model: ModelArgs,
+
     #[serde(default)]
     pub beams: Option<usize>,
+
     #[serde(default)]
     pub max_len: Option<usize>,
 }
 
-pub fn run(args: Args) -> Result<Vec<Artifact>, Error> {
-    let api_key = args.model.api_key.clone();
-    let model = load(&args.model.resolve(super::defaults::generate())?, &api_key)?;
+pub fn run(input: &[&str]) -> Result<Vec<Artifact>, Error> {
+    run_with(input, Default::default())
+}
+
+pub fn run_with(input: &[&str], options: Options) -> Result<Vec<Artifact>, Error> {
+    let api_key = options.model.api_key.clone();
+    let model = load(&options.model.resolve(super::defaults::generate())?, &api_key)?;
     let capable = model.as_generate().ok_or_else(|| model.cannot("generate"))?;
     let opts = GenOpts {
-        beams: args.beams,
-        max_len: args.max_len,
+        beams: options.beams,
+        max_len: options.max_len,
         ..GenOpts::default()
     };
 
-    let out = tasks::summarize(
-        capable,
-        &model.context(),
-        &args.text.iter().map(String::as_str).collect::<Vec<_>>(),
-        &opts,
-    )?;
+    let out = tasks::summarize(capable, &model.context(), input, &opts)?;
     let artifacts: Vec<Artifact> = out
         .into_iter()
         .map(|summary| Artifact {

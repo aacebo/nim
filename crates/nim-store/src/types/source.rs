@@ -1,7 +1,7 @@
 use super::Region;
 
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Source {
     System,
     Region(Region),

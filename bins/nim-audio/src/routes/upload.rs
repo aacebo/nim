@@ -19,11 +19,8 @@ pub async fn route(
         audio.push(bytes.to_vec());
     }
 
-    let artifacts = nim::ai::pipelines::audio::captions::run(nim::ai::pipelines::audio::captions::Args {
-        audio,
-        ..Default::default()
-    })
-    .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    let artifacts = nim::ai::pipelines::audio::captions::run(&audio)
+        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
     Ok(axum::Json(artifacts).into_response())
 }

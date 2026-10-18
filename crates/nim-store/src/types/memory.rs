@@ -1,3 +1,5 @@
+use crate::Source;
+
 use super::Context;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -6,6 +8,7 @@ pub struct MemoryRow {
     pub version: i32,
     #[sqlx(rename = "type")]
     pub ty: MemoryType,
+    pub sources: sqlx::types::Json<Vec<Source>>,
     pub contexts: sqlx::types::Json<Vec<Context>>,
     pub salience: f32,
     pub strength: f32,

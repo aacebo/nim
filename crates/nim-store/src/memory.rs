@@ -18,6 +18,7 @@ impl<'a> MemoryStorage<'a> {
                 id,
                 version,
                 type,
+                sources,
                 contexts,
                 salience,
                 strength,
@@ -46,6 +47,7 @@ impl<'a> MemoryStorage<'a> {
                 id,
                 version,
                 type,
+                sources,
                 contexts,
                 salience,
                 strength,
@@ -72,12 +74,14 @@ impl<'a> MemoryStorage<'a> {
                 $11,
                 $12,
                 $13,
-                $14
+                $14,
+                $15
             )
             RETURNING
                 id,
                 version,
                 type,
+                sources,
                 contexts,
                 salience,
                 strength,
@@ -94,6 +98,7 @@ impl<'a> MemoryStorage<'a> {
         .bind(value.id)
         .bind(value.version)
         .bind(value.ty)
+        .bind(value.sources)
         .bind(value.contexts)
         .bind(value.salience)
         .bind(value.strength)
@@ -132,6 +137,7 @@ impl<'a> MemoryStorage<'a> {
                 id,
                 version,
                 type,
+                sources,
                 contexts,
                 salience,
                 strength,

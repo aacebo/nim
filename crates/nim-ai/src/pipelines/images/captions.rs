@@ -4,24 +4,25 @@ use crate::pipelines::text;
 use crate::types::Artifact;
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Args {
-    pub images: Vec<Vec<u8>>,
+pub struct Options {
     pub model: ModelArgs,
+
     #[serde(default)]
     pub beams: Option<usize>,
+
     #[serde(default)]
     pub max_len: Option<usize>,
 }
 
-pub fn run(args: Args) -> Result<Vec<Artifact>, Error> {
-    let api_key = args.model.api_key.clone();
-    let model = load(&args.model.resolve(super::defaults::captions())?, &api_key)?;
-    let capable = model.as_image_to_text().ok_or_else(|| model.cannot("image-to-text"))?;
-    let captions = capable.image_to_text(&model.context(), &args.images, args.beams, args.max_len)?;
-    let out = text::embeddings::run(text::embeddings::Args {
-        text: captions,
-        ..Default::default()
-    })?;
+pub fn run(input: &[Vec<u8>]) -> Result<Vec<Artifact>, Error> {
+    run_with(input, Default::default())
+}
 
+pub fn run_with(input: &[Vec<u8>], options: Options) -> Result<Vec<Artifact>, Error> {
+    let api_key = options.model.api_key.clone();
+    let model = load(&options.model.resolve(super::defaults::captions())?, &api_key)?;
+    let capable = model.as_image_to_text().ok_or_else(|| model.cannot("image-to-text"))?;
+    let captions = capable.image_to_text(&model.context(), input, options.beams, options.max_len)?;
+    let out = text::embeddings::run(&captions.iter().map(String::as_str).collect::<Vec<_>>())?;
     Ok(out)
 }

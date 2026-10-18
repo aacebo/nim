@@ -22,3 +22,30 @@ impl std::fmt::Display for Region {
         }
     }
 }
+
+impl From<nim_store::Region> for Region {
+    fn from(value: nim_store::Region) -> Self {
+        match value {
+            nim_store::Region::Vision => Self::Vision,
+            nim_store::Region::Audio => Self::Audio,
+            nim_store::Region::Memory => Self::Memory,
+            nim_store::Region::Emotion => Self::Emotion,
+            nim_store::Region::Executive => Self::Executive,
+            nim_store::Region::Action => Self::Action,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<Region> for nim_store::Region {
+    fn from(value: Region) -> Self {
+        match value {
+            Region::Vision => Self::Vision,
+            Region::Audio => Self::Audio,
+            Region::Memory => Self::Memory,
+            Region::Emotion => Self::Emotion,
+            Region::Executive => Self::Executive,
+            Region::Action => Self::Action,
+        }
+    }
+}

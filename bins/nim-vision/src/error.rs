@@ -103,7 +103,7 @@ impl axum::response::IntoResponse for Error {
         match self {
             Self::Http(err) => err,
             Self::Multipart(err) => err.into_response(),
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            err => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
         }
     }
 }

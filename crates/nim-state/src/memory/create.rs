@@ -1,18 +1,20 @@
 use nim_store::MemoryRow;
 
-use crate::{Context, Error, Memory, MemoryService, MemoryType};
+use crate::{Context, Error, Memory, MemoryService, MemoryType, Source};
 
 #[derive(Debug)]
 pub struct MemoryCreate<'a> {
     pub ty: MemoryType,
+    pub sources: &'a [Source],
     pub contexts: &'a [Context],
-    pub description: String,
+    pub description: &'a str,
 }
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
     pub async fn create<'b>(&self, value: MemoryCreate<'b>) -> Result<Memory, Error> {
         let now = chrono::Utc::now();
+        let sources = value.sources.iter().map(|v| (*v).into()).collect();
         let contexts = value.contexts.iter().map(|c| c.clone().into()).collect();
         let row = self
             .store
@@ -20,12 +22,13 @@ impl<'a> MemoryService<'a> {
                 id: uuid::Uuid::now_v7(),
                 version: 0,
                 ty: value.ty.into(),
+                sources: nim_store::Json(sources),
                 contexts: nim_store::Json(contexts),
                 salience: 0.0,
                 strength: 0.0,
                 confidence: 0.0,
                 recalls: 0,
-                description: value.description,
+                description: value.description.to_string(),
                 summary: None,
                 embedding: None,
                 recalled_at: None,
@@ -38,8 +41,8 @@ impl<'a> MemoryService<'a> {
             id: row.id.into(),
             version: Default::default(),
             ty: row.ty.into(),
+            sources: row.sources.iter().map(|v| (*v).into()).collect(),
             contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
-            sources: Default::default(),
             relations: Default::default(),
             annotations: Default::default(),
             salience: row.salience,

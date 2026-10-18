@@ -3,41 +3,39 @@ use crate::types::{Annotation, Offset};
 use crate::{Error, tasks};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Args {
-    pub text: Vec<String>,
+pub struct Options {
     pub model: ModelArgs,
     pub min_score: f64,
 }
 
-impl Default for Args {
+impl Default for Options {
     fn default() -> Self {
         Self {
-            text: Default::default(),
             model: Default::default(),
             min_score: 0.8,
         }
     }
 }
 
-pub fn sentiment(args: Args) -> Result<Vec<Annotation>, Error> {
-    let api_key = args.model.api_key.clone();
-    let model = load(&args.model.resolve(super::defaults::classify())?, &api_key)?;
+pub fn run(input: &[&str]) -> Result<Vec<Annotation>, Error> {
+    run_with(input, Default::default())
+}
+
+pub fn run_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Error> {
+    let api_key = options.model.api_key.clone();
+    let model = load(&options.model.resolve(super::defaults::classify())?, &api_key)?;
     let capable = model
         .as_sequence_classify()
         .ok_or_else(|| model.cannot("sequence-classify"))?;
-    let out = tasks::sentiment(
-        capable,
-        &model.context(),
-        &args.text.iter().map(String::as_str).collect::<Vec<_>>(),
-    )?;
+    let out = tasks::sentiment(capable, &model.context(), input)?;
     let mut annotations: Vec<Annotation> = Vec::new();
 
     for (index, sentiment) in out.into_iter().enumerate() {
-        if sentiment.score < args.min_score {
+        if sentiment.score < options.min_score {
             continue;
         }
 
-        let source = args.text.get(index).map(String::as_str).unwrap_or_default();
+        let source = input[index];
         let label = sentiment.polarity.as_str();
 
         annotations.push(Annotation {

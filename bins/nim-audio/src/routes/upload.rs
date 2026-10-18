@@ -19,13 +19,7 @@ pub async fn route(
         audio.push(bytes.to_vec());
     }
 
-    let _ = nim::ai::pipelines::audio(nim::ai::pipelines::AudioArgs {
-        audio: audio.clone(),
-        ..Default::default()
-    })
-    .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
-
-    let artifacts = nim::ai::pipelines::audio_to_text(nim::ai::pipelines::AudioToTextArgs {
+    let artifacts = nim::ai::pipelines::audio::captions::run(nim::ai::pipelines::audio::captions::Args {
         audio,
         ..Default::default()
     })

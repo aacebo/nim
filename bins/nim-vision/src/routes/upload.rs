@@ -19,7 +19,7 @@ pub async fn route(
         images.push(bytes.to_vec());
     }
 
-    let artifacts = nim::ai::pipelines::image_to_text(nim::ai::pipelines::ImageToTextArgs {
+    let artifacts = nim::ai::pipelines::images::captions::run(nim::ai::pipelines::images::captions::Args {
         images,
         ..Default::default()
     })

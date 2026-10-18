@@ -7,6 +7,7 @@ pub mod git;
 pub mod mobilenet;
 pub mod whisper;
 
+mod cache;
 mod capability;
 mod loader;
 mod model_id;
@@ -19,6 +20,7 @@ use std::sync::Arc;
 
 use candle_core::{DType, Device};
 
+use cache::*;
 pub use capability::*;
 pub use loader::*;
 pub use model_id::*;
@@ -31,11 +33,56 @@ use crate::clients::http::Http;
 use crate::clients::openai::OpenAI;
 use crate::resources::{Repository, Resource, Uri};
 
+static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
+
 pub trait Forward: Send + Sync {
     type Input;
     type Output;
 
     fn forward(&self, input: Self::Input) -> Result<Self::Output, Error>;
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModelArgs {
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub base_url: Option<String>,
+    pub api_key: Option<String>,
+}
+
+impl ModelArgs {
+    pub fn resolve(self, default: ModelRef) -> Result<ModelRef, Error> {
+        let Some(provider) = self.provider else {
+            let Some(model) = self.model else {
+                return Ok(default);
+            };
+
+            return model.parse();
+        };
+
+        let provider: Provider = provider.parse()?;
+        let id: ModelId = self
+            .model
+            .ok_or(Error::custom("ai::config", "model is required when provider is set"))?
+            .parse()?;
+
+        Ok(ModelRef::remote(provider, id).base_url(self.base_url))
+    }
+}
+
+/// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
+/// for two routines now loads its weights once.
+pub fn load(model: &ModelRef, api_key: &Option<String>) -> Result<std::sync::Arc<crate::models::Model>, Error> {
+    use candle_core::{DType, Device};
+
+    MODELS.get_or_build(Key::new(model, api_key), || {
+        Ok(std::sync::Arc::new(crate::models::Model::new(
+            model,
+            api_key,
+            Device::Cpu,
+            DType::F32,
+        )?))
+    })
 }
 
 #[non_exhaustive]

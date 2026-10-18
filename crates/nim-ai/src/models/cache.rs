@@ -37,10 +37,12 @@ impl<T: ?Sized> Cache<T> {
         }
     }
 
+    #[allow(unused)]
     pub fn len(&self) -> usize {
         self.entries.read().map(|entries| entries.len()).unwrap_or(0)
     }
 
+    #[allow(unused)]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

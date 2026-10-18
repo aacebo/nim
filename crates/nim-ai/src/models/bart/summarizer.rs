@@ -5,7 +5,7 @@ use candle_nn::VarBuilder;
 
 use crate::Error;
 use crate::models::{Context, GenOpts, Generate};
-use crate::pipelines::generate;
+use crate::pipelines::text::generate;
 
 use super::config::Config;
 use super::model::Bart;

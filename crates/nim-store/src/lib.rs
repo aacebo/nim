@@ -24,25 +24,53 @@ pub use sqlx::types::Json;
 
 #[derive(Copy, Clone)]
 pub struct Storage<'a> {
-    pub annotations: AnnotationStorage<'a>,
-    pub entities: EntityStorage<'a>,
-    pub goals: GoalStorage<'a>,
-    pub memories: MemoryStorage<'a>,
-    pub facts: FactStorage<'a>,
-    pub plans: PlanStorage<'a>,
-    pub predictions: PredictionStorage<'a>,
+    _annotations: AnnotationStorage<'a>,
+    _entities: EntityStorage<'a>,
+    _goals: GoalStorage<'a>,
+    _memories: MemoryStorage<'a>,
+    _facts: FactStorage<'a>,
+    _plans: PlanStorage<'a>,
+    _predictions: PredictionStorage<'a>,
 }
 
 impl<'a> Storage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self {
-            annotations: AnnotationStorage::new(pool),
-            entities: EntityStorage::new(pool),
-            goals: GoalStorage::new(pool),
-            memories: MemoryStorage::new(pool),
-            facts: FactStorage::new(pool),
-            plans: PlanStorage::new(pool),
-            predictions: PredictionStorage::new(pool),
+            _annotations: AnnotationStorage::new(pool),
+            _entities: EntityStorage::new(pool),
+            _goals: GoalStorage::new(pool),
+            _memories: MemoryStorage::new(pool),
+            _facts: FactStorage::new(pool),
+            _plans: PlanStorage::new(pool),
+            _predictions: PredictionStorage::new(pool),
         }
+    }
+
+    pub fn annotations(&self) -> AnnotationStorage<'a> {
+        self._annotations
+    }
+
+    pub fn entities(&self) -> EntityStorage<'a> {
+        self._entities
+    }
+
+    pub fn goals(&self) -> GoalStorage<'a> {
+        self._goals
+    }
+
+    pub fn memories(&self) -> MemoryStorage<'a> {
+        self._memories
+    }
+
+    pub fn facts(&self) -> FactStorage<'a> {
+        self._facts
+    }
+
+    pub fn plans(&self) -> PlanStorage<'a> {
+        self._plans
+    }
+
+    pub fn predictions(&self) -> PredictionStorage<'a> {
+        self._predictions
     }
 }

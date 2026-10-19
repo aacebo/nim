@@ -39,6 +39,7 @@ impl<'a> GoalService<'a> {
             row.conditions = nim_store::Json(value.into_iter().map(Into::into).collect());
         }
 
+        row.version += 1;
         Ok(self.store.update(row).await?.into())
     }
 }

@@ -4,6 +4,8 @@ pub mod bart;
 pub mod bert;
 #[cfg(feature = "audio")]
 pub mod cnn8rnn;
+#[cfg(feature = "vision")]
+pub mod detr;
 pub mod distilbert;
 #[cfg(feature = "vision")]
 pub mod git;
@@ -105,6 +107,7 @@ pub enum Architecture {
     T5,
     #[serde(rename = "mobilenet_v2")]
     MobileNetV2,
+    Detr,
     Git,
     Whisper,
     #[default]
@@ -125,6 +128,7 @@ impl Architecture {
             Self::Mistral => "mistral",
             Self::T5 => "t5",
             Self::MobileNetV2 => "mobilenet_v2",
+            Self::Detr => "detr",
             Self::Git => "git",
             Self::Whisper => "whisper",
             Self::Unknown => "??",
@@ -147,6 +151,7 @@ impl FromStr for Architecture {
             "mistral" => Self::Mistral,
             "t5" => Self::T5,
             "mobilenet_v2" => Self::MobileNetV2,
+            "detr" => Self::Detr,
             "git" => Self::Git,
             "whisper" => Self::Whisper,
             _ => Self::Unknown,
@@ -173,6 +178,8 @@ pub enum AnyModel {
     Summarizer(bart::Summarizer),
     #[cfg(feature = "vision")]
     VisionClassifier(mobilenet::Classifier),
+    #[cfg(feature = "vision")]
+    ObjectDetector(detr::Detector),
     #[cfg(feature = "vision")]
     ImageToText(git::Captioner),
     #[cfg(feature = "audio")]
@@ -234,7 +241,7 @@ impl Model {
         } else {
             match architecture.architecture {
                 #[cfg(not(feature = "vision"))]
-                Architecture::MobileNetV2 | Architecture::Git => {
+                Architecture::MobileNetV2 | Architecture::Git | Architecture::Detr => {
                     return Err(Error::custom("ai::config", format!("{name} requires the `vision` feature")));
                 }
                 #[cfg(not(feature = "audio"))]
@@ -281,6 +288,13 @@ impl Model {
                     let config: mobilenet::Config = repo.config()?;
                     let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
                     AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
+                }
+                #[cfg(feature = "vision")]
+                Architecture::Detr => {
+                    let config: detr::Config = repo.config()?;
+                    config.validate()?;
+                    let processor: detr::Processor = repo.json("preprocessor_config.json")?;
+                    AnyModel::ObjectDetector(detr::Detector::new(repo.vars()?, config, processor)?)
                 }
                 #[cfg(feature = "vision")]
                 Architecture::Git => {
@@ -331,7 +345,7 @@ impl Model {
                 #[cfg(feature = "audio")]
                 (_, true) => Some(audiocap::tokenizer()?),
                 _ => match architecture.architecture {
-                    Architecture::MobileNetV2 => None,
+                    Architecture::MobileNetV2 | Architecture::Detr => None,
                     _ => Some(repo.tokenizer()?),
                 },
             },
@@ -366,6 +380,15 @@ impl Model {
     pub fn as_image_classify(&self) -> Option<&dyn ImageClassify> {
         match &self.model {
             AnyModel::VisionClassifier(model) => Some(model),
+            AnyModel::ObjectDetector(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "vision")]
+    pub fn as_image_detect(&self) -> Option<&dyn ImageDetect> {
+        match &self.model {
+            AnyModel::ObjectDetector(model) => Some(model),
             _ => None,
         }
     }

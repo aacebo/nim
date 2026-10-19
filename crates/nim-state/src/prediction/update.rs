@@ -24,6 +24,7 @@ impl<'a> PredictionService<'a> {
             row.deadline = value;
         }
 
+        row.version += 1;
         Ok(self.store.update(row).await?.into())
     }
 }

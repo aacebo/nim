@@ -26,6 +26,29 @@ pub trait ImageClassify: Send + Sync {
     fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
 }
 
+#[cfg(feature = "vision")]
+pub trait ImageDetect: Send + Sync {
+    fn detect_image(&self, cx: &Context, image: &[u8], min_score: f64, limit: usize) -> Result<Vec<Detection>, Error>;
+}
+
+#[cfg(feature = "vision")]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Detection {
+    pub class_id: usize,
+    pub label: String,
+    pub score: f64,
+    pub bbox: BoundingBox,
+}
+
+#[cfg(feature = "vision")]
+#[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BoundingBox {
+    pub xmin: f32,
+    pub ymin: f32,
+    pub xmax: f32,
+    pub ymax: f32,
+}
+
 #[cfg(feature = "audio")]
 pub trait AudioClassify: Send + Sync {
     fn classify_audio(&self, cx: &Context, audio: &[u8], limit: usize) -> Result<Vec<Label>, Error>;

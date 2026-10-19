@@ -1,5 +1,6 @@
 pub mod captions;
 pub mod classify;
+pub mod detect;
 
 /// Default models, one per capability. A model that cannot serve the routine you called is an
 /// error -- the empty cells of the capability matrix.
@@ -12,6 +13,10 @@ pub mod defaults {
 
     pub fn classify() -> ModelRef {
         hub("google/mobilenet_v2_1.0_224")
+    }
+
+    pub fn detect() -> ModelRef {
+        hub("facebook/detr-resnet-50")
     }
 
     pub fn captions() -> ModelRef {

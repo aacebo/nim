@@ -20,11 +20,9 @@ pub async fn route(
         images.push(bytes.to_vec());
     }
 
+    let mut memories = vec![];
     let artifacts = nim::ai::pipelines::images::captions::run(&images)
         .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
-    let annotations = nim::ai::pipelines::images::classify::run(&images)
-        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
-    let mut memories = vec![];
 
     for artifact in &artifacts {
         let memory = ctx
@@ -34,7 +32,7 @@ pub async fn route(
                 ty: nim::state::MemoryType::Working,
                 sources: &[nim::state::Source::Region(nim::state::Region::Vision)],
                 summary: artifact.value.as_str(),
-                embedding: artifact.vector.as_ref().map(|v| v.as_slice()),
+                embedding: artifact.vector.as_deref(),
                 ..Default::default()
             })
             .await
@@ -42,6 +40,9 @@ pub async fn route(
 
         memories.push(memory);
     }
+
+    let annotations = nim::ai::pipelines::images::classify::run(&images)
+        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
     for (memory, annotations) in memories.iter_mut().zip(annotations) {
         let texts = annotations.iter().map(|a| a.text.as_str()).collect::<Vec<_>>();
@@ -65,7 +66,34 @@ pub async fn route(
                         })
                         .collect::<Vec<_>>(),
                     confidence: annotation.score as f32,
-                    embedding: embeddings[i].vector.as_ref().map(|v| v.as_slice()),
+                    embedding: embeddings[i].vector.as_deref(),
+                })
+                .await
+                .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+            memory.annotations.push(annotation.into());
+        }
+    }
+
+    let detections = nim::ai::pipelines::images::detect::run(&images)
+        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    for (memory, detections) in memories.iter_mut().zip(detections) {
+        let texts = detections.iter().map(|a| a.label.as_str()).collect::<Vec<_>>();
+        let embeddings = nim::ai::pipelines::text::embeddings::run(&texts)
+            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+        for (i, detection) in detections.iter().filter(|a| a.score >= 0.25).enumerate() {
+            let annotation = ctx
+                .services()
+                .annotations()
+                .create(nim::state::AnnotationCreate {
+                    memory_id: memory.id,
+                    label: nim::state::Label::Unknown,
+                    text: detection.label.clone(),
+                    spans: Default::default(),
+                    confidence: detection.score as f32,
+                    embedding: embeddings[i].vector.as_deref(),
                 })
                 .await
                 .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;

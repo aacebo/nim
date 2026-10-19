@@ -1,4 +1,5 @@
 use axum::response::IntoResponse;
+use nim::state::Span;
 
 use crate::http::HttpContext;
 
@@ -47,15 +48,22 @@ pub async fn route(
         let embeddings = nim::ai::pipelines::text::embeddings::run(&texts)
             .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
-        for (i, annotation) in annotations.iter().enumerate() {
+        for (i, annotation) in annotations.iter().filter(|a| a.score >= 0.25).enumerate() {
             let annotation = ctx
                 .services()
                 .annotations()
                 .create(nim::state::AnnotationCreate {
                     memory_id: memory.id,
                     label: nim::state::Label::Unknown,
-                    text: annotation.text.clone(),
-                    spans: Default::default(),
+                    text: annotation.label.clone(),
+                    spans: &annotation
+                        .spans
+                        .iter()
+                        .map(|v| Span {
+                            start: v.begin,
+                            end: v.end,
+                        })
+                        .collect::<Vec<_>>(),
                     confidence: annotation.score as f32,
                     embedding: embeddings[i].vector.as_ref().map(|v| v.as_slice()),
                 })

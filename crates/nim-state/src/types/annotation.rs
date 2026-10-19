@@ -1,3 +1,5 @@
+pub use nim_store::Span;
+
 use crate::{Embedding, MemoryId};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -21,7 +23,7 @@ impl From<nim_store::AnnotationRow> for Annotation {
             memory_id: value.memory_id.into(),
             label: value.label.into(),
             text: value.text,
-            spans: value.spans.into_inner().into_iter().map(Into::into).collect(),
+            spans: value.spans.into_inner(),
             confidence: value.confidence,
             embedding: value.embedding.map(Into::into),
             created_at: value.created_at,
@@ -45,7 +47,7 @@ impl From<nim_store::AnnotationRow> for AnnotationPartial {
             id: value.id.into(),
             label: value.label.into(),
             text: value.text,
-            spans: value.spans.into_inner().into_iter().map(Into::into).collect(),
+            spans: value.spans.into_inner(),
             confidence: value.confidence,
         }
     }
@@ -216,30 +218,6 @@ impl From<Label> for nim_store::Label {
             Label::Temporal => Self::Temporal,
             Label::Spatial => Self::Spatial,
             Label::Unknown => Self::Unknown,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Span {
-    pub start: u32,
-    pub end: u32,
-}
-
-impl From<nim_store::Span> for Span {
-    fn from(value: nim_store::Span) -> Self {
-        Self {
-            start: value.start,
-            end: value.end,
-        }
-    }
-}
-
-impl From<Span> for nim_store::Span {
-    fn from(value: Span) -> Self {
-        Self {
-            start: value.start,
-            end: value.end,
         }
     }
 }

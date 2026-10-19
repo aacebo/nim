@@ -1,4 +1,5 @@
 mod annotation;
+mod artifact;
 mod entity;
 mod error;
 mod fact;
@@ -9,6 +10,7 @@ mod prediction;
 mod types;
 
 pub use annotation::*;
+pub use artifact::*;
 pub use entity::*;
 pub use error::*;
 pub use fact::*;
@@ -21,6 +23,7 @@ pub use types::*;
 #[derive(Copy, Clone)]
 pub struct Services<'a> {
     _annotations: AnnotationService<'a>,
+    _artifacts: ArtifactService<'a>,
     _entities: EntityService<'a>,
     _facts: FactService<'a>,
     _goals: GoalService<'a>,
@@ -33,6 +36,7 @@ impl<'a> Services<'a> {
     pub fn new(pool: &'a nim_store::PgPool) -> Self {
         Self {
             _annotations: AnnotationService::new(pool),
+            _artifacts: ArtifactService::new(pool),
             _entities: EntityService::new(pool),
             _facts: FactService::new(pool),
             _goals: GoalService::new(pool),
@@ -44,6 +48,10 @@ impl<'a> Services<'a> {
 
     pub fn annotations(&self) -> AnnotationService<'a> {
         self._annotations
+    }
+
+    pub fn artifacts(&self) -> ArtifactService<'a> {
+        self._artifacts
     }
 
     pub fn entities(&self) -> EntityService<'a> {

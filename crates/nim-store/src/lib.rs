@@ -1,19 +1,23 @@
 mod annotation;
+mod artifact;
 mod entity;
 mod fact;
 mod goal;
 mod memory;
 mod plan;
 mod prediction;
+mod search;
 mod types;
 
 pub use annotation::*;
+pub use artifact::*;
 pub use entity::*;
 pub use fact::*;
 pub use goal::*;
 pub use memory::*;
 pub use plan::*;
 pub use prediction::*;
+pub use search::*;
 pub use types::*;
 
 pub use pgvector::Vector;
@@ -25,6 +29,7 @@ pub use sqlx::types::Json;
 #[derive(Copy, Clone)]
 pub struct Storage<'a> {
     _annotations: AnnotationStorage<'a>,
+    _artifacts: ArtifactStorage<'a>,
     _entities: EntityStorage<'a>,
     _goals: GoalStorage<'a>,
     _memories: MemoryStorage<'a>,
@@ -37,6 +42,7 @@ impl<'a> Storage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self {
             _annotations: AnnotationStorage::new(pool),
+            _artifacts: ArtifactStorage::new(pool),
             _entities: EntityStorage::new(pool),
             _goals: GoalStorage::new(pool),
             _memories: MemoryStorage::new(pool),
@@ -48,6 +54,10 @@ impl<'a> Storage<'a> {
 
     pub fn annotations(&self) -> AnnotationStorage<'a> {
         self._annotations
+    }
+
+    pub fn artifacts(&self) -> ArtifactStorage<'a> {
+        self._artifacts
     }
 
     pub fn entities(&self) -> EntityStorage<'a> {

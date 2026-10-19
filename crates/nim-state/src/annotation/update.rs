@@ -28,7 +28,7 @@ impl<'a> AnnotationService<'a> {
         }
 
         if let Some(value) = value.spans {
-            row.spans = nim_store::Json(value.into_iter().map(Into::into).collect());
+            row.spans = nim_store::Json(value);
         }
 
         if let Some(value) = value.confidence {

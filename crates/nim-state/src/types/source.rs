@@ -29,7 +29,7 @@ impl From<nim_store::Source> for Source {
     fn from(value: nim_store::Source) -> Self {
         match value {
             nim_store::Source::System => Self::System,
-            nim_store::Source::Region(v) => Self::Region(v.into()),
+            nim_store::Source::Region(v) => Self::Region(v),
             nim_store::Source::Memory(v) => Self::Memory(v.into()),
             nim_store::Source::Entity(v) => Self::Entity(v.into()),
             nim_store::Source::Prediction(v) => Self::Prediction(v.into()),
@@ -43,7 +43,7 @@ impl From<Source> for nim_store::Source {
     fn from(value: Source) -> Self {
         match value {
             Source::System => Self::System,
-            Source::Region(v) => Self::Region(v.into()),
+            Source::Region(v) => Self::Region(v),
             Source::Memory(v) => Self::Memory(v.into()),
             Source::Entity(v) => Self::Entity(v.into()),
             Source::Prediction(v) => Self::Prediction(v.into()),

@@ -12,3 +12,6 @@ CREATE TABLE IF NOT EXISTS annotations (
 
 CREATE INDEX IF NOT EXISTS annotations_memory_idx
 ON annotations (memory_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS annotations_embedding_idx
+ON annotations USING hnsw (embedding vector_cosine_ops);

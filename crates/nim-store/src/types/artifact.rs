@@ -1,0 +1,66 @@
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ArtifactRow {
+    pub id: uuid::Uuid,
+    pub memory_id: uuid::Uuid,
+    pub name: Option<String>,
+    pub content: sqlx::types::Json<ArtifactContent>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ArtifactContent {
+    Text {
+        text: String,
+    },
+    File {
+        path: std::path::PathBuf,
+        size: i64,
+        media_type: Option<String>,
+    },
+}
+
+impl ArtifactContent {
+    pub fn text(value: impl Into<String>) -> Self {
+        Self::Text { text: value.into() }
+    }
+
+    pub fn file(path: impl Into<std::path::PathBuf>, size: i64, media_type: Option<String>) -> Self {
+        Self::File {
+            path: path.into(),
+            size,
+            media_type,
+        }
+    }
+
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Text { text } => Some(text),
+            _ => None,
+        }
+    }
+
+    pub fn as_file(&self) -> Option<&std::path::PathBuf> {
+        match self {
+            Self::File { path, .. } => Some(path),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::Text { text } => Some(text),
+            Self::File { path, .. } => path.to_str(),
+        }
+    }
+}
+
+impl std::fmt::Display for ArtifactContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Text { text } => write!(f, "{text}"),
+            Self::File { path, .. } => write!(f, "{}", path.display()),
+        }
+    }
+}

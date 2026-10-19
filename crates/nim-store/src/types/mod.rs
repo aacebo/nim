@@ -1,4 +1,5 @@
 mod annotation;
+mod artifact;
 mod context;
 mod entity;
 mod fact;
@@ -10,6 +11,7 @@ mod region;
 mod source;
 
 pub use annotation::*;
+pub use artifact::*;
 pub use context::*;
 pub use entity::*;
 pub use fact::*;

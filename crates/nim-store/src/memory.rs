@@ -1,4 +1,4 @@
-use crate::types;
+use crate::{MemoryType, SearchItem, types};
 
 #[derive(Copy, Clone)]
 pub struct MemoryStorage<'a> {
@@ -35,6 +35,38 @@ impl<'a> MemoryStorage<'a> {
         )
         .bind(id)
         .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub async fn search(
+        &self,
+        embedding: &[f32],
+        ty: MemoryType,
+        limit: usize,
+    ) -> Result<Vec<SearchItem<types::MemoryRow>>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                (1 - LEAST(memories.embedding <=> $1::vector, annotations.distance))::real AS similarity,
+                memories.*
+            FROM memories
+            LEFT JOIN (
+                SELECT memory_id, MIN(embedding <=> $1::vector) AS distance
+                FROM annotations
+                WHERE embedding IS NOT NULL
+                GROUP BY memory_id
+            ) AS annotations ON annotations.memory_id = memories.id
+            WHERE memories.type = $3
+            AND memories.embedding IS NOT NULL OR annotations.distance IS NOT NULL
+            ORDER BY LEAST(memories.embedding <=> $1::vector, annotations.distance), memories.id
+            LIMIT $2;
+            "#,
+        )
+        .bind(pgvector::Vector::from(embedding.to_vec()))
+        .bind(limit as i64)
+        .bind(ty)
+        .fetch_all(self.pool)
         .await
     }
 

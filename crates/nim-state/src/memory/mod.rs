@@ -1,6 +1,7 @@
 mod create;
 mod delete;
 mod find_by_id;
+mod search;
 mod update;
 
 pub use create::*;

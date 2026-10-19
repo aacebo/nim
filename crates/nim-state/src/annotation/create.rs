@@ -23,7 +23,7 @@ impl<'a> AnnotationService<'a> {
                 memory_id: value.memory_id.into(),
                 label: value.label.into(),
                 text: value.text,
-                spans: nim_store::Json(value.spans.iter().copied().map(Into::into).collect()),
+                spans: nim_store::Json(value.spans.to_vec()),
                 confidence: value.confidence,
                 embedding: value.embedding.map(|v| v.to_vec().into()),
                 created_at: now,

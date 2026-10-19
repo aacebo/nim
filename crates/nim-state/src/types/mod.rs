@@ -1,4 +1,5 @@
 mod annotation;
+mod artifact;
 mod context;
 mod embed;
 mod entity;
@@ -12,6 +13,7 @@ mod source;
 mod version;
 
 pub use annotation::*;
+pub use artifact::*;
 pub use context::*;
 pub use embed::*;
 pub use entity::*;

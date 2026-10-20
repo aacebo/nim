@@ -5,7 +5,6 @@ use crate::MemoryId;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Artifact {
     pub id: ArtifactId,
-    pub memory_id: MemoryId,
     pub name: Option<String>,
     pub content: ArtifactContent,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -16,11 +15,27 @@ impl From<nim_store::ArtifactRow> for Artifact {
     fn from(value: nim_store::ArtifactRow) -> Self {
         Self {
             id: value.id.into(),
-            memory_id: value.memory_id.into(),
             name: value.name,
             content: value.content.into_inner(),
             created_at: value.created_at,
             updated_at: value.updated_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MemoryArtifact {
+    pub memory_id: MemoryId,
+    pub artifact_id: ArtifactId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::MemoryArtifactRow> for MemoryArtifact {
+    fn from(value: nim_store::MemoryArtifactRow) -> Self {
+        Self {
+            memory_id: value.memory_id.into(),
+            artifact_id: value.artifact_id.into(),
+            created_at: value.created_at,
         }
     }
 }

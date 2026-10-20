@@ -16,7 +16,6 @@ impl<'a> ArtifactStorage<'a> {
             r#"
             SELECT
                 id,
-                memory_id,
                 name,
                 content,
                 created_at,
@@ -35,15 +34,15 @@ impl<'a> ArtifactStorage<'a> {
         sqlx::query_as(
             r#"
             SELECT
-                id,
-                memory_id,
-                name,
-                content,
-                created_at,
-                updated_at
+                artifacts.id,
+                artifacts.name,
+                artifacts.content,
+                artifacts.created_at,
+                artifacts.updated_at
             FROM artifacts
-            WHERE memory_id = $1
-            ORDER BY created_at, id
+            JOIN memories_artifacts ON memories_artifacts.artifact_id = artifacts.id
+            WHERE memories_artifacts.memory_id = $1
+            ORDER BY artifacts.created_at, artifacts.id
             "#,
         )
         .bind(memory_id)
@@ -57,7 +56,6 @@ impl<'a> ArtifactStorage<'a> {
             r#"
             INSERT INTO artifacts (
                 id,
-                memory_id,
                 type,
                 name,
                 content,
@@ -66,16 +64,14 @@ impl<'a> ArtifactStorage<'a> {
             )
             VALUES (
                 $1,
+                $3::jsonb ->> 'type',
                 $2,
-                $4::jsonb ->> 'type',
                 $3,
                 $4,
-                $5,
-                $6
+                $5
             )
             RETURNING
                 id,
-                memory_id,
                 name,
                 content,
                 created_at,
@@ -83,7 +79,6 @@ impl<'a> ArtifactStorage<'a> {
             "#,
         )
         .bind(value.id)
-        .bind(value.memory_id)
         .bind(value.name)
         .bind(value.content)
         .bind(value.created_at)
@@ -98,15 +93,13 @@ impl<'a> ArtifactStorage<'a> {
             r#"
             UPDATE artifacts
             SET
-                memory_id = $2,
-                type = $4::jsonb ->> 'type',
-                name = $3,
-                content = $4,
-                updated_at = $5
+                type = $3::jsonb ->> 'type',
+                name = $2,
+                content = $3,
+                updated_at = $4
             WHERE id = $1
             RETURNING
                 id,
-                memory_id,
                 name,
                 content,
                 created_at,
@@ -114,12 +107,51 @@ impl<'a> ArtifactStorage<'a> {
             "#,
         )
         .bind(value.id)
-        .bind(value.memory_id)
         .bind(value.name)
         .bind(value.content)
         .bind(chrono::Utc::now())
         .fetch_one(self.pool)
         .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn link(&self, memory_id: uuid::Uuid, artifact_id: uuid::Uuid) -> Result<types::MemoryArtifactRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            INSERT INTO memories_artifacts (
+                memory_id,
+                artifact_id
+            )
+            VALUES (
+                $1,
+                $2
+            )
+            RETURNING
+                memory_id,
+                artifact_id,
+                created_at
+            "#,
+        )
+        .bind(memory_id)
+        .bind(artifact_id)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn unlink(&self, memory_id: uuid::Uuid, artifact_id: uuid::Uuid) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            DELETE FROM memories_artifacts
+            WHERE memory_id = $1 AND artifact_id = $2
+            "#,
+        )
+        .bind(memory_id)
+        .bind(artifact_id)
+        .execute(self.pool)
+        .await?;
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]

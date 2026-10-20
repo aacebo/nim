@@ -1,10 +1,9 @@
 use nim_store::ArtifactRow;
 
-use crate::{Artifact, ArtifactContent, ArtifactService, Error, MemoryId};
+use crate::{Artifact, ArtifactContent, ArtifactService, Error};
 
 #[derive(Debug)]
 pub struct ArtifactCreate {
-    pub memory_id: MemoryId,
     pub name: Option<String>,
     pub content: ArtifactContent,
 }
@@ -17,7 +16,6 @@ impl<'a> ArtifactService<'a> {
             .store
             .create(ArtifactRow {
                 id: uuid::Uuid::now_v7(),
-                memory_id: value.memory_id.into(),
                 name: value.name,
                 content: nim_store::Json(value.content),
                 created_at: now,

@@ -1,8 +1,7 @@
-use crate::{Artifact, ArtifactContent, ArtifactId, ArtifactService, Error, MemoryId};
+use crate::{Artifact, ArtifactContent, ArtifactId, ArtifactService, Error};
 
 #[derive(Debug, Default)]
 pub struct ArtifactUpdate {
-    pub memory_id: Option<MemoryId>,
     pub name: Option<Option<String>>,
     pub content: Option<ArtifactContent>,
 }
@@ -11,10 +10,6 @@ impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self, value))]
     pub async fn update(&self, id: ArtifactId, value: ArtifactUpdate) -> Result<Artifact, Error> {
         let mut row = self.store.find_by_id(id.into()).await?;
-
-        if let Some(value) = value.memory_id {
-            row.memory_id = value.into();
-        }
 
         if let Some(value) = value.name {
             row.name = value;

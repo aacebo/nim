@@ -1,11 +1,17 @@
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ArtifactRow {
     pub id: uuid::Uuid,
-    pub memory_id: uuid::Uuid,
     pub name: Option<String>,
     pub content: sqlx::types::Json<ArtifactContent>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct MemoryArtifactRow {
+    pub memory_id: uuid::Uuid,
+    pub artifact_id: uuid::Uuid,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

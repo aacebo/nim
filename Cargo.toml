@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["bins/*","crates/*"]
+members = ["bins/*", "crates/*"]
 default-members = ["bins/*", "crates/*"]
 
 [workspace.package]
@@ -21,6 +21,8 @@ result_large_err = "allow"
 
 [workspace.dependencies]
 axum = { version = "0.8" }
+mime = { version = "0.3" }
+mime_guess = { version = "2" }
 chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.9", default-features = false }
 url = { version = "2" }
@@ -32,8 +34,10 @@ tokio = { version = "1" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
 reqwest = { version = "0.13", default-features = false }
+futures-core = { version = "0.3" }
 
 nim = { path = "crates/nim", version = "0.0.0" }
 nim-ai = { path = "crates/nim-ai", version = "0.0.0" }
 nim-state = { path = "crates/nim-state", version = "0.0.0" }
 nim-store = { path = "crates/nim-store", version = "0.0.0" }
+nim-signals = { path = "crates/nim-signals", version = "0.0.0" }

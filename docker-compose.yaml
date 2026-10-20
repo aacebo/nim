@@ -16,10 +16,21 @@ services:
       timeout: 5s
       retries: 5
 
-  audio:
-    container_name: nim-audio
+  nats:
+    container_name: nim-nats
+    image: nats:latest
+    command: ["-c", "/etc/nats/nats.conf"]
+    ports:
+      - 4222:4222
+      - 8222:8222
+    volumes:
+      - ./nats.conf:/etc/nats/nats.conf
+      - nats_data:/data
+
+  gateway:
+    container_name: nim-gateway
     image: rust:alpine
-    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-audio --release"
+    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-gateway --release"
     working_dir: /app
     ports:
       - 3000:8080
@@ -28,21 +39,40 @@ services:
       OPENSSL_STATIC: 1
       OPENSSL_DIR: /usr
       RUST_LOG: info
+      STAGINE_DIR: /app/staging
     volumes:
       - .:/app
       - /app/target
     depends_on:
       postgres:
         condition: service_healthy
+      nats:
+        condition: service_healthy
 
+  audio:
+    container_name: nim-audio
+    image: rust:alpine
+    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-audio --release"
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      OPENSSL_STATIC: 1
+      OPENSSL_DIR: /usr
+      RUST_LOG: info
+    volumes:
+      - .:/app
+      - /app/target
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
 
   exec:
     container_name: nim-exec
     image: rust:alpine
     command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-exec --release"
     working_dir: /app
-    ports:
-      - 3001:8080
     environment:
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
       OPENSSL_STATIC: 1
@@ -54,15 +84,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
+      nats:
+        condition: service_healthy
 
   vision:
     container_name: nim-vision
     image: rust:alpine
     command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-vision --release"
     working_dir: /app
-    ports:
-      - 3002:8080
     environment:
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
       OPENSSL_STATIC: 1
@@ -74,3 +103,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      nats:
+        condition: service_healthy
+
+volumes:
+  nats_data:

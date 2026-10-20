@@ -13,10 +13,13 @@ workspace = true
 
 [features]
 default = []
-audio = ["nim-ai/audio"]
-vision = ["nim-ai/vision"]
+ai = ["dep:nim-ai"]
+audio = ["nim-ai?/audio"]
+vision = ["nim-ai?/vision"]
+signals = ["dep:nim-signals"]
 
 [dependencies]
-nim-ai.workspace = true
-nim-state.workspace = true
-nim-store.workspace = true
+nim-state = { workspace = true }
+nim-store = { workspace = true }
+nim-signals = { workspace = true, optional = true }
+nim-ai = { workspace = true, optional = true }

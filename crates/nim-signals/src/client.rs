@@ -1,0 +1,57 @@
+use async_nats::jetstream;
+
+use crate::{Error, Signal, Stream};
+
+pub struct Client {
+    name: String,
+    context: jetstream::Context,
+}
+
+impl Client {
+    pub(crate) fn new(name: impl AsRef<str>, context: jetstream::Context) -> Self {
+        Self {
+            name: name.as_ref().to_string(),
+            context,
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn publish<S, T>(&self, subject: S, signal: T) -> Result<(), Error>
+    where
+        S: std::fmt::Debug + async_nats::ToSubject,
+        T: std::fmt::Debug + serde::Serialize,
+    {
+        let signal = Signal::from(signal);
+        let bytes = serde_json::to_vec(&signal)?;
+        let _ = self.context.publish(subject, bytes.into()).await?.await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn subscribe<S, T>(&self, subject: S) -> Result<Stream<Signal<T>>, Error>
+    where
+        S: std::fmt::Debug + async_nats::ToSubject,
+    {
+        let stream = self
+            .context
+            .get_or_create_stream(jetstream::stream::Config {
+                name: "nim".into(),
+                subjects: vec!["nim.>".into()],
+                ..Default::default()
+            })
+            .await?;
+
+        let consumer = stream
+            .get_or_create_consumer(
+                &self.name,
+                async_nats::jetstream::consumer::pull::Config {
+                    durable_name: Some(self.name.clone()),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+        let stream = consumer.messages().await?;
+        Ok(stream.into())
+    }
+}

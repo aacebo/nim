@@ -1,0 +1,24 @@
+[package]
+name = "nim-signals"
+description = "signal producer/consumer contract for nim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+authors.workspace = true
+categories.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chrono = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+futures-core = { workspace = true }
+
+bytes = { version = "1" }
+async-nats = { version = "0.50", features = ["chrono"] }

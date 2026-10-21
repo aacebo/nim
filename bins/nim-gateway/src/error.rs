@@ -9,6 +9,7 @@ pub enum Error {
     Migrate(sqlx::migrate::MigrateError),
     Join(tokio::task::JoinError),
     Multipart(axum::extract::multipart::MultipartError),
+    Infallible(std::convert::Infallible),
 }
 
 impl From<nim::Error> for Error {
@@ -32,6 +33,12 @@ impl From<nim::state::Error> for Error {
 impl From<std::io::Error> for Error {
     fn from(value: std::io::Error) -> Self {
         Self::IO(value)
+    }
+}
+
+impl From<std::convert::Infallible> for Error {
+    fn from(value: std::convert::Infallible) -> Self {
+        Self::Infallible(value)
     }
 }
 
@@ -88,6 +95,7 @@ impl std::fmt::Display for Error {
             Self::Sql(err) => write!(f, "[error::sql] -> {err}"),
             Self::Join(err) => write!(f, "[error::json] -> {err}"),
             Self::Multipart(err) => write!(f, "[error::http::multipart] -> {err}"),
+            Self::Infallible(err) => write!(f, "[error::convert] -> {err}"),
         }
     }
 }
@@ -103,6 +111,7 @@ impl std::error::Error for Error {
             Self::Sql(err) => Some(err),
             Self::Multipart(err) => Some(err),
             Self::Join(err) => Some(err),
+            Self::Infallible(err) => Some(err),
             _ => None,
         }
     }

@@ -22,7 +22,7 @@ pub enum ArtifactContent {
     },
     File {
         path: std::path::PathBuf,
-        size: i64,
+        size: u64,
         media_type: Option<String>,
     },
 }
@@ -32,7 +32,7 @@ impl ArtifactContent {
         Self::Text { text: value.into() }
     }
 
-    pub fn file(path: impl Into<std::path::PathBuf>, size: i64, media_type: Option<String>) -> Self {
+    pub fn file(path: impl Into<std::path::PathBuf>, size: u64, media_type: Option<String>) -> Self {
         Self::File {
             path: path.into(),
             size,

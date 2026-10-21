@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{os::unix::fs::MetadataExt, str::FromStr};
 
 use axum::response::IntoResponse;
 use tokio::io::AsyncWriteExt;
@@ -6,15 +6,14 @@ use tokio::io::AsyncWriteExt;
 use crate::http::HttpContext;
 
 pub async fn route(
-    _ctx: HttpContext,
+    ctx: HttpContext,
     mut multipart: axum::extract::Multipart,
 ) -> axum::response::Result<axum::response::Response> {
-    let staging_dir = std::env::var("STAGING_DIR").map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-    let staging_dir = std::path::PathBuf::from_str(&staging_dir)?;
+    let mut artifacts = vec![];
 
     while let Some(mut field) = multipart.next_field().await? {
         let content_type = field.content_type();
-        let _mime_type = content_type.and_then(|v| v.parse::<mime::Mime>().ok());
+        let mime_type = content_type.and_then(|v| v.parse::<mime::Mime>().ok());
         let ext = if let Some(content_type) = &content_type {
             mime_guess::get_mime_extensions_str(content_type)
                 .and_then(|exts| exts.first())
@@ -45,7 +44,7 @@ pub async fn route(
             _ => None,
         });
 
-        let mut path = staging_dir.clone();
+        let mut path = ctx.staging_dir.clone();
 
         if let Some(subdir) = subdir {
             path = path.join(subdir);
@@ -53,7 +52,7 @@ pub async fn route(
 
         path = path.join(&name);
 
-        let mut file = tokio::fs::File::create(path)
+        let mut file = tokio::fs::File::create(&path)
             .await
             .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -62,7 +61,29 @@ pub async fn route(
                 .await
                 .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
         }
+
+        let size = file
+            .metadata()
+            .await
+            .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
+            .size();
+
+        let artifact = ctx
+            .services()
+            .artifacts()
+            .create(nim::state::ArtifactCreate {
+                name: Some(name),
+                content: nim::state::ArtifactContent::File {
+                    path,
+                    size,
+                    media_type: mime_type.map(|v| v.to_string()),
+                },
+            })
+            .await
+            .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        artifacts.push(artifact);
     }
 
-    Ok(axum::http::StatusCode::OK.into_response())
+    Ok(axum::Json(artifacts).into_response())
 }

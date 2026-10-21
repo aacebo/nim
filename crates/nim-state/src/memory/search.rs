@@ -18,6 +18,7 @@ impl<'a> MemoryService<'a> {
                         ty: row.ty.into(),
                         contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
                         sources: row.sources.iter().map(|v| (*v).into()).collect(),
+                        artifacts: Default::default(),
                         relations: Default::default(),
                         annotations: Default::default(),
                         salience: row.salience,

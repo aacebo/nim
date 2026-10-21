@@ -1,4 +1,4 @@
-use crate::{AnnotationPartial, Context, Embedding, Source, Version};
+use crate::{AnnotationPartial, Artifact, Context, Embedding, Source, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Memory {
@@ -12,6 +12,9 @@ pub struct Memory {
 
     /// who/what/where the memory was derived from.
     pub sources: Vec<Source>,
+
+    /// any files/text associated with the memory.
+    pub artifacts: Vec<Artifact>,
 
     /// semantic/episodic links
     pub relations: Vec<MemoryId>,

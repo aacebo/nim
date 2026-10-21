@@ -30,7 +30,49 @@ impl Context {
         );
 
         sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
-        let signals = nim::signals::connect("gateway", &config.nats_url).await?;
+        let signals = nim::signals::connect_with(
+            "gateway",
+            &config.nats_url,
+            nim::signals::ConnectOptions {
+                streams: vec![
+                    nim::signals::StreamConfig {
+                        name: "ARTIFACTS".into(),
+                        subjects: vec!["nim.artifact.create".into()],
+                        ..Default::default()
+                    },
+                    nim::signals::StreamConfig {
+                        name: "MEMORIES".into(),
+                        subjects: vec![
+                            "nim.memory.create".into(),
+                            "nim.memory.update".into(),
+                            "nim.memory.delete".into(),
+                        ],
+                        ..Default::default()
+                    },
+                    nim::signals::StreamConfig {
+                        name: "ENTITIES".into(),
+                        subjects: vec![
+                            "nim.entity.create".into(),
+                            "nim.entity.update".into(),
+                            "nim.entity.delete".into(),
+                        ],
+                        ..Default::default()
+                    },
+                    nim::signals::StreamConfig {
+                        name: "ANNOTATIONS".into(),
+                        subjects: vec![
+                            "nim.annotation.create".into(),
+                            "nim.annotation.update".into(),
+                            "nim.annotation.delete".into(),
+                        ],
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+        )
+        .await?;
+
         let signals = std::sync::Arc::new(signals);
         Ok(Self { config, pool, signals })
     }

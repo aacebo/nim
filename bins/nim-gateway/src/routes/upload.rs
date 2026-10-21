@@ -88,6 +88,11 @@ pub async fn route(
             .await
             .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
+        ctx.signals()
+            .publish("nim.artifact.create", artifact.clone())
+            .await
+            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
         artifacts.push(artifact);
     }
 

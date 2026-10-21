@@ -19,12 +19,10 @@ services:
   nats:
     container_name: nim-nats
     image: nats:latest
-    command: ["-c", "/etc/nats/nats.conf"]
     ports:
       - 4222:4222
       - 8222:8222
     volumes:
-      - ./nats.conf:/etc/nats/nats.conf
       - nats_data:/data
 
   gateway:
@@ -35,11 +33,12 @@ services:
     ports:
       - 3000:8080
     environment:
+      STAGINE_DIR: /app/staging
+      NATS_URL: nats://nats:4222
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
       OPENSSL_STATIC: 1
       OPENSSL_DIR: /usr
       RUST_LOG: info
-      STAGINE_DIR: /app/staging
     volumes:
       - .:/app
       - /app/target
@@ -47,7 +46,7 @@ services:
       postgres:
         condition: service_healthy
       nats:
-        condition: service_healthy
+        condition: service_started
 
   # audio:
   #   container_name: nim-audio
@@ -66,7 +65,7 @@ services:
   #     postgres:
   #       condition: service_healthy
   #     nats:
-  #       condition: service_healthy
+  #       condition: service_started
 
   # exec:
   #   container_name: nim-exec
@@ -85,7 +84,7 @@ services:
   #     postgres:
   #       condition: service_healthy
   #     nats:
-  #       condition: service_healthy
+  #       condition: service_started
 
   # vision:
   #   container_name: nim-vision
@@ -104,7 +103,7 @@ services:
   #     postgres:
   #       condition: service_healthy
   #     nats:
-  #       condition: service_healthy
+  #       condition: service_started
 
 volumes:
   nats_data:

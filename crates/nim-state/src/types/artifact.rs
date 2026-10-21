@@ -6,6 +6,7 @@ use crate::MemoryId;
 pub struct Artifact {
     pub id: ArtifactId,
     pub name: Option<String>,
+    #[serde(flatten)]
     pub content: ArtifactContent,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,

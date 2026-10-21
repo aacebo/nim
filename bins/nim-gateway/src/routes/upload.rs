@@ -52,20 +52,26 @@ pub async fn route(
 
         path = path.join(&name);
 
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+        }
+
         let mut file = tokio::fs::File::create(&path)
             .await
-            .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
         while let Some(chunk) = field.chunk().await? {
             file.write_all(&chunk)
                 .await
-                .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
         }
 
         let size = file
             .metadata()
             .await
-            .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
+            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?
             .size();
 
         let artifact = ctx
@@ -80,7 +86,7 @@ pub async fn route(
                 },
             })
             .await
-            .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
         artifacts.push(artifact);
     }

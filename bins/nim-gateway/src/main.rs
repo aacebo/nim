@@ -30,7 +30,6 @@ async fn main() -> Result<(), Error> {
         .with_state(state.clone());
     let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", state.port)).await?;
-
     axum::serve(listener, app).with_graceful_shutdown(stop()).await?;
     let _ = join.await?;
     Ok(())

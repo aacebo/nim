@@ -18,7 +18,7 @@ impl<T> From<jetstream::consumer::pull::Stream> for Stream<T> {
 
 impl<T> Unpin for Stream<T> {}
 
-impl<T> futures_core::Stream for Stream<T>
+impl<T> futures_util::Stream for Stream<T>
 where
     T: for<'a> serde::Deserialize<'a>,
 {
@@ -26,7 +26,7 @@ where
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
         let pin = std::pin::pin!(&mut self.inner);
-        let next = futures_core::Stream::poll_next(pin, cx);
+        let next = futures_util::Stream::poll_next(pin, cx);
 
         next.map(|v| {
             let res = v?;

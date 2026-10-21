@@ -18,7 +18,7 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-futures-core = { workspace = true }
+futures-util = { workspace = true }
 
 bytes = { version = "1" }
 async-nats = { version = "0.50", features = ["chrono"] }

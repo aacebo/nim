@@ -16,7 +16,7 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn service<T>(&self, name: &str, version: &str) -> Result<Service<T>, Error> {
+    pub async fn service(&self, name: &str, version: &str) -> Result<Service, Error> {
         let service = self.context.client().service_builder().start(name, version).await?;
         Ok(service.into())
     }

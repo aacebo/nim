@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub enum Error {
-    Nim(nim::Error),
+    Core(nim::Error),
     IO(std::io::Error),
     Http(axum::response::Response),
     Env(&'static str, std::env::VarError),
@@ -14,19 +14,19 @@ pub enum Error {
 
 impl From<nim::Error> for Error {
     fn from(value: nim::Error) -> Self {
-        Self::Nim(value)
+        Self::Core(value)
     }
 }
 
 impl From<nim::signals::Error> for Error {
     fn from(value: nim::signals::Error) -> Self {
-        Self::Nim(value.into())
+        Self::Core(value.into())
     }
 }
 
 impl From<nim::state::Error> for Error {
     fn from(value: nim::state::Error) -> Self {
-        Self::Nim(value.into())
+        Self::Core(value.into())
     }
 }
 
@@ -87,7 +87,7 @@ impl std::fmt::Display for Error {
                 err.status(),
                 err.status().canonical_reason().unwrap_or("??")
             ),
-            Self::Nim(err) => write!(f, "[error::nim] -> {err}"),
+            Self::Core(err) => write!(f, "[error::nim] -> {err}"),
             Self::Env(key, err) => write!(f, "[error::env::{key}] -> {err}"),
             Self::ParseInt(err) => write!(f, "[error::int::parse] -> {err}"),
             Self::Migrate(err) => write!(f, "[error::migrate] -> {err}"),
@@ -103,7 +103,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Nim(err) => Some(err),
+            Self::Core(err) => Some(err),
             Self::Env(_, err) => Some(err),
             Self::ParseInt(err) => Some(err),
             Self::Migrate(err) => Some(err),

@@ -1,15 +1,19 @@
-use async_nats::service;
+use async_nats::{Message, service};
 
 use crate::{Error, ServiceError, Signal};
 
-pub struct Request<T> {
-    signal: Signal<T>,
+pub struct Request {
     inner: service::Request,
 }
 
-impl<T> Request<T> {
-    pub(crate) fn new(signal: Signal<T>, inner: service::Request) -> Self {
-        Self { signal, inner }
+impl Request {
+    #[tracing::instrument(skip(self))]
+    pub fn decode<T>(&self) -> Result<Signal<T>, Error>
+    where
+        T: for<'a> serde::Deserialize<'a>,
+    {
+        let signal: Signal<T> = serde_json::from_slice(&self.payload)?;
+        Ok(signal)
     }
 
     #[tracing::instrument(skip(self))]
@@ -22,15 +26,20 @@ impl<T> Request<T> {
             Err(err) => Err(err),
         };
 
-        self.inner.respond(response).await?;
-        Ok(())
+        Ok(self.inner.respond(response).await?)
     }
 }
 
-impl<T> std::ops::Deref for Request<T> {
-    type Target = Signal<T>;
+impl From<service::Request> for Request {
+    fn from(inner: service::Request) -> Self {
+        Self { inner }
+    }
+}
+
+impl std::ops::Deref for Request {
+    type Target = Message;
 
     fn deref(&self) -> &Self::Target {
-        &self.signal
+        &self.inner.message
     }
 }

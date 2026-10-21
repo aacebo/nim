@@ -3,14 +3,13 @@ use async_nats::service;
 use crate::{Endpoint, Error};
 
 #[derive(Debug)]
-pub struct Service<T> {
+pub struct Service {
     inner: service::Service,
-    __data__: std::marker::PhantomData<T>,
 }
 
-impl<T> Service<T> {
+impl Service {
     #[tracing::instrument(skip(self))]
-    pub async fn endpoint<S>(&self, subject: S) -> Result<Endpoint<T>, Error>
+    pub async fn endpoint<S>(&self, subject: S) -> Result<Endpoint, Error>
     where
         S: std::fmt::Debug + ToString,
     {
@@ -29,11 +28,8 @@ impl<T> Service<T> {
     }
 }
 
-impl<T> From<service::Service> for Service<T> {
+impl From<service::Service> for Service {
     fn from(inner: service::Service) -> Self {
-        Self {
-            inner,
-            __data__: std::marker::PhantomData,
-        }
+        Self { inner }
     }
 }

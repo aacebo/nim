@@ -68,43 +68,23 @@ services:
   #     nats:
   #       condition: service_started
 
-  # exec:
-  #   container_name: nim-exec
-  #   image: rust:alpine
-  #   command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-exec --release"
-  #   working_dir: /app
-  #   environment:
-  #     DATABASE_URL: postgres://admin:admin@postgres:5432/main
-  #     OPENSSL_STATIC: 1
-  #     OPENSSL_DIR: /usr
-  #     RUST_LOG: info
-  #   volumes:
-  #     - .:/app
-  #     - /app/target
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     nats:
-  #       condition: service_started
-
-  # vision:
-  #   container_name: nim-vision
-  #   image: rust:alpine
-  #   command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-vision --release"
-  #   working_dir: /app
-  #   environment:
-  #     DATABASE_URL: postgres://admin:admin@postgres:5432/main
-  #     OPENSSL_STATIC: 1
-  #     OPENSSL_DIR: /usr
-  #     RUST_LOG: info
-  #   volumes:
-  #     - .:/app
-  #     - /app/target
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     nats:
-  #       condition: service_started
+  vision:
+    container_name: nim-vision
+    image: rust:alpine
+    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-vision --release"
+    working_dir: /app
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      RUST_LOG: info
+    volumes:
+      - .:/app
+      - /app/target
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
 
 volumes:
   nats_data:

@@ -2298,20 +2298,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nim-exec"
-version = "0.0.0"
-dependencies = [
- "axum",
- "chrono",
- "nim",
- "sqlx",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "nim-gateway"
 version = "0.0.0"
 dependencies = [
@@ -2334,7 +2320,7 @@ dependencies = [
  "async-nats",
  "bytes",
  "chrono",
- "futures-core",
+ "futures-util",
  "serde",
  "serde_json",
  "tracing",
@@ -2368,8 +2354,8 @@ dependencies = [
 name = "nim-vision"
 version = "0.0.0"
 dependencies = [
- "axum",
  "chrono",
+ "futures-util",
  "nim",
  "sqlx",
  "tokio",

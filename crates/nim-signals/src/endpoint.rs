@@ -1,13 +1,12 @@
 use async_nats::service;
 
-use crate::{Error, Request, Signal};
+use crate::{Error, Request};
 
-pub struct Endpoint<T> {
+pub struct Endpoint {
     inner: service::endpoint::Endpoint,
-    __data__: std::marker::PhantomData<T>,
 }
 
-impl<T> Endpoint<T> {
+impl Endpoint {
     #[tracing::instrument(skip(self))]
     pub async fn stop(&mut self) -> Result<(), Error> {
         self.inner.stop().await?;
@@ -15,35 +14,20 @@ impl<T> Endpoint<T> {
     }
 }
 
-impl<T> From<service::endpoint::Endpoint> for Endpoint<T> {
+impl From<service::endpoint::Endpoint> for Endpoint {
     fn from(inner: service::endpoint::Endpoint) -> Self {
-        Self {
-            inner,
-            __data__: std::marker::PhantomData,
-        }
+        Self { inner }
     }
 }
 
-impl<T> Unpin for Endpoint<T> {}
+impl Unpin for Endpoint {}
 
-impl<T> futures_core::Stream for Endpoint<T>
-where
-    T: for<'a> serde::Deserialize<'a>,
-{
-    type Item = Result<Request<T>, Error>;
+impl futures_util::Stream for Endpoint {
+    type Item = Result<Request, Error>;
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
         let pin = std::pin::pin!(&mut self.inner);
-        let next = futures_core::Stream::poll_next(pin, cx);
-
-        next.map(|v| {
-            let request = v?;
-            let signal: Signal<T> = match serde_json::from_slice(&request.message.payload) {
-                Err(err) => return Some(Err(err.into())),
-                Ok(v) => v,
-            };
-
-            Some(Ok(Request::new(signal, request)))
-        })
+        let next = futures_util::Stream::poll_next(pin, cx);
+        next.map(|v| Some(Ok(v?.into())))
     }
 }

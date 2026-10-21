@@ -32,13 +32,10 @@ impl Client {
     where
         S: std::fmt::Debug + async_nats::ToSubject,
     {
+        let name = self.context.stream_by_subject(subject.to_subject().as_str()).await?;
         let stream = self
             .context
-            .get_or_create_stream(jetstream::stream::Config {
-                name: "nim".into(),
-                subjects: vec!["nim.>".into()],
-                ..Default::default()
-            })
+            .get_stream(&name)
             .await?;
 
         let consumer = stream

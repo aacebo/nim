@@ -1,6 +1,6 @@
-use async_nats::jetstream;
+use async_nats::{jetstream, service::ServiceExt};
 
-use crate::{Error, Signal, Stream};
+use crate::{Error, Service, ServiceError, Signal, Stream};
 
 pub struct Client {
     name: String,
@@ -16,6 +16,12 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn service<T>(&self, name: &str, version: &str) -> Result<Service<T>, Error> {
+        let service = self.context.client().service_builder().start(name, version).await?;
+        Ok(service.into())
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn publish<S, T>(&self, subject: S, signal: T) -> Result<(), Error>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
@@ -28,15 +34,12 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn subscribe<S, T>(&self, subject: S) -> Result<Stream<Signal<T>>, Error>
+    pub async fn subscribe<S, T>(&self, subject: S) -> Result<Stream<T>, Error>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
     {
         let name = self.context.stream_by_subject(subject.to_subject().as_str()).await?;
-        let stream = self
-            .context
-            .get_stream(&name)
-            .await?;
+        let stream = self.context.get_stream(&name).await?;
 
         let consumer = stream
             .get_or_create_consumer(
@@ -62,6 +65,22 @@ impl Client {
         let signal: Signal<T> = signal.into();
         let signal = serde_json::to_vec(&signal)?;
         let message = self.context.client().request(subject, signal.into()).await?;
+
+        if let Some(headers) = &message.headers {
+            if let Some(status) = headers.get(async_nats::service::NATS_SERVICE_ERROR) {
+                let code = headers
+                    .get(async_nats::service::NATS_SERVICE_ERROR_CODE)
+                    .and_then(|value| value.as_str().parse().ok())
+                    .unwrap_or_default();
+
+                return Err(ServiceError {
+                    status: status.as_str().to_string(),
+                    code,
+                }
+                .into());
+            }
+        }
+
         Ok(serde_json::from_slice(&message.payload)?)
     }
 }

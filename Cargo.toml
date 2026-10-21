@@ -18,6 +18,7 @@ type_complexity = "allow"
 new_without_default = "allow"
 too_many_arguments = "allow"
 result_large_err = "allow"
+collapsible_if = "allow"
 
 [workspace.dependencies]
 axum = { version = "0.8" }

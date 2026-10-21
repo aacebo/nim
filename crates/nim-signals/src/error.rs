@@ -1,6 +1,9 @@
+use crate::ServiceError;
+
 pub enum Error {
     Nats(async_nats::Error),
     Json(serde_json::Error),
+    Service(ServiceError),
 }
 
 impl<T> From<async_nats::error::Error<T>> for Error
@@ -9,6 +12,24 @@ where
 {
     fn from(value: async_nats::error::Error<T>) -> Self {
         Self::Nats(Box::new(value))
+    }
+}
+
+impl From<async_nats::Error> for Error {
+    fn from(value: async_nats::Error) -> Self {
+        Self::Nats(value)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::Nats(Box::new(value))
+    }
+}
+
+impl From<ServiceError> for Error {
+    fn from(value: ServiceError) -> Self {
+        Self::Service(value)
     }
 }
 
@@ -23,6 +44,7 @@ impl std::fmt::Debug for Error {
         match self {
             Self::Nats(err) => write!(f, "{err:#?}"),
             Self::Json(err) => write!(f, "{err:#?}"),
+            Self::Service(err) => write!(f, "{err:#?}"),
         }
     }
 }
@@ -32,6 +54,7 @@ impl std::fmt::Display for Error {
         match self {
             Self::Nats(err) => write!(f, "{err}"),
             Self::Json(err) => write!(f, "{err}"),
+            Self::Service(err) => write!(f, "{err}"),
         }
     }
 }
@@ -41,6 +64,7 @@ impl std::error::Error for Error {
         match self {
             Self::Nats(err) => Some(err.as_ref()),
             Self::Json(err) => Some(err),
+            Self::Service(err) => Some(err),
         }
     }
 }

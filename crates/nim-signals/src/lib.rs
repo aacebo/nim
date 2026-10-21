@@ -1,15 +1,22 @@
 mod client;
+mod endpoint;
 mod error;
+mod request;
+mod service;
 mod stream;
 mod types;
 
 pub use client::*;
+pub use endpoint::*;
 pub use error::*;
+pub use request::*;
+pub use service::*;
 pub use stream::*;
 pub use types::*;
 
 pub use async_nats::ConnectOptions as NatsConnectOptions;
 pub use async_nats::jetstream::stream::Config as StreamConfig;
+pub use async_nats::service::error::Error as ServiceError;
 
 #[derive(Debug, Default)]
 pub struct ConnectOptions {

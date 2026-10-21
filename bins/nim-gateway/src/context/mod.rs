@@ -20,6 +20,7 @@ impl Context {
 }
 
 impl Context {
+    #[tracing::instrument]
     pub async fn connect(config: Config) -> Result<Self, Error> {
         let pool = std::sync::Arc::new(
             sqlx::postgres::PgPoolOptions::new()

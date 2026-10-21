@@ -9,6 +9,7 @@ pub struct Config {
 }
 
 impl Config {
+    #[tracing::instrument]
     pub fn load() -> Result<Self, Error> {
         use std::str::FromStr;
 

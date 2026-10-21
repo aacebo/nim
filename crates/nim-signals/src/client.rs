@@ -51,4 +51,17 @@ impl Client {
         let stream = consumer.messages().await?;
         Ok(stream.into())
     }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn request<S, T, R>(&self, subject: S, signal: T) -> Result<Signal<R>, Error>
+    where
+        S: std::fmt::Debug + async_nats::ToSubject,
+        T: std::fmt::Debug + serde::Serialize,
+        R: std::fmt::Debug + for<'a> serde::Deserialize<'a>,
+    {
+        let signal: Signal<T> = signal.into();
+        let signal = serde_json::to_vec(&signal)?;
+        let message = self.context.client().request(subject, signal.into()).await?;
+        Ok(serde_json::from_slice(&message.payload)?)
+    }
 }

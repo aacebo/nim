@@ -124,7 +124,11 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     // Calculate Memory Confidence
 
     let annotations = ctx.services().annotations().find_by_memory_id(memory.id).await?;
-    let confidence = annotations.iter().fold(0.0, |acc, v| acc + v.confidence) / annotations.len() as f32;
+    let confidence = if annotations.is_empty() {
+        memory.confidence
+    } else {
+        annotations.iter().fold(0.0, |acc, v| acc + v.confidence) / annotations.len() as f32
+    };
     let memory = ctx
         .services()
         .memories()

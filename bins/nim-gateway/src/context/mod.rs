@@ -37,6 +37,7 @@ impl Context {
                 streams: vec![
                     nim::signals::StreamConfig {
                         name: "ARTIFACTS".into(),
+                        max_messages: 10_000,
                         subjects: vec![
                             "nim.vision.artifact.create".into(),
                             "nim.audio.artifact.create".into(),
@@ -46,6 +47,7 @@ impl Context {
                     },
                     nim::signals::StreamConfig {
                         name: "MEMORIES".into(),
+                        max_messages: 10_000,
                         subjects: vec![
                             "nim.memory.create".into(),
                             "nim.memory.update".into(),
@@ -55,6 +57,7 @@ impl Context {
                     },
                     nim::signals::StreamConfig {
                         name: "ENTITIES".into(),
+                        max_messages: 10_000,
                         subjects: vec![
                             "nim.entity.create".into(),
                             "nim.entity.update".into(),
@@ -64,6 +67,7 @@ impl Context {
                     },
                     nim::signals::StreamConfig {
                         name: "ANNOTATIONS".into(),
+                        max_messages: 10_000,
                         subjects: vec![
                             "nim.annotation.create".into(),
                             "nim.annotation.update".into(),

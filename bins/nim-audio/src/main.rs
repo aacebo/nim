@@ -1,10 +1,13 @@
+mod config;
 mod context;
 mod error;
 mod routes;
 
+pub use config::*;
 pub use context::*;
 pub use error::*;
 
+use futures_util::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -18,39 +21,43 @@ async fn main() -> Result<(), Error> {
         )
         .init();
 
-    let port: u16 = std::env::var("PORT").unwrap_or("8080".into()).parse()?;
-    let database_url = std::env::var("DATABASE_URL").map_err(|err| ("DATABASE_URL", err))?;
-    let pool = std::sync::Arc::new(
-        sqlx::postgres::PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&database_url)
-            .await?,
-    );
+    let span = tracing::Span::current();
+    let config = Config::load()?;
+    let ctx = Context::connect(span, config).await?;
+    let mut artifacts = ctx.signals().subscribe("nim.audio.artifact.>").await?;
 
-    sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
-    let state = std::sync::Arc::new(Context::new(pool));
-    let join = tokio::spawn(start());
-    let app = axum::Router::new()
-        .merge(routes::new())
-        .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024))
-        .layer(axum::middleware::from_fn_with_state(state.clone(), context::http::middleware))
-        .with_state(state);
-    let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
+    start().await?;
 
-    axum::serve(listener, app).with_graceful_shutdown(stop()).await?;
-    let _ = join.await?;
-    Ok(())
+    while let Some(req) = artifacts.next().await {
+        let (message, signal) = req?;
+        let subject = message.subject.to_string();
+        let ctx = ctx.clone().into_signal(message);
+
+        tracing::info!("[{subject}] -> processing...");
+
+        match tokio::spawn(routes::artifacts::create::run(ctx.clone(), signal)).await? {
+            Ok(_) => {
+                tracing::info!("[{subject}.success] -> complete");
+                ctx.ack().await?
+            }
+            Err(err) => {
+                tracing::error!("[{subject}.error] -> {err}");
+                ctx.nack().await?
+            }
+        };
+    }
+
+    stop().await
 }
 
 #[tracing::instrument]
-async fn start() -> Result<(), nim::Error> {
+async fn start() -> Result<(), Error> {
     tracing::info!("listening...");
     Ok(())
 }
 
 #[tracing::instrument]
-async fn stop() {
+async fn stop() -> Result<(), Error> {
     let ctrl_c = async {
         if let Err(error) = tokio::signal::ctrl_c().await {
             tracing::error!(%error, "failed to listen for Ctrl-C");
@@ -76,4 +83,5 @@ async fn stop() {
     }
 
     tracing::info!("shutdown signal received");
+    Ok(())
 }

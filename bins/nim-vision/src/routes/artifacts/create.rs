@@ -13,7 +13,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         } => tokio::fs::read(path).await?.to_vec(),
     };
 
-    let captions = nim::ai::pipelines::images::captions::run(&[bytes])?;
+    let captions = nim::ai::pipelines::images::captions::run(std::slice::from_ref(&bytes))?;
     let Some(caption) = captions.first() else {
         return Err(Error::custom(format!(
             "no captions could be generated from artifact `{}`",
@@ -36,7 +36,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let memory = if let Some(v) = memory {
         v
     } else {
-        ctx.services()
+        let memory = ctx
+            .services()
             .memories()
             .create(nim::state::MemoryCreate {
                 ty: nim::state::MemoryType::Working,
@@ -44,9 +45,46 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                 summary: caption.value.as_str(),
                 ..Default::default()
             })
-            .await?
+            .await?;
+
+        ctx.signals().publish("nim.memory.create", memory.clone()).await?;
+        memory
     };
 
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
+    let annotations = nim::ai::pipelines::images::classify::run(std::slice::from_ref(&bytes))?;
+    let Some(annotations) = annotations.first() else {
+        return Ok(());
+    };
+
+    let labels = annotations.iter().map(|a| a.label.as_str()).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
+
+    for (i, annotation) in annotations.iter().enumerate() {
+        let spans = annotation
+            .spans
+            .iter()
+            .map(|v| nim::state::Span {
+                start: v.begin,
+                end: v.end,
+            })
+            .collect::<Vec<_>>();
+
+        let annotation = ctx
+            .services()
+            .annotations()
+            .create(nim::state::AnnotationCreate {
+                memory_id: memory.id,
+                label: nim::state::Label::Unknown,
+                text: annotation.label.clone(),
+                spans: &spans,
+                embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
+                confidence: annotation.score as f32,
+            })
+            .await?;
+
+        ctx.signals().publish("nim.annotation.create", annotation).await?;
+    }
+
     Ok(())
 }

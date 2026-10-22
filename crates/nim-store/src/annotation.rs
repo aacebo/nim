@@ -57,6 +57,38 @@ impl<'a> AnnotationStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn find_by_memory_label(
+        &self,
+        memory_id: uuid::Uuid,
+        label: types::Label,
+        text: &str,
+    ) -> Result<Option<types::AnnotationRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                memory_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            FROM annotations
+            WHERE memory_id = $1
+            AND label = $2
+            AND text = $3
+            "#,
+        )
+        .bind(memory_id)
+        .bind(label)
+        .bind(text)
+        .fetch_optional(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::AnnotationRow) -> Result<types::AnnotationRow, sqlx::Error> {
         sqlx::query_as(
             r#"

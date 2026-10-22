@@ -2,6 +2,7 @@ mod create;
 mod delete;
 mod find_by_id;
 mod find_by_memory_id;
+mod find_by_memory_label;
 mod update;
 
 pub use create::*;

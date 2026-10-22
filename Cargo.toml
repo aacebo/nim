@@ -24,6 +24,7 @@ collapsible_if = "allow"
 axum = { version = "0.8" }
 mime = { version = "0.3" }
 mime_guess = { version = "2" }
+heck = { version = "0.5" }
 chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.9", default-features = false }
 url = { version = "2" }

@@ -1,3 +1,4 @@
+use heck::ToSnakeCase;
 use nim::{signals::Signal, state::Artifact};
 
 use crate::{Error, SignalContext};
@@ -56,16 +57,22 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     let annotations = nim::ai::pipelines::audio::classify::run(std::slice::from_ref(&bytes))?;
     let annotations = annotations.first().map(Vec::as_slice).unwrap_or_default();
-
     let annotations = annotations.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
-    let labels = annotations.iter().map(|a| a.label.as_str()).collect::<Vec<_>>();
-    let embeddings = if labels.is_empty() {
-        vec![]
-    } else {
-        nim::ai::pipelines::text::embeddings::run(&labels)?
-    };
+    let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
+    let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
 
     for (i, annotation) in annotations.iter().enumerate() {
+        let existing = ctx
+            .services()
+            .annotations()
+            .find_by_memory_label(memory.id, nim::state::Label::Unknown, labels[i])
+            .await?;
+
+        if existing.is_some() {
+            continue;
+        }
+
         let spans = annotation
             .spans
             .iter()
@@ -81,7 +88,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .create(nim::state::AnnotationCreate {
                 memory_id: memory.id,
                 label: nim::state::Label::Unknown,
-                text: annotation.label.clone(),
+                text: labels[i].to_string(),
                 spans: &spans,
                 embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
                 confidence: annotation.score as f32,

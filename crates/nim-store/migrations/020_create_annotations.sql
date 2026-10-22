@@ -15,3 +15,6 @@ ON annotations (memory_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS annotations_embedding_idx
 ON annotations USING hnsw (embedding vector_cosine_ops);
+
+CREATE UNIQUE INDEX IF NOT EXISTS annotations_memory_id_label_text_idx
+ON annotations (memory_id, label, text);

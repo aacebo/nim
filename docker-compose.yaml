@@ -24,7 +24,7 @@ services:
       - 4222:4222
       - 8222:8222
     volumes:
-      - nats_data:/data
+      - nats:/data
 
   gateway:
     container_name: nim-gateway
@@ -34,7 +34,6 @@ services:
     ports:
       - 3000:8080
     environment:
-      STAGINE_DIR: /app/staging
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgres://admin:admin@postgres:5432/main
       OPENSSL_STATIC: 1
@@ -43,6 +42,7 @@ services:
     volumes:
       - .:/app
       - /app/target
+      - staging:/.staging
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,6 +80,7 @@ services:
     volumes:
       - .:/app
       - /app/target
+      - staging:/.staging
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,4 +88,5 @@ services:
         condition: service_started
 
 volumes:
-  nats_data:
+  nats:
+  staging:

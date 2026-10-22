@@ -120,6 +120,9 @@ impl<'de> serde::Deserialize<'de> for AnnotationId {
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Label {
+    /// person/place/thing
+    Entity,
+
     /// positive ↔ negative affect
     Valence,
 
@@ -164,6 +167,7 @@ pub enum Label {
 impl std::fmt::Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Entity => write!(f, "entity"),
             Self::Valence => write!(f, "valence"),
             Self::Emotion => write!(f, "emotion"),
             Self::Salience => write!(f, "salience"),
@@ -184,6 +188,7 @@ impl std::fmt::Display for Label {
 impl From<nim_store::Label> for Label {
     fn from(value: nim_store::Label) -> Self {
         match value {
+            nim_store::Label::Entity => Self::Entity,
             nim_store::Label::Valence => Self::Valence,
             nim_store::Label::Emotion => Self::Emotion,
             nim_store::Label::Salience => Self::Salience,
@@ -205,6 +210,7 @@ impl From<nim_store::Label> for Label {
 impl From<Label> for nim_store::Label {
     fn from(value: Label) -> Self {
         match value {
+            Label::Entity => Self::Entity,
             Label::Valence => Self::Valence,
             Label::Emotion => Self::Emotion,
             Label::Salience => Self::Salience,

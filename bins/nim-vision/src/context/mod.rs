@@ -42,13 +42,17 @@ impl Context {
 
         sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
         let signals = nim::signals::connect_with(
-            "gateway",
+            "vision",
             &config.nats_url,
             nim::signals::ConnectOptions {
                 streams: vec![
                     nim::signals::StreamConfig {
                         name: "ARTIFACTS".into(),
-                        subjects: vec!["nim.artifact.create".into()],
+                        subjects: vec![
+                            "nim.vision.artifact.create".into(),
+                            "nim.audio.artifact.create".into(),
+                            "nim.unknown.artifact.create".into(),
+                        ],
                         ..Default::default()
                     },
                     nim::signals::StreamConfig {

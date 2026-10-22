@@ -82,14 +82,23 @@ pub async fn route(
                 content: nim::state::ArtifactContent::File {
                     path,
                     size,
-                    media_type: mime_type.map(|v| v.to_string()),
+                    media_type: mime_type.clone().map(|v| v.to_string()),
                 },
             })
             .await
             .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
+        let media_path = mime_type
+            .map(|v| match v.type_() {
+                mime::AUDIO => "audio",
+                mime::IMAGE => "vision",
+                mime::VIDEO => "vision",
+                _ => "unknown",
+            })
+            .unwrap_or("unknown");
+
         ctx.signals()
-            .publish("nim.artifact.create", artifact.clone())
+            .publish(format!("nim.{media_path}.artifact.create"), artifact.clone())
             .await
             .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 

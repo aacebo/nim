@@ -24,7 +24,7 @@ async fn main() -> Result<(), Error> {
     let span = tracing::Span::current();
     let config = Config::load()?;
     let ctx = Context::connect(span, config).await?;
-    let mut artifacts = ctx.signals().subscribe("nim.artifact.>").await?;
+    let mut artifacts = ctx.signals().subscribe("nim.vision.artifact.>").await?;
 
     start().await?;
 

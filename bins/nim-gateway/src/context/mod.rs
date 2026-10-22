@@ -37,7 +37,11 @@ impl Context {
                 streams: vec![
                     nim::signals::StreamConfig {
                         name: "ARTIFACTS".into(),
-                        subjects: vec!["nim.artifact.create".into()],
+                        subjects: vec![
+                            "nim.vision.artifact.create".into(),
+                            "nim.audio.artifact.create".into(),
+                            "nim.unknown.artifact.create".into(),
+                        ],
                         ..Default::default()
                     },
                     nim::signals::StreamConfig {

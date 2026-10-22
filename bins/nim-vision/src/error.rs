@@ -23,6 +23,12 @@ impl From<nim::signals::Error> for Error {
     }
 }
 
+impl From<nim::ai::Error> for Error {
+    fn from(value: nim::ai::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
 impl From<nim::state::Error> for Error {
     fn from(value: nim::state::Error) -> Self {
         Self::Core(value.into())

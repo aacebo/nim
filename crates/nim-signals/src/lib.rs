@@ -15,6 +15,8 @@ pub use stream::*;
 pub use types::*;
 
 pub use async_nats::ConnectOptions as NatsConnectOptions;
+pub use async_nats::Error as NatsError;
+pub use async_nats::jetstream::Message;
 pub use async_nats::jetstream::stream::Config as StreamConfig;
 pub use async_nats::service::error::Error as ServiceError;
 

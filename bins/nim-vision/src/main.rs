@@ -1,6 +1,7 @@
 mod config;
 mod context;
 mod error;
+mod routes;
 
 pub use config::*;
 pub use context::*;
@@ -20,16 +21,16 @@ async fn main() -> Result<(), Error> {
         )
         .init();
 
+    let span = tracing::Span::current();
     let config = Config::load()?;
-    let ctx = std::sync::Arc::new(Context::connect(config).await?);
-    let service = ctx.signals().service("vision", "0.0.0").await?;
-    let mut artifacts = service.endpoint("nim.artifact.>").await?;
+    let ctx = Context::connect(span, config).await?;
+    let mut artifacts = ctx.signals().subscribe("nim.artifact.>").await?;
 
     start().await?;
 
     while let Some(req) = artifacts.next().await {
-        let signal = req?.decode::<nim::state::Artifact>()?;
-        println!("{signal:#?}");
+        let (message, signal) = req?;
+        let _ = tokio::spawn(routes::artifacts::create::run(ctx.clone().into_signal(message), signal)).await?;
     }
 
     stop().await

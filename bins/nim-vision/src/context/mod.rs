@@ -1,13 +1,22 @@
+mod signal;
+
+pub use signal::*;
+
 use crate::{Config, Error};
 
 #[derive(Clone)]
 pub struct Context {
+    span: tracing::Span,
     config: Config,
     pool: std::sync::Arc<sqlx::PgPool>,
     signals: std::sync::Arc<nim::signals::Client>,
 }
 
 impl Context {
+    pub fn span(&self) -> &tracing::Span {
+        &self.span
+    }
+
     pub fn services(&self) -> nim::state::Services<'_> {
         nim::state::Services::new(&self.pool)
     }
@@ -15,11 +24,15 @@ impl Context {
     pub fn signals(&self) -> &nim::signals::Client {
         &self.signals
     }
+
+    pub fn into_signal(self, message: nim::signals::Message) -> SignalContext {
+        SignalContext::new(self, message)
+    }
 }
 
 impl Context {
     #[tracing::instrument]
-    pub async fn connect(config: Config) -> Result<Self, Error> {
+    pub async fn connect(span: tracing::Span, config: Config) -> Result<Self, Error> {
         let pool = std::sync::Arc::new(
             sqlx::postgres::PgPoolOptions::new()
                 .max_connections(5)
@@ -72,7 +85,12 @@ impl Context {
         .await?;
 
         let signals = std::sync::Arc::new(signals);
-        Ok(Self { config, pool, signals })
+        Ok(Self {
+            span,
+            config,
+            pool,
+            signals,
+        })
     }
 }
 

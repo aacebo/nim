@@ -4,6 +4,7 @@ pub enum Error {
     IO(std::io::Error),
     Env(&'static str, std::env::VarError),
     Sql(sqlx::Error),
+    Nats(nim::signals::NatsError),
     ParseInt(std::num::ParseIntError),
     Migrate(sqlx::migrate::MigrateError),
     Join(tokio::task::JoinError),
@@ -58,6 +59,12 @@ impl From<sqlx::Error> for Error {
     }
 }
 
+impl From<nim::signals::NatsError> for Error {
+    fn from(value: nim::signals::NatsError) -> Self {
+        Self::Nats(value)
+    }
+}
+
 impl From<sqlx::migrate::MigrateError> for Error {
     fn from(value: sqlx::migrate::MigrateError) -> Self {
         Self::Migrate(value)
@@ -79,6 +86,7 @@ impl std::fmt::Display for Error {
             Self::Migrate(err) => write!(f, "[error::migrate] -> {err}"),
             Self::IO(err) => write!(f, "[error::io] -> {err}"),
             Self::Sql(err) => write!(f, "[error::sql] -> {err}"),
+            Self::Nats(err) => write!(f, "[error::nats] -> {err}"),
             Self::Join(err) => write!(f, "[error::json] -> {err}"),
             Self::Infallible(err) => write!(f, "[error::convert] -> {err}"),
         }
@@ -94,6 +102,7 @@ impl std::error::Error for Error {
             Self::Migrate(err) => Some(err),
             Self::IO(err) => Some(err),
             Self::Sql(err) => Some(err),
+            Self::Nats(err) => Some(err.as_ref()),
             Self::Join(err) => Some(err),
             Self::Infallible(err) => Some(err),
         }

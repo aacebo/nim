@@ -22,7 +22,7 @@ impl<T> futures_util::Stream for Stream<T>
 where
     T: for<'a> serde::Deserialize<'a>,
 {
-    type Item = Result<Signal<T>, Error>;
+    type Item = Result<(jetstream::Message, Signal<T>), Error>;
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
         let pin = std::pin::pin!(&mut self.inner);
@@ -41,7 +41,7 @@ where
                 Ok(v) => v,
             };
 
-            Some(Ok(signal))
+            Some(Ok((message, signal)))
         })
     }
 }

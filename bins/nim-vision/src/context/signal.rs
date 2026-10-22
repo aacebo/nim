@@ -19,6 +19,14 @@ impl SignalContext {
     pub async fn ack(&self) -> Result<(), Error> {
         Ok(self.message.ack().await?)
     }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn nack(&self) -> Result<(), Error> {
+        Ok(self
+            .message
+            .ack_with(nim::signals::AckKind::Nak(Some(std::time::Duration::from_millis(1000 * 5))))
+            .await?)
+    }
 }
 
 impl std::ops::Deref for SignalContext {

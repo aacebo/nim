@@ -41,3 +41,15 @@ impl<T> std::ops::DerefMut for SearchItem<T> {
         &mut self.inner
     }
 }
+
+impl<T> Clone for SearchItem<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            similarity: self.similarity,
+            inner: self.inner.clone(),
+        }
+    }
+}

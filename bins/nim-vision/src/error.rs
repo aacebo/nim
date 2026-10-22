@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum Error {
+    Custom(String),
     Core(nim::Error),
     IO(std::io::Error),
     Env(&'static str, std::env::VarError),
@@ -9,6 +10,12 @@ pub enum Error {
     Migrate(sqlx::migrate::MigrateError),
     Join(tokio::task::JoinError),
     Infallible(std::convert::Infallible),
+}
+
+impl Error {
+    pub fn custom(message: impl std::fmt::Display) -> Self {
+        Self::Custom(message.to_string())
+    }
 }
 
 impl From<nim::Error> for Error {
@@ -86,6 +93,7 @@ impl From<tokio::task::JoinError> for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Custom(err) => write!(f, "[error::custom] -> {err}"),
             Self::Core(err) => write!(f, "[error::nim] -> {err}"),
             Self::Env(key, err) => write!(f, "[error::env::{key}] -> {err}"),
             Self::ParseInt(err) => write!(f, "[error::int::parse] -> {err}"),
@@ -102,6 +110,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Custom(_) => None,
             Self::Core(err) => Some(err),
             Self::Env(_, err) => Some(err),
             Self::ParseInt(err) => Some(err),

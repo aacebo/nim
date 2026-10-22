@@ -30,7 +30,21 @@ async fn main() -> Result<(), Error> {
 
     while let Some(req) = artifacts.next().await {
         let (message, signal) = req?;
-        let _ = tokio::spawn(routes::artifacts::create::run(ctx.clone().into_signal(message), signal)).await?;
+        let subject = message.subject.to_string();
+        let ctx = ctx.clone().into_signal(message);
+
+        tracing::info!("[{subject}] -> processing...");
+
+        match tokio::spawn(routes::artifacts::create::run(ctx.clone(), signal)).await? {
+            Ok(_) => {
+                tracing::info!("[{subject}.success] -> complete");
+                ctx.ack().await?
+            }
+            Err(err) => {
+                tracing::error!("[{subject}.error] -> {err}");
+                ctx.nack().await?
+            }
+        };
     }
 
     stop().await

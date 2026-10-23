@@ -73,7 +73,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let existing = ctx
             .services()
             .annotations()
-            .find_by_memory_label(memory.id, nim::state::Label::Unknown, labels[i])
+            .find_by_artifact_label(signal.content.id, nim::state::Label::Unknown, labels[i])
             .await?;
 
         if existing.is_some() {
@@ -93,7 +93,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .services()
             .annotations()
             .create(nim::state::AnnotationCreate {
-                memory_id: memory.id,
+                artifact_id: signal.content.id,
                 label: nim::state::Label::Unknown,
                 text: labels[i].to_string(),
                 spans: &spans,
@@ -121,7 +121,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let existing = ctx
             .services()
             .annotations()
-            .find_by_memory_label(memory.id, nim::state::Label::Unknown, labels[i])
+            .find_by_artifact_label(signal.content.id, nim::state::Label::Unknown, labels[i])
             .await?;
 
         if existing.is_some() {
@@ -132,7 +132,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .services()
             .annotations()
             .create(nim::state::AnnotationCreate {
-                memory_id: memory.id,
+                artifact_id: signal.content.id,
                 label: nim::state::Label::Unknown,
                 text: labels[i].to_string(),
                 spans: Default::default(),
@@ -146,7 +146,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Calculate Memory Confidence
 
-    let annotations = ctx.services().annotations().find_by_memory_id(memory.id).await?;
+    let annotations = ctx.services().annotations().find_by_artifact_id(signal.content.id).await?;
     let confidence = if annotations.is_empty() {
         memory.confidence
     } else {

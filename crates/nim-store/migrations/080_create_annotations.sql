@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS annotations (
     id              UUID            PRIMARY KEY,
-    memory_id       UUID            NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+    artifact_id     UUID            NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
     label           TEXT            NOT NULL,
     text            TEXT            NOT NULL,
     spans           JSONB           NOT NULL,
@@ -10,11 +10,11 @@ CREATE TABLE IF NOT EXISTS annotations (
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS annotations_memory_idx
-ON annotations (memory_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS annotations_artifact_idx
+ON annotations (artifact_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS annotations_embedding_idx
 ON annotations USING hnsw (embedding vector_cosine_ops);
 
-CREATE UNIQUE INDEX IF NOT EXISTS annotations_memory_id_label_text_idx
-ON annotations (memory_id, label, text);
+CREATE UNIQUE INDEX IF NOT EXISTS annotations_artifact_id_label_text_idx
+ON annotations (artifact_id, label, text);

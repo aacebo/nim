@@ -5,7 +5,7 @@ use crate::{Embedding, MemoryId};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Annotation {
     pub id: AnnotationId,
-    pub memory_id: MemoryId,
+    pub artifact_id: MemoryId,
     pub label: Label,
     pub text: String,
     pub spans: Vec<Span>,
@@ -20,7 +20,7 @@ impl From<nim_store::AnnotationRow> for Annotation {
     fn from(value: nim_store::AnnotationRow) -> Self {
         Self {
             id: value.id.into(),
-            memory_id: value.memory_id.into(),
+            artifact_id: value.artifact_id.into(),
             label: value.label.into(),
             text: value.text,
             spans: value.spans.into_inner(),

@@ -1,10 +1,10 @@
 use nim_store::AnnotationRow;
 
-use crate::{Annotation, AnnotationService, Error, Label, MemoryId, Span};
+use crate::{Annotation, AnnotationService, ArtifactId, Error, Label, Span};
 
 #[derive(Debug)]
 pub struct AnnotationCreate<'a> {
-    pub memory_id: MemoryId,
+    pub artifact_id: ArtifactId,
     pub label: Label,
     pub text: String,
     pub spans: &'a [Span],
@@ -20,7 +20,7 @@ impl<'a> AnnotationService<'a> {
             .store
             .create(AnnotationRow {
                 id: uuid::Uuid::now_v7(),
-                memory_id: value.memory_id.into(),
+                artifact_id: value.artifact_id.into(),
                 label: value.label.into(),
                 text: value.text,
                 spans: nim_store::Json(value.spans.to_vec()),

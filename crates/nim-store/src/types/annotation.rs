@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct AnnotationRow {
     pub id: uuid::Uuid,
-    pub memory_id: uuid::Uuid,
+    pub artifact_id: uuid::Uuid,
     pub label: Label,
     pub text: String,
     pub spans: sqlx::types::Json<Vec<Span>>,

@@ -20,7 +20,6 @@ impl<'a> MemoryService<'a> {
                         sources: row.sources.iter().map(|v| (*v).into()).collect(),
                         artifacts: Default::default(),
                         relations: Default::default(),
-                        annotations: Default::default(),
                         salience: row.salience,
                         strength: row.strength,
                         confidence: row.confidence,

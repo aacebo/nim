@@ -1,11 +1,12 @@
 pub use nim_store::ArtifactContent;
 
-use crate::MemoryId;
+use crate::{AnnotationPartial, MemoryId};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Artifact {
     pub id: ArtifactId,
     pub name: Option<String>,
+    pub annotations: Vec<AnnotationPartial>,
     #[serde(flatten)]
     pub content: ArtifactContent,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -17,6 +18,7 @@ impl From<nim_store::ArtifactRow> for Artifact {
         Self {
             id: value.id.into(),
             name: value.name,
+            annotations: Default::default(),
             content: value.content.into_inner(),
             created_at: value.created_at,
             updated_at: value.updated_at,

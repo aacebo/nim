@@ -1,8 +1,8 @@
-use crate::{Annotation, AnnotationId, AnnotationService, Error, Label, MemoryId, Span};
+use crate::{Annotation, AnnotationId, AnnotationService, ArtifactId, Error, Label, Span};
 
 #[derive(Debug, Default)]
 pub struct AnnotationUpdate {
-    pub memory_id: Option<MemoryId>,
+    pub artifact_id: Option<ArtifactId>,
     pub label: Option<Label>,
     pub text: Option<String>,
     pub spans: Option<Vec<Span>>,
@@ -15,8 +15,8 @@ impl<'a> AnnotationService<'a> {
     pub async fn update(&self, id: AnnotationId, value: AnnotationUpdate) -> Result<Annotation, Error> {
         let mut row = self.store.find_by_id(id.into()).await?;
 
-        if let Some(value) = value.memory_id {
-            row.memory_id = value.into();
+        if let Some(value) = value.artifact_id {
+            row.artifact_id = value.into();
         }
 
         if let Some(value) = value.label {

@@ -1,4 +1,4 @@
-use crate::{AnnotationPartial, Artifact, Context, Embedding, Source, Version};
+use crate::{Artifact, Context, Embedding, Source, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Memory {
@@ -21,10 +21,6 @@ pub struct Memory {
 
     /// the contexts this memory was created from.
     pub contexts: Vec<Context>,
-
-    /// the generated annotations describing the dimensions
-    /// of the memory that was inferred.
-    pub annotations: Vec<AnnotationPartial>,
 
     /// ### Filter
     ///

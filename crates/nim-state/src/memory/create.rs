@@ -60,7 +60,6 @@ impl<'a> MemoryService<'a> {
             artifacts: Default::default(),
             contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
             relations: Default::default(),
-            annotations: Default::default(),
             salience: row.salience,
             strength: row.strength,
             confidence: row.confidence,

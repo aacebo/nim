@@ -46,7 +46,6 @@ impl<'a> MemoryService<'a> {
 
         row.version += 1;
         let row = self.storage.memories().update(row).await?;
-        let annotations = self.storage.annotations().find_by_memory_id(id.into()).await?;
         let artifacts = self.storage.artifacts().find_by_memory_id(id.into()).await?;
 
         Ok(Memory {
@@ -57,7 +56,6 @@ impl<'a> MemoryService<'a> {
             sources: row.sources.iter().map(|v| (*v).into()).collect(),
             artifacts: artifacts.iter().map(|v| v.clone().into()).collect(),
             relations: Default::default(),
-            annotations: annotations.iter().map(|a| a.clone().into()).collect(),
             salience: row.salience,
             strength: row.strength,
             confidence: row.confidence,

@@ -16,7 +16,7 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             SELECT
                 id,
-                memory_id,
+                artifact_id,
                 label,
                 text,
                 spans,
@@ -34,12 +34,12 @@ impl<'a> AnnotationStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_memory_id(&self, memory_id: uuid::Uuid) -> Result<Vec<types::AnnotationRow>, sqlx::Error> {
+    pub async fn find_by_artifact_id(&self, artifact_id: uuid::Uuid) -> Result<Vec<types::AnnotationRow>, sqlx::Error> {
         sqlx::query_as(
             r#"
             SELECT
                 id,
-                memory_id,
+                artifact_id,
                 label,
                 text,
                 spans,
@@ -48,18 +48,18 @@ impl<'a> AnnotationStorage<'a> {
                 created_at,
                 updated_at
             FROM annotations
-            WHERE memory_id = $1
+            WHERE artifact_id = $1
             "#,
         )
-        .bind(memory_id)
+        .bind(artifact_id)
         .fetch_all(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_memory_label(
+    pub async fn find_by_artifact_label(
         &self,
-        memory_id: uuid::Uuid,
+        artifact_id: uuid::Uuid,
         label: types::Label,
         text: &str,
     ) -> Result<Option<types::AnnotationRow>, sqlx::Error> {
@@ -67,7 +67,7 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             SELECT
                 id,
-                memory_id,
+                artifact_id,
                 label,
                 text,
                 spans,
@@ -76,12 +76,12 @@ impl<'a> AnnotationStorage<'a> {
                 created_at,
                 updated_at
             FROM annotations
-            WHERE memory_id = $1
+            WHERE artifact_id = $1
             AND label = $2
             AND text = $3
             "#,
         )
-        .bind(memory_id)
+        .bind(artifact_id)
         .bind(label)
         .bind(text)
         .fetch_optional(self.pool)
@@ -94,7 +94,7 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             INSERT INTO annotations (
                 id,
-                memory_id,
+                artifact_id,
                 label,
                 text,
                 spans,
@@ -116,7 +116,7 @@ impl<'a> AnnotationStorage<'a> {
             )
             RETURNING
                 id,
-                memory_id,
+                artifact_id,
                 label,
                 text,
                 spans,
@@ -127,7 +127,7 @@ impl<'a> AnnotationStorage<'a> {
             "#,
         )
         .bind(value.id)
-        .bind(value.memory_id)
+        .bind(value.artifact_id)
         .bind(value.label)
         .bind(value.text)
         .bind(value.spans)
@@ -145,7 +145,7 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             UPDATE annotations
             SET
-                memory_id = $2,
+                artifact_id = $2,
                 label = $3,
                 text = $4,
                 spans = $5,
@@ -155,7 +155,7 @@ impl<'a> AnnotationStorage<'a> {
             WHERE id = $1
             RETURNING
                 id,
-                memory_id,
+                artifact_id,
                 label,
                 text,
                 spans,
@@ -166,7 +166,7 @@ impl<'a> AnnotationStorage<'a> {
             "#,
         )
         .bind(value.id)
-        .bind(value.memory_id)
+        .bind(value.artifact_id)
         .bind(value.label)
         .bind(value.text)
         .bind(value.spans)

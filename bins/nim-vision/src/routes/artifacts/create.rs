@@ -145,7 +145,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         return Ok(());
     };
 
-    let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
+    let detections = detections.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
+    let labels = detections.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
 

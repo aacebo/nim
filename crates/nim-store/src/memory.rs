@@ -52,13 +52,14 @@ impl<'a> MemoryStorage<'a> {
                 memories.*
             FROM memories
             LEFT JOIN (
-                SELECT memory_id, MIN(embedding <=> $1::vector) AS distance
+                SELECT memories_artifacts.memory_id, MIN(annotations.embedding <=> $1::vector) AS distance
                 FROM annotations
-                WHERE embedding IS NOT NULL
-                GROUP BY memory_id
+                JOIN memories_artifacts ON memories_artifacts.artifact_id = annotations.artifact_id
+                WHERE annotations.embedding IS NOT NULL
+                GROUP BY memories_artifacts.memory_id
             ) AS annotations ON annotations.memory_id = memories.id
             WHERE memories.type = $3
-            AND memories.embedding IS NOT NULL OR annotations.distance IS NOT NULL
+            AND (memories.embedding IS NOT NULL OR annotations.distance IS NOT NULL)
             ORDER BY LEAST(memories.embedding <=> $1::vector, annotations.distance), memories.id
             LIMIT $2;
             "#,

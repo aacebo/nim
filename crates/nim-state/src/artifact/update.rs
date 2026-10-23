@@ -2,7 +2,7 @@ use crate::{Artifact, ArtifactContent, ArtifactId, ArtifactService, Error};
 
 #[derive(Debug, Default)]
 pub struct ArtifactUpdate {
-    pub name: Option<Option<String>>,
+    pub name: Option<String>,
     pub content: Option<ArtifactContent>,
 }
 

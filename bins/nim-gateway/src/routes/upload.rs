@@ -78,7 +78,7 @@ pub async fn route(
             .services()
             .artifacts()
             .create(nim::state::ArtifactCreate {
-                name: Some(name),
+                name,
                 content: nim::state::ArtifactContent::File {
                     path,
                     size,

@@ -5,7 +5,7 @@ use crate::{AnnotationPartial, MemoryId};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Artifact {
     pub id: ArtifactId,
-    pub name: Option<String>,
+    pub name: String,
     pub annotations: Vec<AnnotationPartial>,
     #[serde(flatten)]
     pub content: ArtifactContent,

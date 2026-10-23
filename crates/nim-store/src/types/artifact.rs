@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ArtifactRow {
     pub id: uuid::Uuid,
-    pub name: Option<String>,
+    pub name: String,
     pub content: sqlx::types::Json<ArtifactContent>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,

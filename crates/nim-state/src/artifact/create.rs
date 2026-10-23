@@ -4,7 +4,7 @@ use crate::{Artifact, ArtifactContent, ArtifactService, Error};
 
 #[derive(Debug)]
 pub struct ArtifactCreate {
-    pub name: Option<String>,
+    pub name: String,
     pub content: ArtifactContent,
 }
 

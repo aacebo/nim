@@ -16,9 +16,11 @@ nim = { workspace = true, features = ["signals"] }
 axum = { workspace = true, features = ["multipart"] }
 mime = { workspace = true }
 mime_guess = { workspace = true }
+serde = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros", "migrate"] }
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+futures-util = { workspace = true }

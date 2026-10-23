@@ -41,6 +41,7 @@ pub async fn route(
         let subdir = content_type.and_then(|content_type| match content_type {
             v if v.starts_with("audio/") => Some("audio"),
             v if v.starts_with("image/") => Some("images"),
+            v if v.starts_with("text/") => Some("text"),
             _ => None,
         });
 
@@ -95,6 +96,7 @@ pub async fn route(
                 mime::AUDIO => "audio",
                 mime::IMAGE => "vision",
                 mime::VIDEO => "vision",
+                mime::TEXT => "text",
                 _ => "unknown",
             })
             .unwrap_or("unknown");

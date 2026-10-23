@@ -4,6 +4,7 @@
 pub enum Region {
     Vision,
     Audio,
+    Text,
     Memory,
     Emotion,
     Executive,
@@ -15,6 +16,7 @@ impl std::fmt::Display for Region {
         match self {
             Self::Vision => write!(f, "vision"),
             Self::Audio => write!(f, "audio"),
+            Self::Text => write!(f, "text"),
             Self::Memory => write!(f, "memory"),
             Self::Emotion => write!(f, "emotion"),
             Self::Executive => write!(f, "executive"),

@@ -2354,6 +2354,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nim-text"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "futures-util",
+ "heck",
+ "nim",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "nim-vision"
 version = "0.0.0"
 dependencies = [

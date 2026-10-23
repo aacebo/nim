@@ -25,7 +25,6 @@ async fn main() -> Result<(), Error> {
     let join = tokio::spawn(start());
     let app = axum::Router::new()
         .merge(routes::new())
-        .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024))
         .layer(axum::middleware::from_fn_with_state(state.clone(), context::http::middleware))
         .with_state(state.clone());
     let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);

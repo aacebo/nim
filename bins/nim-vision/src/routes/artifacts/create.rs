@@ -24,6 +24,21 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         )));
     };
 
+    let artifact = ctx
+        .services()
+        .artifacts()
+        .update(
+            signal.content.id,
+            nim::state::ArtifactUpdate {
+                summary: caption.value.as_str().map(String::from),
+                embedding: caption.vector.as_ref().map(|v| v.clone().into()),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    ctx.signals().publish("nim.vision.artifact.update", artifact).await?;
+
     let memory = if let Some(embedding) = caption.vector.as_deref() {
         ctx.services()
             .memories()
@@ -37,7 +52,26 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     };
 
     let memory = if let Some(v) = memory {
-        v
+        let mut sources = v.sources;
+
+        if !sources.contains(&nim::state::Source::Region(nim::state::Region::Vision)) {
+            sources.push(nim::state::Source::Region(nim::state::Region::Vision));
+        }
+
+        let memory = ctx
+            .services()
+            .memories()
+            .update(
+                v.id,
+                nim::state::MemoryUpdate {
+                    sources: Some(&sources),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+        ctx.signals().publish("nim.memory.update", memory.clone()).await?;
+        memory
     } else {
         let memory = ctx
             .services()
@@ -45,7 +79,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .create(nim::state::MemoryCreate {
                 ty: nim::state::MemoryType::Working,
                 sources: &[nim::state::Source::Region(nim::state::Region::Vision)],
-                summary: caption.value.as_str(),
                 confidence: 1.0,
                 ..Default::default()
             })
@@ -112,7 +145,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         return Ok(());
     };
 
-    let detections = detections.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;

@@ -24,8 +24,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                summary,
-                embedding,
                 recalled_at,
                 created_at,
                 updated_at
@@ -48,9 +46,16 @@ impl<'a> MemoryStorage<'a> {
         sqlx::query_as(
             r#"
             SELECT
-                (1 - LEAST(memories.embedding <=> $1::vector, annotations.distance))::real AS similarity,
+                (1 - LEAST(artifacts.distance, annotations.distance))::real AS similarity,
                 memories.*
             FROM memories
+            LEFT JOIN (
+                SELECT memories_artifacts.memory_id, MIN(artifacts.embedding <=> $1::vector) AS distance
+                FROM artifacts
+                JOIN memories_artifacts ON memories_artifacts.artifact_id = artifacts.id
+                WHERE artifacts.embedding IS NOT NULL
+                GROUP BY memories_artifacts.memory_id
+            ) AS artifacts ON artifacts.memory_id = memories.id
             LEFT JOIN (
                 SELECT memories_artifacts.memory_id, MIN(annotations.embedding <=> $1::vector) AS distance
                 FROM annotations
@@ -59,8 +64,8 @@ impl<'a> MemoryStorage<'a> {
                 GROUP BY memories_artifacts.memory_id
             ) AS annotations ON annotations.memory_id = memories.id
             WHERE memories.type = $3
-            AND (memories.embedding IS NOT NULL OR annotations.distance IS NOT NULL)
-            ORDER BY LEAST(memories.embedding <=> $1::vector, annotations.distance), memories.id
+            AND (artifacts.distance IS NOT NULL OR annotations.distance IS NOT NULL)
+            ORDER BY LEAST(artifacts.distance, annotations.distance), memories.id
             LIMIT $2;
             "#,
         )
@@ -85,8 +90,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                summary,
-                embedding,
                 recalled_at,
                 created_at,
                 updated_at
@@ -103,9 +106,7 @@ impl<'a> MemoryStorage<'a> {
                 $9,
                 $10,
                 $11,
-                $12,
-                $13,
-                $14
+                $12
             )
             RETURNING
                 id,
@@ -117,8 +118,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                summary,
-                embedding,
                 recalled_at,
                 created_at,
                 updated_at
@@ -133,8 +132,6 @@ impl<'a> MemoryStorage<'a> {
         .bind(value.strength)
         .bind(value.confidence)
         .bind(value.recalls)
-        .bind(value.summary)
-        .bind(value.embedding)
         .bind(value.recalled_at)
         .bind(value.created_at)
         .bind(value.updated_at)
@@ -150,15 +147,14 @@ impl<'a> MemoryStorage<'a> {
             SET
                 version = version + 1,
                 type = $2,
-                contexts = $3,
-                salience = $4,
-                strength = $5,
-                confidence = $6,
-                recalls = $7,
-                summary = $8,
-                embedding = $9,
-                recalled_at = $10,
-                updated_at = $11
+                sources = $3,
+                contexts = $4,
+                salience = $5,
+                strength = $6,
+                confidence = $7,
+                recalls = $8,
+                recalled_at = $9,
+                updated_at = $10
             WHERE id = $1
             RETURNING
                 id,
@@ -170,8 +166,6 @@ impl<'a> MemoryStorage<'a> {
                 strength,
                 confidence,
                 recalls,
-                summary,
-                embedding,
                 recalled_at,
                 created_at,
                 updated_at
@@ -179,13 +173,12 @@ impl<'a> MemoryStorage<'a> {
         )
         .bind(value.id)
         .bind(value.ty)
+        .bind(value.sources)
         .bind(value.contexts)
         .bind(value.salience)
         .bind(value.strength)
         .bind(value.confidence)
         .bind(value.recalls)
-        .bind(value.summary)
-        .bind(value.embedding)
         .bind(value.recalled_at)
         .bind(chrono::Utc::now())
         .fetch_one(self.pool)

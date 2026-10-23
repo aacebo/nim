@@ -1,4 +1,4 @@
-use crate::{Artifact, Context, Embedding, Source, Version};
+use crate::{Artifact, Context, Source, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Memory {
@@ -45,13 +45,6 @@ pub struct Memory {
 
     /// how many times has this memory been recalled since creation.
     pub recalls: u64,
-
-    /// a short description of the memory.
-    pub summary: Option<String>,
-
-    /// vector embedding used for search.
-    #[serde(skip)]
-    pub embedding: Option<Embedding>,
 
     /// the most recent recall timestamp.
     pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,

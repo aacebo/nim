@@ -8,8 +8,6 @@ CREATE TABLE IF NOT EXISTS memories (
     strength        REAL            NOT NULL DEFAULT 0.0,
     confidence      REAL            NOT NULL DEFAULT 0.0,
     recalls         BIGINT          NOT NULL DEFAULT 0,
-    summary         TEXT,
-    embedding       VECTOR(384),
     recalled_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
@@ -28,6 +26,3 @@ ON memories (type);
 
 CREATE INDEX IF NOT EXISTS memories_updated_at_idx
 ON memories (updated_at DESC);
-
-CREATE INDEX IF NOT EXISTS memories_embedding_idx
-ON memories USING hnsw (embedding vector_cosine_ops);

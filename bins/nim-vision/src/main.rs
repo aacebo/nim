@@ -35,14 +35,23 @@ async fn main() -> Result<(), Error> {
 
         tracing::info!("[{subject}] -> processing...");
 
-        match tokio::spawn(routes::artifacts::create::run(ctx.clone(), signal)).await? {
-            Ok(_) => {
+        let res = match subject.as_str() {
+            "nim.vision.artifact.create" => Some(tokio::spawn(routes::artifacts::create::run(ctx.clone(), signal)).await?),
+            _ => None,
+        };
+
+        match res {
+            Some(Ok(_)) => {
                 tracing::info!("[{subject}.success] -> complete");
                 ctx.ack().await?
             }
-            Err(err) => {
+            Some(Err(err)) => {
                 tracing::error!("[{subject}.error] -> {err}");
                 ctx.nack().await?
+            }
+            None => {
+                tracing::info!("[{subject}.success] -> ignored");
+                ctx.ack().await?
             }
         };
     }

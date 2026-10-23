@@ -18,8 +18,6 @@ impl<'a> MemoryService<'a> {
             strength: row.strength,
             confidence: row.confidence,
             recalls: row.recalls as u64,
-            summary: row.summary,
-            embedding: row.embedding.map(|v| v.into()),
             recalled_at: row.recalled_at,
             created_at: row.created_at,
             updated_at: row.updated_at,

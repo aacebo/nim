@@ -2,6 +2,8 @@
 pub struct ArtifactRow {
     pub id: uuid::Uuid,
     pub name: String,
+    pub summary: Option<String>,
+    pub embedding: Option<pgvector::Vector>,
     pub content: sqlx::types::Json<ArtifactContent>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,

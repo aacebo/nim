@@ -14,8 +14,6 @@ pub struct MemoryRow {
     pub strength: f32,
     pub confidence: f32,
     pub recalls: i64,
-    pub summary: Option<String>,
-    pub embedding: Option<pgvector::Vector>,
     pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,

@@ -7,9 +7,7 @@ pub struct MemoryCreate<'a> {
     pub ty: MemoryType,
     pub sources: &'a [Source],
     pub contexts: &'a [Context],
-    pub summary: Option<&'a str>,
     pub confidence: f32,
-    pub embedding: Option<&'a [f32]>,
 }
 
 impl<'a> Default for MemoryCreate<'a> {
@@ -18,9 +16,7 @@ impl<'a> Default for MemoryCreate<'a> {
             ty: MemoryType::Working,
             sources: Default::default(),
             contexts: Default::default(),
-            summary: None,
             confidence: 0.0,
-            embedding: None,
         }
     }
 }
@@ -44,8 +40,6 @@ impl<'a> MemoryService<'a> {
                 strength: 0.0,
                 confidence: value.confidence,
                 recalls: 0,
-                summary: value.summary.map(|v| v.to_string()),
-                embedding: value.embedding.map(|v| v.to_vec().into()),
                 recalled_at: None,
                 created_at: now,
                 updated_at: now,
@@ -64,8 +58,6 @@ impl<'a> MemoryService<'a> {
             strength: row.strength,
             confidence: row.confidence,
             recalls: row.recalls as u64,
-            summary: row.summary,
-            embedding: row.embedding.map(|v| v.into()),
             recalled_at: row.recalled_at,
             created_at: row.created_at,
             updated_at: row.updated_at,

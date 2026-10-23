@@ -41,7 +41,12 @@ impl Context {
                         subjects: vec![
                             "nim.vision.artifact.create".into(),
                             "nim.audio.artifact.create".into(),
+                            "nim.text.artifact.create".into(),
                             "nim.unknown.artifact.create".into(),
+                            "nim.vision.artifact.update".into(),
+                            "nim.audio.artifact.update".into(),
+                            "nim.text.artifact.update".into(),
+                            "nim.unknown.artifact.update".into(),
                         ],
                         ..Default::default()
                     },

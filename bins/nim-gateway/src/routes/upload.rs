@@ -84,6 +84,8 @@ pub async fn route(
                     size,
                     media_type: mime_type.clone().map(|v| v.to_string()),
                 },
+                summary: None,
+                embedding: None,
             })
             .await
             .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;

@@ -22,6 +22,21 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         )));
     };
 
+    let artifact = ctx
+        .services()
+        .artifacts()
+        .update(
+            signal.content.id,
+            nim::state::ArtifactUpdate {
+                summary: caption.value.as_str().map(String::from),
+                embedding: caption.vector.as_ref().map(|v| v.clone().into()),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    ctx.signals().publish("nim.audio.artifact.update", artifact).await?;
+
     let memory = if let Some(embedding) = caption.vector.as_deref() {
         ctx.services()
             .memories()
@@ -35,7 +50,26 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     };
 
     let memory = if let Some(v) = memory {
-        v
+        let mut sources = v.sources;
+
+        if !sources.contains(&nim::state::Source::Region(nim::state::Region::Audio)) {
+            sources.push(nim::state::Source::Region(nim::state::Region::Audio));
+        }
+
+        let memory = ctx
+            .services()
+            .memories()
+            .update(
+                v.id,
+                nim::state::MemoryUpdate {
+                    sources: Some(&sources),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+        ctx.signals().publish("nim.memory.update", memory.clone()).await?;
+        memory
     } else {
         let memory = ctx
             .services()
@@ -43,7 +77,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .create(nim::state::MemoryCreate {
                 ty: nim::state::MemoryType::Working,
                 sources: &[nim::state::Source::Region(nim::state::Region::Audio)],
-                summary: caption.value.as_str(),
                 confidence: 1.0,
                 ..Default::default()
             })

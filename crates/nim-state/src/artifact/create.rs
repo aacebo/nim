@@ -1,11 +1,13 @@
 use nim_store::ArtifactRow;
 
-use crate::{Artifact, ArtifactContent, ArtifactService, Error};
+use crate::{Artifact, ArtifactContent, ArtifactService, Embedding, Error};
 
 #[derive(Debug)]
 pub struct ArtifactCreate {
     pub name: String,
     pub content: ArtifactContent,
+    pub summary: Option<String>,
+    pub embedding: Option<Embedding>,
 }
 
 impl<'a> ArtifactService<'a> {
@@ -18,6 +20,8 @@ impl<'a> ArtifactService<'a> {
                 id: uuid::Uuid::now_v7(),
                 name: value.name,
                 content: nim_store::Json(value.content),
+                summary: value.summary,
+                embedding: value.embedding.map(Into::into),
                 created_at: now,
                 updated_at: now,
             })

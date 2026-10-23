@@ -18,6 +18,8 @@ impl<'a> ArtifactStorage<'a> {
                 id,
                 name,
                 content,
+                summary,
+                embedding,
                 created_at,
                 updated_at
             FROM artifacts
@@ -37,6 +39,8 @@ impl<'a> ArtifactStorage<'a> {
                 artifacts.id,
                 artifacts.name,
                 artifacts.content,
+                artifacts.summary,
+                artifacts.embedding,
                 artifacts.created_at,
                 artifacts.updated_at
             FROM artifacts
@@ -59,6 +63,8 @@ impl<'a> ArtifactStorage<'a> {
                 type,
                 name,
                 content,
+                summary,
+                embedding,
                 created_at,
                 updated_at
             )
@@ -68,12 +74,16 @@ impl<'a> ArtifactStorage<'a> {
                 $2,
                 $3,
                 $4,
-                $5
+                $5,
+                $6,
+                $7
             )
             RETURNING
                 id,
                 name,
                 content,
+                summary,
+                embedding,
                 created_at,
                 updated_at
             "#,
@@ -81,6 +91,8 @@ impl<'a> ArtifactStorage<'a> {
         .bind(value.id)
         .bind(value.name)
         .bind(value.content)
+        .bind(value.summary)
+        .bind(value.embedding)
         .bind(value.created_at)
         .bind(value.updated_at)
         .fetch_one(self.pool)
@@ -96,12 +108,16 @@ impl<'a> ArtifactStorage<'a> {
                 type = $3::jsonb ->> 'type',
                 name = $2,
                 content = $3,
-                updated_at = $4
+                summary = $4,
+                embedding = $5,
+                updated_at = $6
             WHERE id = $1
             RETURNING
                 id,
                 name,
                 content,
+                summary,
+                embedding,
                 created_at,
                 updated_at
             "#,
@@ -109,6 +125,8 @@ impl<'a> ArtifactStorage<'a> {
         .bind(value.id)
         .bind(value.name)
         .bind(value.content)
+        .bind(value.summary)
+        .bind(value.embedding)
         .bind(chrono::Utc::now())
         .fetch_one(self.pool)
         .await

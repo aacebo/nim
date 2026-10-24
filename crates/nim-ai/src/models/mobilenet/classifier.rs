@@ -39,8 +39,8 @@ impl Forward for Classifier {
 }
 
 impl ImageClassify for Classifier {
-    fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
-        let input = self.processor.tensor(image, cx.device())?;
+    fn classify_image(&self, ctx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
+        let input = self.processor.tensor(image, ctx.device())?;
         let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
         let mut labels: Vec<Label> = probabilities[0]
             .iter()

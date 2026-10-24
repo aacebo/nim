@@ -25,12 +25,12 @@ impl Classifier {
 }
 
 impl AudioClassify for Classifier {
-    fn classify_audio(&self, cx: &Context, audio: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
+    fn classify_audio(&self, ctx: &Context, audio: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
         let model = self
             .model
             .lock()
             .map_err(|_| Error::custom("ai", "audio classification model lock poisoned"))?;
-        let probabilities = model.forward(audio, &self.config, cx.device())?.to_vec2::<f32>()?;
+        let probabilities = model.forward(audio, &self.config, ctx.device())?.to_vec2::<f32>()?;
         let mut labels: Vec<_> = probabilities[0]
             .iter()
             .enumerate()

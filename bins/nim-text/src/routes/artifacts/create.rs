@@ -176,16 +176,16 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Extract PII
 
-    let entities = nim::ai::pipelines::text::classify::pii(std::slice::from_ref(&text.as_str()))?;
-    let Some(entities) = entities.first() else {
+    let annotations = nim::ai::pipelines::text::classify::pii(std::slice::from_ref(&text.as_str()))?;
+    let Some(annotations) = annotations.first() else {
         return Ok(());
     };
 
-    let labels = entities.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
+    let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
 
-    for (i, entity) in entities.iter().enumerate() {
+    for (i, annotation) in annotations.iter().enumerate() {
         let existing = ctx
             .services()
             .annotations()
@@ -196,6 +196,14 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             continue;
         }
 
+        let spans = annotation
+            .spans
+            .iter()
+            .map(|span| nim::state::Span {
+                start: span.begin,
+                end: span.end,
+            })
+            .collect::<Vec<_>>();
         let annotation = ctx
             .services()
             .annotations()
@@ -203,12 +211,9 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                 artifact_id: signal.content.id,
                 label: nim::state::Label::Unknown,
                 text: labels[i].to_string(),
-                spans: &[nim::state::Span {
-                    start: entity.offset.begin,
-                    end: entity.offset.end,
-                }],
+                spans: &spans,
                 embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
-                confidence: entity.score as f32,
+                confidence: annotation.score as f32,
             })
             .await?;
 

@@ -31,6 +31,7 @@ candle-core = { version = "0.11" }
 candle-nn = { version = "0.11" }
 candle-transformers = { version = "0.11" }
 tokenizers = { version = "0.22" }
+unicode_categories = "0.1"
 hf-hub = { version = "0.5" }
 
 image = { version = "0.25", default-features = false, features = ["bmp", "gif", "ico", "jpeg", "png", "tiff", "webp"], optional = true }

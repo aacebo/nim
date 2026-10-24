@@ -25,6 +25,10 @@ pub mod defaults {
         hub("distilbert-base-uncased-finetuned-sst-2-english")
     }
 
+    pub fn zero_shot() -> ModelRef {
+        hub("facebook/bart-large-mnli")
+    }
+
     pub fn token_classify() -> ModelRef {
         hub("dbmdz/bert-large-cased-finetuned-conll03-english")
     }

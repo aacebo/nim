@@ -171,6 +171,7 @@ pub enum AnyModel {
     Embedder(bert::Embedder),
     BartEntityClassifier(bart::Classifier),
     BartSequenceClassifier(bart::Classifier),
+    BartZeroShotClassifier(bart::ZeroShotClassifier),
     BertEntityClassifier(bert::Classifier),
     BertSequenceClassifier(bert::Classifier),
     DistilBertEntityClassifier(distilbert::Classifier),
@@ -256,8 +257,15 @@ impl Model {
                         architecture.is_token_classification(),
                         config.id2label.is_empty(),
                     ) {
-                        (true, _, false) => AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?)?),
-                        (_, true, false) => AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?)?),
+                        (true, _, false) if bart::ZeroShotClassifier::supports(&config) => {
+                            AnyModel::BartZeroShotClassifier(bart::ZeroShotClassifier::new(&config, repo.vars()?)?)
+                        }
+                        (true, _, false) => {
+                            AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Text)?)
+                        }
+                        (_, true, false) => {
+                            AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Spans)?)
+                        }
                         _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
                     }
                 }
@@ -269,12 +277,16 @@ impl Model {
                         architecture.is_token_classification(),
                         !config.id2label.is_empty(),
                     ) {
-                        (true, _, true) => {
-                            AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(repo.vars()?, &config)?)
-                        }
-                        (_, true, true) => {
-                            AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(repo.vars()?, &config)?)
-                        }
+                        (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(
+                            repo.vars()?,
+                            &config,
+                            ClassifyMode::Text,
+                        )?),
+                        (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(
+                            repo.vars()?,
+                            &config,
+                            ClassifyMode::Spans,
+                        )?),
                         _ => {
                             return Err(Error::custom(
                                 "ai::invalid",
@@ -321,8 +333,12 @@ impl Model {
                         architecture.is_token_classification(),
                         !config.id2label.is_empty(),
                     ) {
-                        (true, _, true) => AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config)?),
-                        (_, true, true) => AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config)?),
+                        (true, _, true) => {
+                            AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Text)?)
+                        }
+                        (_, true, true) => {
+                            AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Spans)?)
+                        }
                         _ => AnyModel::Embedder(bert::Embedder::new(repo.vars()?, &config)?),
                     }
                 }
@@ -366,11 +382,12 @@ impl Model {
         }
     }
 
-    pub fn as_sequence_classify(&self) -> Option<&dyn SequenceClassify> {
+    pub fn as_classify(&self) -> Option<&dyn Classify> {
         match &self.model {
-            AnyModel::BartSequenceClassifier(model) => Some(model),
-            AnyModel::BertSequenceClassifier(model) => Some(model),
-            AnyModel::DistilBertSequenceClassifier(model) => Some(model),
+            AnyModel::BartSequenceClassifier(model) | AnyModel::BartEntityClassifier(model) => Some(model),
+            AnyModel::BartZeroShotClassifier(model) => Some(model),
+            AnyModel::BertSequenceClassifier(model) | AnyModel::BertEntityClassifier(model) => Some(model),
+            AnyModel::DistilBertSequenceClassifier(model) | AnyModel::DistilBertEntityClassifier(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
         }
@@ -422,16 +439,6 @@ impl Model {
         match &self.model {
             AnyModel::AudioToText(model) => Some(model),
             AnyModel::AudioCaptioner(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    pub fn as_entity_classify(&self) -> Option<&dyn EntityClassify> {
-        match &self.model {
-            AnyModel::BartEntityClassifier(model) => Some(model),
-            AnyModel::BertEntityClassifier(model) => Some(model),
-            AnyModel::DistilBertEntityClassifier(model) => Some(model),
-            AnyModel::Remote(model) => Some(model),
             _ => None,
         }
     }

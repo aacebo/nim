@@ -25,7 +25,7 @@ impl Captioner {
         })
     }
 
-    fn one(&self, cx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
         let model = self
             .model
             .lock()
@@ -34,8 +34,8 @@ impl Captioner {
         let mut captions = Vec::with_capacity(chunks.len());
 
         for chunk in chunks {
-            let audio = model.encode(chunk, cx.device())?;
-            captions.push(self.decode(cx, &model, &audio, beams, max_len)?);
+            let audio = model.encode(chunk, ctx.device())?;
+            captions.push(self.decode(ctx, &model, &audio, beams, max_len)?);
         }
 
         captions.retain(|caption| !caption.is_empty());
@@ -44,7 +44,7 @@ impl Captioner {
 
     fn decode(
         &self,
-        cx: &Context,
+        ctx: &Context,
         model: &Model,
         audio: &candle_core::Tensor,
         beams: usize,
@@ -84,7 +84,7 @@ impl Captioner {
         done.sort_by(|left, right| right.0.total_cmp(&left.0));
         let tokens = done.into_iter().next().map(|(_, tokens)| tokens).unwrap_or_default();
 
-        cx.tokenizer()?
+        ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|caption| caption.trim().to_string())
             .map_err(|err| Error::custom("ai::decoding", err))
@@ -94,13 +94,13 @@ impl Captioner {
 impl AudioToText for Captioner {
     fn audio_to_text(
         &self,
-        cx: &Context,
+        ctx: &Context,
         audio: &[Vec<u8>],
         beams: Option<usize>,
         max_len: Option<usize>,
     ) -> Result<Vec<String>, Error> {
         let beams = beams.unwrap_or(3).max(1);
         let max_len = max_len.unwrap_or(MAX_LEN).min(MAX_LEN).clamp(1, MAX_LEN);
-        audio.iter().map(|bytes| self.one(cx, bytes, beams, max_len)).collect()
+        audio.iter().map(|bytes| self.one(ctx, bytes, beams, max_len)).collect()
     }
 }

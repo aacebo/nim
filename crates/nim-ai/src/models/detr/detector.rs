@@ -24,7 +24,7 @@ impl Detector {
 }
 
 impl ImageDetect for Detector {
-    fn detect_image(&self, cx: &Context, image: &[u8], min_score: f64, limit: usize) -> Result<Vec<Detection>, Error> {
+    fn detect_image(&self, ctx: &Context, image: &[u8], min_score: f64, limit: usize) -> Result<Vec<Detection>, Error> {
         if !min_score.is_finite() || !(0.0..=1.0).contains(&min_score) {
             return Err(Error::custom("ai::config", "min_score must be finite and between 0 and 1"));
         }
@@ -33,7 +33,7 @@ impl ImageDetect for Detector {
             return Ok(Vec::new());
         }
 
-        let (input, width, height) = self.processor.tensor(image, cx.device())?;
+        let (input, width, height) = self.processor.tensor(image, ctx.device())?;
         let (logits, boxes) = self.model.forward(&input)?;
         let probabilities = ops::softmax_last_dim(&logits)?.squeeze(0)?.to_vec2::<f32>()?;
         let boxes = boxes.squeeze(0)?.to_vec2::<f32>()?;
@@ -56,16 +56,16 @@ impl ImageDetect for Detector {
                 continue;
             };
 
-            let [cx, cy, w, h] = <[f32; 4]>::try_from(bbox).map_err(|_| Error::custom("ai::image", "invalid DETR box shape"))?;
+            let [ctx, cy, w, h] = <[f32; 4]>::try_from(bbox).map_err(|_| Error::custom("ai::image", "invalid DETR box shape"))?;
 
             detections.push(Detection {
                 class_id,
                 label: label.clone(),
                 score: score as f64,
                 bbox: BoundingBox {
-                    xmin: ((cx - w / 2.0) * width as f32).clamp(0.0, width as f32),
+                    xmin: ((ctx - w / 2.0) * width as f32).clamp(0.0, width as f32),
                     ymin: ((cy - h / 2.0) * height as f32).clamp(0.0, height as f32),
-                    xmax: ((cx + w / 2.0) * width as f32).clamp(0.0, width as f32),
+                    xmax: ((ctx + w / 2.0) * width as f32).clamp(0.0, width as f32),
                     ymax: ((cy + h / 2.0) * height as f32).clamp(0.0, height as f32),
                 },
             });
@@ -78,12 +78,12 @@ impl ImageDetect for Detector {
 }
 
 impl ImageClassify for Detector {
-    fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
+    fn classify_image(&self, ctx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
         if limit == 0 {
             return Ok(Vec::new());
         }
 
-        let detections = self.detect_image(cx, image, 0.5, usize::MAX)?;
+        let detections = self.detect_image(ctx, image, 0.5, usize::MAX)?;
         let mut labels = BTreeMap::<String, f64>::new();
 
         for detection in detections {

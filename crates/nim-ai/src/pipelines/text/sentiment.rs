@@ -26,9 +26,7 @@ pub fn run(input: &[&str]) -> Result<Vec<Annotation>, Error> {
 pub fn run_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Error> {
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::classify())?, &api_key)?;
-    let capable = model
-        .as_sequence_classify()
-        .ok_or_else(|| model.cannot("sequence-classify"))?;
+    let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
     let out = tasks::sentiment(capable, &model.context(), input)?;
     let mut annotations: Vec<Annotation> = Vec::new();
 
@@ -43,7 +41,7 @@ pub fn run_with(input: &[&str], options: Options) -> Result<Vec<Annotation>, Err
         annotations.push(Annotation {
             name: String::from("sentiment"),
             label: label.to_string(),
-            text: label.to_string(),
+            text: source.to_string(),
             score: sentiment.score,
             spans: vec![Offset::new(0, source.chars().count() as u32)],
         });

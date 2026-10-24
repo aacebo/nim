@@ -38,7 +38,7 @@ impl Summarizer {
 }
 
 impl Generate for Summarizer {
-    fn generate(&self, cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error> {
+    fn generate(&self, ctx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error> {
         let mut generation = self.generation;
 
         if let Some(beams) = opts.beams {
@@ -48,26 +48,26 @@ impl Generate for Summarizer {
             generation = generation.max_length(max_len);
         }
 
-        text.iter().map(|text| self.one(cx, text, &generation)).collect()
+        text.iter().map(|text| self.one(ctx, text, &generation)).collect()
     }
 }
 
 impl Summarizer {
-    fn one(&self, cx: &Context, text: &str, generation: &generate::Config) -> Result<String, Error> {
-        let encoding = cx.encode_one(text)?;
+    fn one(&self, ctx: &Context, text: &str, generation: &generate::Config) -> Result<String, Error> {
+        let encoding = ctx.encode_one(text)?;
         let ids = encoding.get_ids();
 
         // The learned positional embeddings only cover `max_position_embeddings`.
         let ids = &ids[..ids.len().min(self.max_position_embeddings)];
-        let input = Tensor::from_slice(ids, (1, ids.len()), cx.device())?;
+        let input = Tensor::from_slice(ids, (1, ids.len()), ctx.device())?;
         let mut model = self
             .model
             .lock()
             .map_err(|_| Error::custom("ai", "summarization model lock poisoned"))?;
 
-        let tokens = generate::run(&mut model, generation, &input, cx.device())?;
+        let tokens = generate::run(&mut model, generation, &input, ctx.device())?;
 
-        cx.tokenizer()?
+        ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|summary| summary.trim().to_string())
             .map_err(|err| Error::custom("ai::decoding", err))

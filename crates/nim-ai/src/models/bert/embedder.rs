@@ -51,12 +51,12 @@ impl Forward for Embedder {
 }
 
 impl Embed for Embedder {
-    fn embed(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
         if text.is_empty() {
             return Ok(Vec::new());
         }
 
-        let batch = cx.encode(text)?;
+        let batch = ctx.encode(text)?;
         Ok(self.forward(&batch.ids, &batch.mask)?.to_vec2::<f32>()?)
     }
 }

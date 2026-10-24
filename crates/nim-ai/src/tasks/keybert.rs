@@ -7,11 +7,11 @@ use super::{candidates, scorer};
 /// KeyBERT: embed the document, embed each candidate phrase, rank candidates by cosine similarity
 /// to the document. Any embedder will do -- which is the point of taking `&dyn Embed` rather than
 /// a concrete model.
-pub fn keywords<E: Embed + ?Sized>(model: &E, cx: &Context, text: &[&str], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
-    text.iter().map(|text| one(model, cx, text, top_n)).collect()
+pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &[&str], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
+    text.iter().map(|text| one(model, ctx, text, top_n)).collect()
 }
 
-fn one<E: Embed + ?Sized>(model: &E, cx: &Context, text: &str, top_n: usize) -> Result<Vec<Keyword>, Error> {
+fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) -> Result<Vec<Keyword>, Error> {
     let candidates = candidates::extract(text);
 
     if candidates.is_empty() {
@@ -24,7 +24,7 @@ fn one<E: Embed + ?Sized>(model: &E, cx: &Context, text: &str, top_n: usize) -> 
     batch.push(text);
     batch.extend(candidates.iter().map(|candidate| candidate.text.as_str()));
 
-    let vectors = model.embed(cx, &batch)?;
+    let vectors = model.embed(ctx, &batch)?;
     let Some((document, vectors)) = vectors.split_first() else {
         return Ok(Vec::new());
     };

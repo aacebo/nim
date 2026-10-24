@@ -3,32 +3,31 @@ use tokenizers::Tokenizer;
 
 use crate::Error;
 use crate::pipelines::common::Batch;
-use crate::types::Entity;
+use crate::types::Annotation;
 
 /// Text in, text out. BART does this by beam search; a hosted model by its completion endpoint.
 pub trait Generate: Send + Sync {
-    fn generate(&self, cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error>;
+    fn generate(&self, ctx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error>;
 }
 
 /// A sentence vector per input.
 pub trait Embed: Send + Sync {
-    fn embed(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error>;
+    fn embed(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error>;
 }
 
-/// Sequence classification: one label per input.
-pub trait SequenceClassify: Send + Sync {
-    fn classify_sequence(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error>;
+pub trait Classify: Send + Sync {
+    fn classify(&self, ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error>;
 }
 
 /// Image classification
 #[cfg(feature = "vision")]
 pub trait ImageClassify: Send + Sync {
-    fn classify_image(&self, cx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
+    fn classify_image(&self, ctx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
 }
 
 #[cfg(feature = "vision")]
 pub trait ImageDetect: Send + Sync {
-    fn detect_image(&self, cx: &Context, image: &[u8], min_score: f64, limit: usize) -> Result<Vec<Detection>, Error>;
+    fn detect_image(&self, ctx: &Context, image: &[u8], min_score: f64, limit: usize) -> Result<Vec<Detection>, Error>;
 }
 
 #[cfg(feature = "vision")]
@@ -51,14 +50,14 @@ pub struct BoundingBox {
 
 #[cfg(feature = "audio")]
 pub trait AudioClassify: Send + Sync {
-    fn classify_audio(&self, cx: &Context, audio: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
+    fn classify_audio(&self, ctx: &Context, audio: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
 }
 
 #[cfg(feature = "vision")]
 pub trait ImageToText: Send + Sync {
     fn image_to_text(
         &self,
-        cx: &Context,
+        ctx: &Context,
         images: &[Vec<u8>],
         beams: Option<usize>,
         max_len: Option<usize>,
@@ -69,7 +68,7 @@ pub trait ImageToText: Send + Sync {
 pub trait Transcribe: Send + Sync {
     fn transcribe(
         &self,
-        cx: &Context,
+        ctx: &Context,
         audio: &[Vec<u8>],
         language: Option<&str>,
         beams: Option<usize>,
@@ -81,15 +80,11 @@ pub trait Transcribe: Send + Sync {
 pub trait AudioToText: Send + Sync {
     fn audio_to_text(
         &self,
-        cx: &Context,
+        ctx: &Context,
         audio: &[Vec<u8>],
         beams: Option<usize>,
         max_len: Option<usize>,
     ) -> Result<Vec<String>, Error>;
-}
-
-pub trait EntityClassify: Send + Sync {
-    fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error>;
 }
 
 /// Borrows what a model needs to turn text into tensors. A loaded model owns its weights; the
@@ -151,6 +146,59 @@ pub struct Word {
     pub score: f64,
     pub start: usize,
     pub end: usize,
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub enum ClassifyMode {
+    #[default]
+    Text,
+    Spans,
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassifyOptions<'a> {
+    pub mode: ClassifyMode,
+    pub labels: Option<&'a [String]>,
+    pub multi_label: bool,
+    pub hypothesis_template: &'a str,
+}
+
+impl Default for ClassifyOptions<'_> {
+    fn default() -> Self {
+        Self {
+            mode: ClassifyMode::Text,
+            labels: None,
+            multi_label: false,
+            hypothesis_template: "This example is about {}.",
+        }
+    }
+}
+
+impl ClassifyOptions<'_> {
+    pub fn validate(&self) -> Result<(), Error> {
+        if self.hypothesis_template.matches("{}").count() != 1 {
+            return Err(Error::custom(
+                "ai::config",
+                "hypothesis_template must contain exactly one {} placeholder",
+            ));
+        }
+
+        if let Some(labels) = self.labels {
+            if labels.is_empty() || labels.iter().any(|label| label.trim().is_empty()) {
+                return Err(Error::custom("ai::config", "labels must contain at least one nonblank label"));
+            }
+
+            if labels
+                .iter()
+                .enumerate()
+                .any(|(index, label)| labels[..index].contains(label))
+            {
+                return Err(Error::custom("ai::config", "labels must be unique"));
+            }
+        }
+
+        Ok(())
+    }
 }
 
 pub struct GenOpts {

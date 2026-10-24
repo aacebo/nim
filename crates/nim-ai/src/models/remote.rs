@@ -1,9 +1,9 @@
 use crate::Error;
-use crate::tasks::anchor;
-use crate::types::Entity;
+use crate::tasks::{anchor, zero_shot};
+use crate::types::{Annotation, Offset};
 
 use super::RemoteModel;
-use super::capability::{Context, Embed, EntityClassify, GenOpts, Generate, Label, SequenceClassify};
+use super::capability::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, GenOpts, Generate};
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
                         schema: `label` is your chosen class and `score` is your confidence from \
@@ -23,6 +23,11 @@ struct Classified {
 }
 
 #[derive(serde::Deserialize)]
+struct Scores {
+    labels: Vec<Classified>,
+}
+
+#[derive(serde::Deserialize)]
 struct Found {
     entities: Vec<Item>,
 }
@@ -38,7 +43,7 @@ struct Item {
 /// chat completion, generation through a plain completion, and embeddings through their own
 /// endpoint. This is the full remote row of the capability matrix.
 impl Embed for RemoteModel {
-    fn embed(&self, _cx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed(&self, _ctx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
         if text.is_empty() {
             return Ok(Vec::new());
         }
@@ -47,29 +52,169 @@ impl Embed for RemoteModel {
     }
 }
 
-impl SequenceClassify for RemoteModel {
-    fn classify_sequence(&self, _cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error> {
-        text.iter()
-            .map(|text| {
-                let out: Classified = self.client().json(CLASSIFY, text, classify_schema())?;
+impl Classify for RemoteModel {
+    fn classify(&self, _ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        options.validate()?;
 
-                Ok(Label {
-                    label: out.label.to_lowercase(),
-                    score: out.score,
-                })
-            })
-            .collect()
-    }
-}
-
-impl EntityClassify for RemoteModel {
-    fn classify_entities(&self, _cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
-        text.iter().map(|text| self.spans(text)).collect()
+        match (options.mode, options.labels) {
+            (ClassifyMode::Text, Some(_)) => self.custom_text(text, options),
+            (ClassifyMode::Text, None) => self.text(text),
+            (ClassifyMode::Spans, Some(_)) => self.custom_spans(text, options),
+            (ClassifyMode::Spans, None) => text.iter().map(|text| self.spans(text)).collect(),
+        }
     }
 }
 
 impl RemoteModel {
-    fn spans(&self, text: &str) -> Result<Vec<Entity>, Error> {
+    fn text(&self, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+        text.iter()
+            .map(|text| {
+                let out: Classified = self.client().json(CLASSIFY, text, classify_schema())?;
+
+                Ok(vec![Annotation {
+                    name: String::from("classification"),
+                    text: text.to_string(),
+                    label: out.label.to_lowercase(),
+                    score: out.score,
+                    spans: vec![Offset::new(0, text.chars().count() as u32)],
+                }])
+            })
+            .collect()
+    }
+
+    fn custom_text(&self, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        let candidates = options
+            .labels
+            .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
+        let hypotheses: Vec<String> = candidates
+            .iter()
+            .map(|label| options.hypothesis_template.replace("{}", label))
+            .collect();
+        let prompt = format!(
+            "Classify the input using exactly these labels: {}. Their hypotheses, in the same order, are: {}. \
+             Return every label exactly once with a finite confidence from 0 to 1. {} Preserve label spelling exactly.",
+            serde_json::to_string(candidates)?,
+            serde_json::to_string(&hypotheses)?,
+            if options.multi_label || candidates.len() == 1 {
+                "Evaluate each hypothesis independently."
+            } else {
+                "The labels are mutually exclusive; their scores must sum to 1."
+            },
+        );
+        let mut item = classify_schema();
+        item["properties"]["label"]["enum"] = serde_json::json!(candidates);
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": { "labels": { "type": "array", "items": item } },
+            "required": ["labels"],
+            "additionalProperties": false,
+        });
+
+        text.iter()
+            .map(|text| {
+                let out: Scores = self.client().json(&prompt, text, schema.clone())?;
+
+                if out.labels.len() != candidates.len()
+                    || out.labels.iter().any(|label| {
+                        !candidates.contains(&label.label) || !label.score.is_finite() || !(0.0..=1.0).contains(&label.score)
+                    })
+                {
+                    return Err(Error::custom(
+                        "ai::invalid",
+                        "hosted classification returned invalid labels or scores",
+                    ));
+                }
+
+                let mut labels = Vec::with_capacity(candidates.len());
+
+                for label in candidates {
+                    let matching: Vec<&Classified> = out.labels.iter().filter(|item| &item.label == label).collect();
+
+                    if matching.len() != 1 {
+                        return Err(Error::custom(
+                            "ai::invalid",
+                            "hosted classification must return each label exactly once",
+                        ));
+                    }
+
+                    labels.push(Annotation {
+                        name: String::from("classification"),
+                        text: text.to_string(),
+                        label: label.clone(),
+                        score: matching[0].score,
+                        spans: vec![Offset::new(0, text.chars().count() as u32)],
+                    });
+                }
+
+                if !options.multi_label && candidates.len() > 1 {
+                    let total: f64 = labels.iter().map(|label| label.score).sum();
+
+                    if total <= 0.0 {
+                        return Err(Error::custom(
+                            "ai::invalid",
+                            "hosted classification returned zero total confidence",
+                        ));
+                    }
+
+                    for label in &mut labels {
+                        label.score /= total;
+                    }
+                }
+
+                Ok(zero_shot::select(labels, options.multi_label))
+            })
+            .collect()
+    }
+
+    fn custom_spans(&self, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        let candidates = options
+            .labels
+            .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
+        let prompt = format!(
+            "Extract verbatim spans from the input using only these categories: {}. \
+             Interpret each category with this hypothesis template: {}. \
+             Preserve category spelling exactly. Return confidence scores from 0 to 1. {}",
+            serde_json::to_string(candidates)?,
+            options.hypothesis_template,
+            if options.multi_label {
+                "A span may have multiple categories."
+            } else {
+                "Assign at most one category per span."
+            },
+        );
+        let mut schema = tokens_schema();
+        schema["properties"]["entities"]["items"]["properties"]["label"]["enum"] = serde_json::json!(candidates);
+
+        text.iter()
+            .map(|text| {
+                let found: Found = self.client().json(&prompt, text, schema.clone())?;
+                let mut entities = Vec::new();
+
+                for item in found.entities {
+                    if !candidates.contains(&item.label) || !item.score.is_finite() || !(0.0..=1.0).contains(&item.score) {
+                        return Err(Error::custom(
+                            "ai::invalid",
+                            "hosted extraction returned an invalid label or score",
+                        ));
+                    }
+
+                    for offset in anchor::all(text, &item.text) {
+                        entities.push(Annotation {
+                            name: String::from("entity"),
+                            spans: vec![offset],
+                            text: item.text.clone(),
+                            label: item.label.clone(),
+                            score: item.score,
+                        });
+                    }
+                }
+
+                Ok(entities)
+            })
+            .collect()
+    }
+
+    fn spans(&self, text: &str) -> Result<Vec<Annotation>, Error> {
         let found: Found = self.client().json(TOKENS, text, tokens_schema())?;
 
         Ok(found
@@ -79,9 +224,10 @@ impl RemoteModel {
             // that is not verbatim cannot be anchored -- and violates the prompt -- so it is
             // dropped rather than given an invented span.
             .filter_map(|item| {
-                Some(Entity {
-                    offset: anchor::find(text, &item.text)?,
-                    word: item.text,
+                Some(Annotation {
+                    name: String::from("entity"),
+                    spans: vec![anchor::find(text, &item.text)?],
+                    text: item.text,
                     label: item.label.to_lowercase(),
                     score: item.score,
                 })
@@ -93,9 +239,9 @@ impl RemoteModel {
 /// Generation is a plain completion, not a schema-constrained one: the output is prose, and
 /// wrapping it in a JSON envelope buys nothing.
 impl Generate for RemoteModel {
-    fn generate(&self, _cx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error> {
+    fn generate(&self, _ctx: &Context, text: &[&str], options: &GenOpts) -> Result<Vec<String>, Error> {
         text.iter()
-            .map(|text| self.client().complete(opts.prompt, text, opts.max_len))
+            .map(|text| self.client().complete(options.prompt, text, options.max_len))
             .collect()
     }
 }

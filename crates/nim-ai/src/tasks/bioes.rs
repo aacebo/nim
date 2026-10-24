@@ -1,11 +1,11 @@
 use crate::models::Word;
-use crate::types::{Entity, Offset};
+use crate::types::{Annotation, Offset};
 
 use super::char_offset;
 
 /// BIOES decoding, distinct from the plain IOB1 aggregation used for NER: it honours `E-`/`S-`
 /// tags, merges adjacent same-label entities, and weights merged scores by token count.
-pub fn entities(words: Vec<Word>, text: &str, min_score: f64) -> Vec<Entity> {
+pub fn entities(words: Vec<Word>, text: &str, min_score: f64) -> Vec<Annotation> {
     let mut entities = Entities::new(text, min_score);
 
     for word in words {
@@ -82,9 +82,9 @@ impl<'a> Entities<'a> {
         }
     }
 
-    fn finish(mut self) -> Vec<Entity> {
+    fn finish(mut self) -> Vec<Annotation> {
         self.finish_current();
-        self.finished.into_iter().map(|entity| entity.entity).collect()
+        self.finished.into_iter().map(|entity| entity.annotation).collect()
     }
 
     fn should_start(&self, tag: Tag, label: &str, start: usize) -> bool {
@@ -108,7 +108,7 @@ impl<'a> Entities<'a> {
         };
         let entity = builder.finish(self.text);
 
-        if entity.entity.score < self.min_score {
+        if entity.annotation.score < self.min_score {
             return;
         }
 
@@ -124,7 +124,7 @@ impl<'a> Entities<'a> {
 }
 
 struct Finished {
-    entity: Entity,
+    annotation: Annotation,
     words: usize,
     start: usize,
     end: usize,
@@ -132,17 +132,18 @@ struct Finished {
 
 impl Finished {
     fn can_merge(&self, other: &Self) -> bool {
-        self.entity.label.eq_ignore_ascii_case(&other.entity.label) && self.end == other.start
+        self.annotation.label.eq_ignore_ascii_case(&other.annotation.label) && self.end == other.start
     }
 
     fn merge(&mut self, other: Self, text: &str) {
         let total = self.words + other.words;
 
-        self.entity.score = ((self.entity.score * self.words as f64) + (other.entity.score * other.words as f64)) / total as f64;
-        self.entity.offset.end = other.entity.offset.end;
+        self.annotation.score =
+            ((self.annotation.score * self.words as f64) + (other.annotation.score * other.words as f64)) / total as f64;
+        self.annotation.spans[0].end = other.annotation.spans[0].end;
         self.words = total;
         self.end = other.end;
-        self.entity.word = text[self.start..self.end].to_string();
+        self.annotation.text = text[self.start..self.end].to_string();
     }
 }
 
@@ -184,11 +185,12 @@ impl Builder {
 
     fn finish(self, text: &str) -> Finished {
         Finished {
-            entity: Entity {
-                word: text[self.start..self.end].to_string(),
+            annotation: Annotation {
+                name: String::from("entity"),
+                text: text[self.start..self.end].to_string(),
                 label: self.label,
                 score: self.scores / self.count as f64,
-                offset: Offset::new(char_offset(text, self.start), char_offset(text, self.end)),
+                spans: vec![Offset::new(char_offset(text, self.start), char_offset(text, self.end))],
             },
             words: self.count,
             start: self.start,
@@ -219,7 +221,7 @@ mod tests {
         let found = entities(words, text, 0.0);
 
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].word, "John Smith");
+        assert_eq!(found[0].text, "John Smith");
         assert!((found[0].score - 0.7).abs() < 1e-9, "score was {}", found[0].score);
     }
 
@@ -233,7 +235,7 @@ mod tests {
         let found = entities(words, text, 0.5);
 
         assert_eq!(found.len(), 1, "the weak entity must not merge in");
-        assert_eq!(found[0].word, "John");
+        assert_eq!(found[0].text, "John");
         assert!((found[0].score - 0.9).abs() < 1e-9, "score was {}", found[0].score);
     }
 
@@ -246,7 +248,7 @@ mod tests {
         let found = entities(words, text, 0.0);
 
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].word, "Jean-Luc");
+        assert_eq!(found[0].text, "Jean-Luc");
     }
 
     #[test]

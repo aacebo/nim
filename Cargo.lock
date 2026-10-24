@@ -2280,6 +2280,7 @@ dependencies = [
  "serde_json",
  "tokenizers",
  "tracing",
+ "unicode_categories",
  "url",
 ]
 

@@ -2,7 +2,7 @@ use tokenizers::Encoding;
 
 use crate::Error;
 use crate::models::Word;
-use crate::types::{Entity, Offset};
+use crate::types::{Annotation, Offset};
 
 use super::char_offset;
 
@@ -53,8 +53,8 @@ pub fn words(probs: &[Vec<f32>], encoding: &Encoding, labels: &[String]) -> Resu
 
 /// CoNLL-03 is IOB1: entities may start with `I-`, and `B-` only splits adjacent same-type
 /// entities. Decoding it as IOB2 drops most entities.
-pub fn entities(words: Vec<Word>, text: &str) -> Vec<Entity> {
-    let mut entities: Vec<Entity> = Vec::new();
+pub fn entities(words: Vec<Word>, text: &str) -> Vec<Annotation> {
+    let mut entities: Vec<Annotation> = Vec::new();
     let mut open: Option<Open> = None;
 
     for word in words {
@@ -90,15 +90,16 @@ struct Open {
     end: usize,
 }
 
-fn flush(open: Option<Open>, text: &str, entities: &mut Vec<Entity>) {
+fn flush(open: Option<Open>, text: &str, entities: &mut Vec<Annotation>) {
     let Some(open) = open else { return };
     let score = open.scores.iter().sum::<f64>() / open.scores.len() as f64;
 
-    entities.push(Entity {
-        word: text[open.start..open.end].to_string(),
+    entities.push(Annotation {
+        name: String::from("entity"),
+        text: text[open.start..open.end].to_string(),
         score,
         label: open.label,
-        offset: Offset::new(char_offset(text, open.start), char_offset(text, open.end)),
+        spans: vec![Offset::new(char_offset(text, open.start), char_offset(text, open.end))],
     });
 }
 

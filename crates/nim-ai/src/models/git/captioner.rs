@@ -37,8 +37,8 @@ impl Captioner {
         })
     }
 
-    fn one(&self, cx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
-        let image = self.processor.tensor(bytes, cx.device())?;
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
+        let image = self.processor.tensor(bytes, ctx.device())?;
         let mut model = self
             .model
             .lock()
@@ -86,7 +86,7 @@ impl Captioner {
         done.sort_by(|a, b| b.0.total_cmp(&a.0));
         let tokens = done.into_iter().next().map(|(_, tokens)| tokens).unwrap_or_default();
 
-        cx.tokenizer()?
+        ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|text| text.trim().to_string())
             .map_err(|e| Error::custom("ai::decoding", e))
@@ -96,14 +96,14 @@ impl Captioner {
 impl ImageToText for Captioner {
     fn image_to_text(
         &self,
-        cx: &Context,
+        ctx: &Context,
         images: &[Vec<u8>],
         beams: Option<usize>,
         max_len: Option<usize>,
     ) -> Result<Vec<String>, Error> {
         images
             .iter()
-            .map(|image| self.one(cx, image, beams.unwrap_or(1), max_len.unwrap_or(20)))
+            .map(|image| self.one(ctx, image, beams.unwrap_or(1), max_len.unwrap_or(20)))
             .collect()
     }
 }

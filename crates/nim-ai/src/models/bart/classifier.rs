@@ -4,9 +4,9 @@ use candle_core::{IndexOp, Tensor};
 use candle_nn::{Embedding, Linear, Module, VarBuilder, embedding, ops};
 
 use crate::Error;
-use crate::models::{Context, EntityClassify, Forward, Label, SequenceClassify};
+use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::{aggregation, decode_entities};
-use crate::types::Entity;
+use crate::types::{Annotation, Offset};
 
 use super::config::Config;
 use super::encoder::Encoder;
@@ -16,10 +16,11 @@ pub struct Classifier {
     dense: Option<Linear>,
     classifier: Linear,
     labels: Vec<String>,
+    mode: ClassifyMode,
 }
 
 impl Classifier {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder, mode: ClassifyMode) -> Result<Self, Error> {
         let labels = config.labels()?;
         let model = vars.pp("model");
         let embed_tokens: Embedding = embedding(config.vocab_size, config.d_model, model.pp("encoder").pp("embed_tokens"))?;
@@ -37,7 +38,59 @@ impl Classifier {
             dense,
             classifier,
             labels,
+            mode,
         })
+    }
+
+    fn text(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+        text.iter()
+            .map(|text| {
+                let encoding = ctx.encode_one(text)?;
+                let ids = encoding.get_ids();
+
+                if ids.is_empty() {
+                    return Err(Error::custom("ai::invalid", "empty classification input"));
+                }
+
+                let input = Tensor::from_slice(ids, (1, ids.len()), ctx.device())?;
+                let logits = Forward::forward(self, input)?;
+                let last = logits.i((0, logits.dim(1)? - 1))?;
+                let scores = ops::softmax(&last, 0)?.to_vec1::<f32>()?;
+                let (index, score) = scores
+                    .iter()
+                    .enumerate()
+                    .max_by(|(_, left), (_, right)| left.total_cmp(right))
+                    .ok_or_else(|| Error::custom("ai::invalid", "empty classification output"))?;
+
+                Ok(vec![Annotation {
+                    name: String::from("classification"),
+                    text: text.to_string(),
+                    label: self.labels[index].clone(),
+                    score: *score as f64,
+                    spans: vec![Offset::new(0, text.chars().count() as u32)],
+                }])
+            })
+            .collect()
+    }
+
+    fn spans(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+        text.iter()
+            .map(|text| {
+                let encoding = ctx.encode_one(text)?;
+                let ids = encoding.get_ids();
+
+                if ids.is_empty() {
+                    return Ok(Vec::new());
+                }
+
+                let input = Tensor::from_slice(ids, (1, ids.len()), ctx.device())?;
+                let logits = Forward::forward(self, input)?;
+                let probabilities = ops::softmax(&logits, 2)?.squeeze(0)?.to_vec2::<f32>()?;
+                let words = aggregation::words(&probabilities, &encoding, &self.labels)?;
+
+                Ok(decode_entities(words, text, &self.labels))
+            })
+            .collect()
     }
 }
 
@@ -61,54 +114,27 @@ impl Forward for Classifier {
     }
 }
 
-impl SequenceClassify for Classifier {
-    fn classify_sequence(&self, cx: &Context, text: &[&str]) -> Result<Vec<Label>, Error> {
-        text.iter()
-            .map(|text| {
-                let encoding = cx.encode_one(text)?;
-                let ids = encoding.get_ids();
+impl Classify for Classifier {
+    fn classify(&self, ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        options.validate()?;
 
-                if ids.is_empty() {
-                    return Err(Error::custom("ai::invalid", "empty classification input"));
-                }
+        if options.labels.is_some() {
+            return Err(Error::custom(
+                "ai::invalid",
+                format!("{} cannot classify custom labels", ctx.name()),
+            ));
+        }
 
-                let input = Tensor::from_slice(ids, (1, ids.len()), cx.device())?;
-                let logits = Forward::forward(self, input)?;
-                let last = logits.i((0, logits.dim(1)? - 1))?;
-                let scores = ops::softmax(&last, 0)?.to_vec1::<f32>()?;
-                let (index, score) = scores
-                    .iter()
-                    .enumerate()
-                    .max_by(|(_, left), (_, right)| left.total_cmp(right))
-                    .ok_or_else(|| Error::custom("ai::invalid", "empty classification output"))?;
+        if options.mode != self.mode {
+            return Err(Error::custom(
+                "ai::invalid",
+                format!("{} cannot classify in {:?} mode", ctx.name(), options.mode),
+            ));
+        }
 
-                Ok(Label {
-                    label: self.labels[index].clone(),
-                    score: *score as f64,
-                })
-            })
-            .collect()
-    }
-}
-
-impl EntityClassify for Classifier {
-    fn classify_entities(&self, cx: &Context, text: &[&str]) -> Result<Vec<Vec<Entity>>, Error> {
-        text.iter()
-            .map(|text| {
-                let encoding = cx.encode_one(text)?;
-                let ids = encoding.get_ids();
-
-                if ids.is_empty() {
-                    return Ok(Vec::new());
-                }
-
-                let input = Tensor::from_slice(ids, (1, ids.len()), cx.device())?;
-                let logits = Forward::forward(self, input)?;
-                let probabilities = ops::softmax(&logits, 2)?.squeeze(0)?.to_vec2::<f32>()?;
-                let words = aggregation::words(&probabilities, &encoding, &self.labels)?;
-
-                Ok(decode_entities(words, text, &self.labels))
-            })
-            .collect()
+        match options.mode {
+            ClassifyMode::Text => self.text(ctx, text),
+            ClassifyMode::Spans => self.spans(ctx, text),
+        }
     }
 }

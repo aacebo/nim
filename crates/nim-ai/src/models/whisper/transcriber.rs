@@ -47,22 +47,22 @@ impl Transcriber {
         })
     }
 
-    fn one(&self, cx: &Context, bytes: &[u8], language: Option<&str>, beams: usize, max_len: usize) -> Result<String, Error> {
-        let chunks = self.processor.tensors(bytes, &self.model_config, cx.device())?;
+    fn one(&self, ctx: &Context, bytes: &[u8], language: Option<&str>, beams: usize, max_len: usize) -> Result<String, Error> {
+        let chunks = self.processor.tensors(bytes, &self.model_config, ctx.device())?;
         let mut model = self
             .model
             .lock()
             .map_err(|_| Error::custom("ai", "transcription model lock poisoned"))?;
         let first = model.encode(&chunks[0])?;
         let language = match language {
-            Some(language) => language_token(cx, language)?,
+            Some(language) => language_token(ctx, language)?,
             None => self.detect_language(&mut model, &first)?,
         };
-        let mut transcripts = vec![self.decode(cx, &mut model, &first, language, beams, max_len)?];
+        let mut transcripts = vec![self.decode(ctx, &mut model, &first, language, beams, max_len)?];
 
         for chunk in chunks.iter().skip(1) {
             let audio = model.encode(chunk)?;
-            transcripts.push(self.decode(cx, &mut model, &audio, language, beams, max_len)?);
+            transcripts.push(self.decode(ctx, &mut model, &audio, language, beams, max_len)?);
         }
 
         transcripts.retain(|transcript| !transcript.is_empty());
@@ -79,15 +79,15 @@ impl Transcriber {
 
     fn decode(
         &self,
-        cx: &Context,
+        ctx: &Context,
         model: &mut Model,
         audio: &Tensor,
         language: u32,
         beams: usize,
         max_len: usize,
     ) -> Result<String, Error> {
-        let transcribe = token(cx, "<|transcribe|>")?;
-        let no_timestamps = token(cx, "<|notimestamps|>")?;
+        let transcribe = token(ctx, "<|transcribe|>")?;
+        let no_timestamps = token(ctx, "<|notimestamps|>")?;
         let limit = max_len.min(self.config.max_len).max(4);
         let mut live = vec![(0f64, vec![self.config.start, language, transcribe, no_timestamps])];
         let mut done = Vec::new();
@@ -138,7 +138,7 @@ impl Transcriber {
         done.sort_by(|left, right| right.0.total_cmp(&left.0));
         let tokens = done.into_iter().next().map(|(_, tokens)| tokens).unwrap_or_default();
 
-        cx.tokenizer()?
+        ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|text| text.trim().to_string())
             .map_err(|err| Error::custom("ai::decoding", err))
@@ -148,7 +148,7 @@ impl Transcriber {
 impl Transcribe for Transcriber {
     fn transcribe(
         &self,
-        cx: &Context,
+        ctx: &Context,
         audio: &[Vec<u8>],
         language: Option<&str>,
         beams: Option<usize>,
@@ -158,7 +158,7 @@ impl Transcribe for Transcriber {
             .iter()
             .map(|bytes| {
                 self.one(
-                    cx,
+                    ctx,
                     bytes,
                     language,
                     beams.unwrap_or(1),
@@ -169,16 +169,16 @@ impl Transcribe for Transcriber {
     }
 }
 
-fn language_token(cx: &Context, language: &str) -> Result<u32, Error> {
+fn language_token(ctx: &Context, language: &str) -> Result<u32, Error> {
     if language.len() != 2 || !language.bytes().all(|byte| byte.is_ascii_lowercase()) {
         return Err(Error::custom("ai::audio", format!("unsupported language `{language}`")));
     }
 
-    token(cx, &format!("<|{language}|>")).map_err(|_| Error::custom("ai::audio", format!("unsupported language `{language}`")))
+    token(ctx, &format!("<|{language}|>")).map_err(|_| Error::custom("ai::audio", format!("unsupported language `{language}`")))
 }
 
-fn token(cx: &Context, value: &str) -> Result<u32, Error> {
-    cx.tokenizer()?
+fn token(ctx: &Context, value: &str) -> Result<u32, Error> {
+    ctx.tokenizer()?
         .token_to_id(value)
         .ok_or_else(|| Error::custom("ai::audio", format!("Whisper tokenizer is missing {value}")))
 }

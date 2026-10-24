@@ -49,8 +49,8 @@ impl Captioner {
         })
     }
 
-    fn one(&self, cx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
-        let chunks = self.processor.tensors(bytes, &self.model_config, cx.device())?;
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
+        let chunks = self.processor.tensors(bytes, &self.model_config, ctx.device())?;
         let mut model = self
             .model
             .lock()
@@ -59,14 +59,14 @@ impl Captioner {
 
         for chunk in chunks {
             let audio = model.encode(&chunk)?;
-            captions.push(self.decode(cx, &mut model, &audio, beams, max_len)?);
+            captions.push(self.decode(ctx, &mut model, &audio, beams, max_len)?);
         }
 
         captions.retain(|caption| !caption.is_empty());
         Ok(captions.join(" "))
     }
 
-    fn decode(&self, cx: &Context, model: &mut Model, audio: &Tensor, beams: usize, max_len: usize) -> Result<String, Error> {
+    fn decode(&self, ctx: &Context, model: &mut Model, audio: &Tensor, beams: usize, max_len: usize) -> Result<String, Error> {
         let limit = max_len.min(self.config.max_len).max(self.config.prefix.len());
         let mut live = vec![(0f64, self.config.prefix.clone())];
         let mut done = Vec::new();
@@ -120,7 +120,7 @@ impl Captioner {
         done.sort_by(|left, right| right.0.total_cmp(&left.0));
         let tokens = done.into_iter().next().map(|(_, tokens)| tokens).unwrap_or_default();
 
-        cx.tokenizer()?
+        ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|text| text.trim().to_string())
             .map_err(|err| Error::custom("ai::decoding", err))
@@ -145,14 +145,14 @@ fn repeats(tokens: &[u32], token: u32) -> bool {
 impl AudioToText for Captioner {
     fn audio_to_text(
         &self,
-        cx: &Context,
+        ctx: &Context,
         audio: &[Vec<u8>],
         beams: Option<usize>,
         max_len: Option<usize>,
     ) -> Result<Vec<String>, Error> {
         audio
             .iter()
-            .map(|bytes| self.one(cx, bytes, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
+            .map(|bytes| self.one(ctx, bytes, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
             .collect()
     }
 }

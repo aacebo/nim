@@ -4,6 +4,7 @@ use candle_nn::VarBuilder;
 use crate::{
     Error,
     models::{Context, Embed, Forward},
+    pipelines::common::decode_text,
 };
 
 use super::config::Config;
@@ -51,12 +52,13 @@ impl Forward for Embedder {
 }
 
 impl Embed for Embedder {
-    fn embed(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
+        let text = decode_text(input)?;
         if text.is_empty() {
             return Ok(Vec::new());
         }
 
-        let batch = ctx.encode(text)?;
+        let batch = ctx.encode(&text)?;
         Ok(self.forward(&batch.ids, &batch.mask)?.to_vec2::<f32>()?)
     }
 }

@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, ImageToText};
+use crate::models::{Context, Generate, GenerateOptions};
 
 use super::config::Config;
 use super::model::Model;
@@ -93,15 +93,20 @@ impl Captioner {
     }
 }
 
-impl ImageToText for Captioner {
-    fn image_to_text(
-        &self,
-        ctx: &Context,
-        images: &[Vec<u8>],
-        beams: Option<usize>,
-        max_len: Option<usize>,
-    ) -> Result<Vec<String>, Error> {
-        images
+impl Generate for Captioner {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+        options.validate()?;
+
+        if options.prompt.is_some() || options.language.is_some() {
+            return Err(Error::custom(
+                "ai::config",
+                "this generator does not support the supplied prompt or language",
+            ));
+        }
+
+        let beams = options.beams;
+        let max_len = options.max_len;
+        input
             .iter()
             .map(|image| self.one(ctx, image, beams.unwrap_or(1), max_len.unwrap_or(20)))
             .collect()

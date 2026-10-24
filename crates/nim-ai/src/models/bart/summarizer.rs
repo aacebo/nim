@@ -4,7 +4,8 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, GenOpts, Generate};
+use crate::models::{Context, Generate, GenerateOptions};
+use crate::pipelines::common::decode_text;
 use crate::pipelines::text::generate;
 
 use super::config::Config;
@@ -38,13 +39,23 @@ impl Summarizer {
 }
 
 impl Generate for Summarizer {
-    fn generate(&self, ctx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+        options.validate()?;
+
+        if options.prompt.is_some() || options.language.is_some() {
+            return Err(Error::custom(
+                "ai::config",
+                "BART summarization does not support prompt or language",
+            ));
+        }
+
+        let text = decode_text(input)?;
         let mut generation = self.generation;
 
-        if let Some(beams) = opts.beams {
+        if let Some(beams) = options.beams {
             generation = generation.beams(beams);
         }
-        if let Some(max_len) = opts.max_len {
+        if let Some(max_len) = options.max_len {
             generation = generation.max_length(max_len);
         }
 

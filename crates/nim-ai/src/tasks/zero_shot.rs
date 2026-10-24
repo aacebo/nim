@@ -2,7 +2,8 @@ use unicode_categories::UnicodeCategories;
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
-use crate::types::{Annotation, Offset};
+use crate::pipelines::common::decode_text;
+use crate::types::{Annotation, Offset, Span};
 
 use super::{char_offset, classify};
 
@@ -29,13 +30,17 @@ pub fn select(labels: Vec<Annotation>, multi_label: bool) -> Vec<Annotation> {
 pub fn entities<C: Classify + ?Sized>(
     model: &C,
     ctx: &Context,
-    text: &[&str],
-    options: &ClassifyOptions<'_>,
+    input: &[&[u8]],
+    options: ClassifyOptions<'_>,
 ) -> Result<Vec<Vec<Annotation>>, Error> {
     let options = ClassifyOptions {
-        mode: ClassifyMode::Text,
+        mode: ClassifyMode::Whole,
+        min_score: 0.0,
+        limit: None,
         ..options.clone()
     };
+
+    let text = decode_text(input)?;
 
     text.iter()
         .map(|text| {
@@ -43,8 +48,8 @@ pub fn entities<C: Classify + ?Sized>(
             let mut entities = Vec::new();
 
             for chunk in candidates.chunks(32) {
-                let input: Vec<&str> = chunk.iter().map(|(start, end)| &text[*start..*end]).collect();
-                let scores = classify(model, ctx, &input, &options)?;
+                let input: Vec<&[u8]> = chunk.iter().map(|(start, end)| &text.as_bytes()[*start..*end]).collect();
+                let scores = classify(model, ctx, &input, options.clone())?;
 
                 if scores.len() != chunk.len() {
                     return Err(Error::custom("ai::invalid", "NLI output does not match candidate count"));
@@ -54,10 +59,10 @@ pub fn entities<C: Classify + ?Sized>(
                     for label in select(labels, options.multi_label) {
                         entities.push(Annotation {
                             name: String::from("entity"),
-                            text: text[*start..*end].to_string(),
+
                             label: label.label,
                             score: label.score,
-                            spans: vec![Offset::new(char_offset(text, *start), char_offset(text, *end))],
+                            spans: vec![Span::Text(Offset::new(char_offset(text, *start), char_offset(text, *end)))],
                         });
                     }
                 }
@@ -68,7 +73,7 @@ pub fn entities<C: Classify + ?Sized>(
         .collect()
 }
 
-pub fn retain(annotations: Vec<Annotation>, options: &ClassifyOptions<'_>, min_score: f64) -> Result<Vec<Annotation>, Error> {
+pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_score: f64) -> Result<Vec<Annotation>, Error> {
     let labels = options
         .labels
         .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
@@ -82,25 +87,27 @@ pub fn retain(annotations: Vec<Annotation>, options: &ClassifyOptions<'_>, min_s
         ));
     }
 
-    let mut annotations: Vec<Annotation> = annotations
-        .into_iter()
-        .filter(|annotation| annotation.score >= min_score)
-        .flat_map(|annotation| {
-            annotation
-                .spans
-                .clone()
-                .into_iter()
-                .filter(|span| span.begin < span.end)
-                .map(move |span| Annotation {
-                    spans: vec![span],
-                    ..annotation.clone()
-                })
-        })
-        .collect();
-    annotations.sort_by(|left, right| {
-        let left_span = left.spans[0];
-        let right_span = right.spans[0];
+    let mut candidates = Vec::new();
 
+    for annotation in annotations.into_iter().filter(|annotation| annotation.score >= min_score) {
+        for span in &annotation.spans {
+            let Span::Text(offset) = span else {
+                return Err(Error::custom("ai::invalid", "text extraction requires text spans"));
+            };
+
+            if offset.begin < offset.end {
+                candidates.push((
+                    *offset,
+                    Annotation {
+                        spans: vec![*span],
+                        ..annotation.clone()
+                    },
+                ));
+            }
+        }
+    }
+
+    candidates.sort_by(|(left_span, left), (right_span, right)| {
         right
             .score
             .total_cmp(&left.score)
@@ -113,14 +120,11 @@ pub fn retain(annotations: Vec<Annotation>, options: &ClassifyOptions<'_>, min_s
                     .cmp(&labels.iter().position(|label| label == &right.label))
             })
     });
-    let mut retained: Vec<Annotation> = Vec::new();
+    let mut retained: Vec<(Offset, Annotation)> = Vec::new();
 
-    for annotation in annotations {
-        let span = annotation.spans[0];
-        let overlap = retained.iter().any(|other| {
-            let other_span = other.spans[0];
-
-            if span == other_span && options.multi_label && annotation.label != other.label {
+    for (span, annotation) in candidates {
+        let overlap = retained.iter().any(|(other_span, other)| {
+            if span == *other_span && options.multi_label && annotation.label != other.label {
                 return false;
             }
 
@@ -128,12 +132,12 @@ pub fn retain(annotations: Vec<Annotation>, options: &ClassifyOptions<'_>, min_s
         });
 
         if !overlap {
-            retained.push(annotation);
+            retained.push((span, annotation));
         }
     }
 
-    retained.sort_by(|left, right| {
-        left.spans[0].begin.cmp(&right.spans[0].begin).then_with(|| {
+    retained.sort_by(|(left_span, left), (right_span, right)| {
+        left_span.begin.cmp(&right_span.begin).then_with(|| {
             labels
                 .iter()
                 .position(|label| label == &left.label)
@@ -141,7 +145,7 @@ pub fn retain(annotations: Vec<Annotation>, options: &ClassifyOptions<'_>, min_s
         })
     });
 
-    Ok(retained)
+    Ok(retained.into_iter().map(|(_, annotation)| annotation).collect())
 }
 
 fn spans(text: &str) -> Vec<(usize, usize)> {

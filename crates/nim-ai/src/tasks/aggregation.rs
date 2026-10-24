@@ -2,7 +2,7 @@ use tokenizers::Encoding;
 
 use crate::Error;
 use crate::models::Word;
-use crate::types::{Annotation, Offset};
+use crate::types::{Annotation, Offset, Span};
 
 use super::char_offset;
 
@@ -96,10 +96,13 @@ fn flush(open: Option<Open>, text: &str, entities: &mut Vec<Annotation>) {
 
     entities.push(Annotation {
         name: String::from("entity"),
-        text: text[open.start..open.end].to_string(),
+
         score,
         label: open.label,
-        spans: vec![Offset::new(char_offset(text, open.start), char_offset(text, open.end))],
+        spans: vec![Span::Text(Offset::new(
+            char_offset(text, open.start),
+            char_offset(text, open.end),
+        ))],
     });
 }
 

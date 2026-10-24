@@ -4,7 +4,7 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, Transcribe};
+use crate::models::{Context, Generate, GenerateOptions};
 
 use super::config::Config;
 use super::model::Model;
@@ -145,16 +145,21 @@ impl Transcriber {
     }
 }
 
-impl Transcribe for Transcriber {
-    fn transcribe(
-        &self,
-        ctx: &Context,
-        audio: &[Vec<u8>],
-        language: Option<&str>,
-        beams: Option<usize>,
-        max_len: Option<usize>,
-    ) -> Result<Vec<String>, Error> {
-        audio
+impl Generate for Transcriber {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+        options.validate()?;
+
+        if options.prompt.is_some() {
+            return Err(Error::custom(
+                "ai::config",
+                "this generator does not support the supplied prompt or language",
+            ));
+        }
+
+        let beams = options.beams;
+        let max_len = options.max_len;
+        let language = options.language;
+        input
             .iter()
             .map(|bytes| {
                 self.one(

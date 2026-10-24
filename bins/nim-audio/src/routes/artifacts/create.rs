@@ -14,7 +14,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         } => tokio::fs::read(path).await?.to_vec(),
     };
 
-    let captions = nim::ai::pipelines::audio::captions::run(std::slice::from_ref(&bytes))?;
+    let captions = nim::ai::pipelines::audio::captions::run(&[bytes.as_slice()])?;
     let Some(caption) = captions.first() else {
         return Err(Error::custom(format!(
             "no captions could be generated from artifact `{}`",
@@ -88,12 +88,13 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
-    let annotations = nim::ai::pipelines::audio::classify::run(std::slice::from_ref(&bytes))?;
+    let annotations = nim::ai::pipelines::audio::classify::run(&[bytes.as_slice()])?;
     let annotations = annotations.first().map(Vec::as_slice).unwrap_or_default();
     let annotations = annotations.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
+    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
 
     for (i, annotation) in annotations.iter().enumerate() {
         let existing = ctx
@@ -109,6 +110,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let spans = annotation
             .spans
             .iter()
+            .filter_map(nim::ai::types::Span::as_text)
             .map(|v| nim::state::Span {
                 start: v.begin,
                 end: v.end,

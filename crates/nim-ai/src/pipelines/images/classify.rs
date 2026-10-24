@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::models::{ModelArgs, load};
+use crate::models::{ClassifyMode, ClassifyOptions, ModelArgs, load};
 use crate::types::Annotation;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -18,33 +18,30 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[Vec<u8>]) -> Result<Vec<Vec<Annotation>>, Error> {
+pub fn run(input: &[&[u8]]) -> Result<Vec<Vec<Annotation>>, Error> {
     run_with(input, Default::default())
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[Vec<u8>], options: Options) -> Result<Vec<Vec<Annotation>>, Error> {
-    let api_key = options.model.api_key.clone();
-    let model = load(&options.model.resolve(super::defaults::classify())?, &api_key)?;
-    let capable = model.as_image_classify().ok_or_else(|| model.cannot("image-classify"))?;
-    let mut out = vec![];
+pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Vec<Annotation>>, Error> {
+    let classify_options = ClassifyOptions {
+        mode: ClassifyMode::Whole,
+        min_score: 0.0,
+        limit: Some(options.limit),
+        ..Default::default()
+    };
+    classify_options.validate()?;
 
-    for image in input {
-        let labels = capable.classify_image(&model.context(), image, options.limit)?;
-
-        out.push(
-            labels
-                .iter()
-                .map(|label| Annotation {
-                    name: label.label.clone(),
-                    label: label.label.clone(),
-                    text: label.label.clone(),
-                    score: label.score,
-                    spans: Default::default(),
-                })
-                .collect(),
-        );
+    if input.is_empty() {
+        return Ok(Vec::new());
     }
 
-    Ok(out)
+    if options.limit == 0 {
+        return Ok(vec![Vec::new(); input.len()]);
+    }
+
+    let api_key = options.model.api_key.clone();
+    let model = load(&options.model.resolve(super::defaults::classify())?, &api_key)?;
+    let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
+    crate::tasks::classify(capable, &model.context(), input, classify_options.clone())
 }

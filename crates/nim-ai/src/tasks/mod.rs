@@ -9,28 +9,28 @@ mod scorer;
 mod stopwords;
 
 use crate::Error;
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, GenOpts, Generate, Word};
-use crate::types::{Annotation, Keyword, Polarity, Sentiment};
+use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Word};
+use crate::types::{Annotation, Keyword, Polarity, Sentiment, Span};
 
 /// The user-facing routines, each a presentation over one model capability.
 ///
 /// They are free functions, not traits: a task is something you do *with* a capable model, not a
 /// capability a model has. Writing them as blanket impls would also collide -- a hosted model has
 /// every capability, so `impl<T: Embed> Keywords for T` conflicts with its own keyword path.
-pub fn embed<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
-    model.embed(ctx, text)
+pub fn embed<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
+    model.embed(ctx, input)
 }
 
 /// KeyBERT, over any embedder -- local or hosted. Previously this only worked locally, by
 /// special-casing a call into the embeddings pipeline's cache.
-pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &[&str], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
-    keybert::keywords(model, ctx, text, top_n)
+pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
+    keybert::keywords(model, ctx, input, top_n)
 }
 
 /// Sentiment is a *presentation* of sequence classification: the model returns a label, and this
 /// maps it onto the binary polarity the routine promises.
-pub fn sentiment<C: Classify + ?Sized>(model: &C, ctx: &Context, text: &[&str]) -> Result<Vec<Sentiment>, Error> {
-    classify(model, ctx, text, &Default::default())?
+pub fn sentiment<C: Classify + ?Sized>(model: &C, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Sentiment>, Error> {
+    classify(model, ctx, input, Default::default())?
         .into_iter()
         .map(|annotations| {
             let annotation = annotations
@@ -49,27 +49,20 @@ pub fn sentiment<C: Classify + ?Sized>(model: &C, ctx: &Context, text: &[&str]) 
 pub fn classify<C: Classify + ?Sized>(
     model: &C,
     ctx: &Context,
-    text: &[&str],
-    options: &ClassifyOptions<'_>,
+    input: &[&[u8]],
+    options: ClassifyOptions<'_>,
 ) -> Result<Vec<Vec<Annotation>>, Error> {
     options.validate()?;
-    let out = model.classify(ctx, text, options)?;
+    let out = model.classify(ctx, input, options.clone())?;
 
-    if out.len() != text.len() {
+    if out.len() != input.len() {
         return Err(Error::custom(
             "ai::invalid",
             "classification output does not match input count",
         ));
     }
 
-    for (annotations, text) in out.iter().zip(text) {
-        if options.mode == ClassifyMode::Text && !options.multi_label && annotations.len() != 1 {
-            return Err(Error::custom(
-                "ai::invalid",
-                "single-label classification must return one annotation",
-            ));
-        }
-
+    for (annotations, input) in out.iter().zip(input) {
         for annotation in annotations {
             if !annotation.score.is_finite()
                 || !(0.0..=1.0).contains(&annotation.score)
@@ -81,28 +74,31 @@ pub fn classify<C: Classify + ?Sized>(
                 ));
             }
 
-            if annotation.spans.is_empty()
-                || annotation.spans.iter().any(|span| {
-                    span.begin > span.end
-                        || span.end as usize > text.chars().count()
-                        || text
-                            .chars()
-                            .skip(span.begin as usize)
-                            .take((span.end - span.begin) as usize)
-                            .collect::<String>()
-                            != annotation.text
-                })
-            {
-                return Err(Error::custom(
-                    "ai::invalid",
-                    "classification text does not match its source spans",
-                ));
-            }
+            for span in &annotation.spans {
+                match span {
+                    Span::Text(offset) => {
+                        let text = span
+                            .text(input)?
+                            .ok_or_else(|| Error::custom("ai::invalid", "missing text span"))?;
 
-            if options.mode == ClassifyMode::Text
-                && annotation.spans != [crate::types::Offset::new(0, text.chars().count() as u32)]
-            {
-                return Err(Error::custom("ai::invalid", "text classification must span the full input"));
+                        if options.mode == ClassifyMode::Whole && (offset.begin != 0 || text.as_bytes() != *input) {
+                            return Err(Error::custom(
+                                "ai::invalid",
+                                "whole-text classification must span the full input",
+                            ));
+                        }
+                    }
+                    Span::Image(bbox) => {
+                        if [bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax]
+                            .iter()
+                            .any(|value| !value.is_finite() || *value < 0.0)
+                            || bbox.xmin > bbox.xmax
+                            || bbox.ymin > bbox.ymax
+                        {
+                            return Err(Error::custom("ai::invalid", "invalid image bounding box"));
+                        }
+                    }
+                }
             }
         }
     }
@@ -110,13 +106,13 @@ pub fn classify<C: Classify + ?Sized>(
     Ok(out)
 }
 
-pub fn entities<C: Classify + ?Sized>(model: &C, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+pub fn entities<C: Classify + ?Sized>(model: &C, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<Annotation>>, Error> {
     classify(
         model,
         ctx,
-        text,
-        &ClassifyOptions {
-            mode: ClassifyMode::Spans,
+        input,
+        ClassifyOptions {
+            mode: ClassifyMode::Regions,
             ..Default::default()
         },
     )
@@ -129,8 +125,29 @@ pub(crate) fn decode_entities(words: Vec<Word>, text: &str, labels: &[String]) -
     }
 }
 
-pub fn summarize<G: Generate + ?Sized>(model: &G, ctx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error> {
-    model.generate(ctx, text, opts)
+pub fn generate<G: Generate + ?Sized>(
+    model: &G,
+    ctx: &Context,
+    input: &[&[u8]],
+    options: GenerateOptions<'_>,
+) -> Result<Vec<String>, Error> {
+    options.validate()?;
+    let out = model.generate(ctx, input, options)?;
+
+    if out.len() != input.len() {
+        return Err(Error::custom("ai::invalid", "generation output does not match input count"));
+    }
+
+    Ok(out)
+}
+
+pub fn summarize<G: Generate + ?Sized>(
+    model: &G,
+    ctx: &Context,
+    input: &[&[u8]],
+    options: GenerateOptions<'_>,
+) -> Result<Vec<String>, Error> {
+    generate(model, ctx, input, options)
 }
 
 /// Char offsets, not byte offsets: a span is reported in the units the caller sees.

@@ -182,13 +182,13 @@ pub enum AnyModel {
     #[cfg(feature = "vision")]
     ObjectDetector(detr::Detector),
     #[cfg(feature = "vision")]
-    ImageToText(git::Captioner),
+    ImageCaptioner(git::Captioner),
     #[cfg(feature = "audio")]
     AudioClassifier(cnn8rnn::Classifier),
     #[cfg(feature = "audio")]
     Transcriber(whisper::Transcriber),
     #[cfg(feature = "audio")]
-    AudioToText(whisper::Captioner),
+    WhisperCaptioner(whisper::Captioner),
     #[cfg(feature = "audio")]
     AudioCaptioner(audiocap::Captioner),
     Remote(RemoteModel),
@@ -261,10 +261,10 @@ impl Model {
                             AnyModel::BartZeroShotClassifier(bart::ZeroShotClassifier::new(&config, repo.vars()?)?)
                         }
                         (true, _, false) => {
-                            AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Text)?)
+                            AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Whole)?)
                         }
                         (_, true, false) => {
-                            AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Spans)?)
+                            AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Regions)?)
                         }
                         _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
                     }
@@ -280,12 +280,12 @@ impl Model {
                         (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(
                             repo.vars()?,
                             &config,
-                            ClassifyMode::Text,
+                            ClassifyMode::Whole,
                         )?),
                         (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(
                             repo.vars()?,
                             &config,
-                            ClassifyMode::Spans,
+                            ClassifyMode::Regions,
                         )?),
                         _ => {
                             return Err(Error::custom(
@@ -312,7 +312,7 @@ impl Model {
                 Architecture::Git => {
                     let config: git::Config = repo.config()?;
                     let processor: git::Processor = repo.json("preprocessor_config.json")?;
-                    AnyModel::ImageToText(git::Captioner::new(config, processor, repo.vars()?)?)
+                    AnyModel::ImageCaptioner(git::Captioner::new(config, processor, repo.vars()?)?)
                 }
                 #[cfg(feature = "audio")]
                 Architecture::Whisper => {
@@ -320,7 +320,7 @@ impl Model {
                     let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
 
                     if architecture.is_audio_captioning() {
-                        AnyModel::AudioToText(whisper::Captioner::new(config, processor, repo.vars()?)?)
+                        AnyModel::WhisperCaptioner(whisper::Captioner::new(config, processor, repo.vars()?)?)
                     } else {
                         AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
                     }
@@ -334,10 +334,10 @@ impl Model {
                         !config.id2label.is_empty(),
                     ) {
                         (true, _, true) => {
-                            AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Text)?)
+                            AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Whole)?)
                         }
                         (_, true, true) => {
-                            AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Spans)?)
+                            AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Regions)?)
                         }
                         _ => AnyModel::Embedder(bert::Embedder::new(repo.vars()?, &config)?),
                     }
@@ -388,57 +388,13 @@ impl Model {
             AnyModel::BartZeroShotClassifier(model) => Some(model),
             AnyModel::BertSequenceClassifier(model) | AnyModel::BertEntityClassifier(model) => Some(model),
             AnyModel::DistilBertSequenceClassifier(model) | AnyModel::DistilBertEntityClassifier(model) => Some(model),
-            AnyModel::Remote(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "vision")]
-    pub fn as_image_classify(&self) -> Option<&dyn ImageClassify> {
-        match &self.model {
+            #[cfg(feature = "vision")]
             AnyModel::VisionClassifier(model) => Some(model),
+            #[cfg(feature = "vision")]
             AnyModel::ObjectDetector(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "vision")]
-    pub fn as_image_detect(&self) -> Option<&dyn ImageDetect> {
-        match &self.model {
-            AnyModel::ObjectDetector(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "vision")]
-    pub fn as_image_to_text(&self) -> Option<&dyn ImageToText> {
-        match &self.model {
-            AnyModel::ImageToText(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "audio")]
-    pub fn as_audio_classify(&self) -> Option<&dyn AudioClassify> {
-        match &self.model {
+            #[cfg(feature = "audio")]
             AnyModel::AudioClassifier(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "audio")]
-    pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
-        match &self.model {
-            AnyModel::Transcriber(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "audio")]
-    pub fn as_audio_to_text(&self) -> Option<&dyn AudioToText> {
-        match &self.model {
-            AnyModel::AudioToText(model) => Some(model),
-            AnyModel::AudioCaptioner(model) => Some(model),
+            AnyModel::Remote(model) => Some(model),
             _ => None,
         }
     }
@@ -446,6 +402,14 @@ impl Model {
     pub fn as_generate(&self) -> Option<&dyn Generate> {
         match &self.model {
             AnyModel::Summarizer(model) => Some(model),
+            #[cfg(feature = "vision")]
+            AnyModel::ImageCaptioner(model) => Some(model),
+            #[cfg(feature = "audio")]
+            AnyModel::Transcriber(model) => Some(model),
+            #[cfg(feature = "audio")]
+            AnyModel::WhisperCaptioner(model) => Some(model),
+            #[cfg(feature = "audio")]
+            AnyModel::AudioCaptioner(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
         }

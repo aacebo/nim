@@ -1,5 +1,5 @@
 use crate::models::Word;
-use crate::types::{Annotation, Offset};
+use crate::types::{Annotation, Offset, Span};
 
 use super::char_offset;
 
@@ -140,10 +140,12 @@ impl Finished {
 
         self.annotation.score =
             ((self.annotation.score * self.words as f64) + (other.annotation.score * other.words as f64)) / total as f64;
-        self.annotation.spans[0].end = other.annotation.spans[0].end;
+        self.annotation.spans = vec![Span::Text(Offset::new(
+            char_offset(text, self.start),
+            char_offset(text, other.end),
+        ))];
         self.words = total;
         self.end = other.end;
-        self.annotation.text = text[self.start..self.end].to_string();
     }
 }
 
@@ -187,10 +189,13 @@ impl Builder {
         Finished {
             annotation: Annotation {
                 name: String::from("entity"),
-                text: text[self.start..self.end].to_string(),
+
                 label: self.label,
                 score: self.scores / self.count as f64,
-                spans: vec![Offset::new(char_offset(text, self.start), char_offset(text, self.end))],
+                spans: vec![Span::Text(Offset::new(
+                    char_offset(text, self.start),
+                    char_offset(text, self.end),
+                ))],
             },
             words: self.count,
             start: self.start,
@@ -221,7 +226,7 @@ mod tests {
         let found = entities(words, text, 0.0);
 
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].text, "John Smith");
+        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), Some("John Smith"));
         assert!((found[0].score - 0.7).abs() < 1e-9, "score was {}", found[0].score);
     }
 
@@ -235,7 +240,7 @@ mod tests {
         let found = entities(words, text, 0.5);
 
         assert_eq!(found.len(), 1, "the weak entity must not merge in");
-        assert_eq!(found[0].text, "John");
+        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), Some("John"));
         assert!((found[0].score - 0.9).abs() < 1e-9, "score was {}", found[0].score);
     }
 
@@ -248,7 +253,7 @@ mod tests {
         let found = entities(words, text, 0.0);
 
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].text, "Jean-Luc");
+        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), Some("Jean-Luc"));
     }
 
     #[test]

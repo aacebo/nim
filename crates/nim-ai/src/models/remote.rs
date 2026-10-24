@@ -1,9 +1,10 @@
 use crate::Error;
+use crate::pipelines::common::decode_text;
 use crate::tasks::{anchor, zero_shot};
-use crate::types::{Annotation, Offset};
+use crate::types::{Annotation, Offset, Span};
 
 use super::RemoteModel;
-use super::capability::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, GenOpts, Generate};
+use super::capability::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions};
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
                         schema: `label` is your chosen class and `score` is your confidence from \
@@ -43,25 +44,38 @@ struct Item {
 /// chat completion, generation through a plain completion, and embeddings through their own
 /// endpoint. This is the full remote row of the capability matrix.
 impl Embed for RemoteModel {
-    fn embed(&self, _ctx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed(&self, _ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
+        let text = decode_text(input)?;
         if text.is_empty() {
             return Ok(Vec::new());
         }
 
-        self.client().embeddings(text)
+        self.client().embeddings(&text)
     }
 }
 
 impl Classify for RemoteModel {
-    fn classify(&self, _ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, _ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        let text = decode_text(input)?;
         options.validate()?;
 
-        match (options.mode, options.labels) {
-            (ClassifyMode::Text, Some(_)) => self.custom_text(text, options),
-            (ClassifyMode::Text, None) => self.text(text),
-            (ClassifyMode::Spans, Some(_)) => self.custom_spans(text, options),
-            (ClassifyMode::Spans, None) => text.iter().map(|text| self.spans(text)).collect(),
-        }
+        let out = match (options.mode, options.labels) {
+            (ClassifyMode::Whole, Some(_)) => self.custom_text(&text, options.clone()),
+            (ClassifyMode::Whole, None) => self.text(&text),
+            (ClassifyMode::Regions, Some(_)) => self.custom_spans(&text, options.clone()),
+            (ClassifyMode::Regions, None) => text.iter().map(|text| self.spans(text)).collect(),
+        }?;
+
+        out.into_iter()
+            .map(|annotations| {
+                let annotations = if options.mode == ClassifyMode::Regions && options.labels.is_some() {
+                    zero_shot::retain(annotations, options.clone(), options.min_score)?
+                } else {
+                    annotations
+                };
+                options.apply(annotations)
+            })
+            .collect()
     }
 }
 
@@ -73,16 +87,16 @@ impl RemoteModel {
 
                 Ok(vec![Annotation {
                     name: String::from("classification"),
-                    text: text.to_string(),
+
                     label: out.label.to_lowercase(),
                     score: out.score,
-                    spans: vec![Offset::new(0, text.chars().count() as u32)],
+                    spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
                 }])
             })
             .collect()
     }
 
-    fn custom_text(&self, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn custom_text(&self, text: &[&str], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
         let candidates = options
             .labels
             .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
@@ -139,10 +153,10 @@ impl RemoteModel {
 
                     labels.push(Annotation {
                         name: String::from("classification"),
-                        text: text.to_string(),
+
                         label: label.clone(),
                         score: matching[0].score,
-                        spans: vec![Offset::new(0, text.chars().count() as u32)],
+                        spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
                     });
                 }
 
@@ -166,7 +180,7 @@ impl RemoteModel {
             .collect()
     }
 
-    fn custom_spans(&self, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn custom_spans(&self, text: &[&str], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
         let candidates = options
             .labels
             .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
@@ -201,8 +215,8 @@ impl RemoteModel {
                     for offset in anchor::all(text, &item.text) {
                         entities.push(Annotation {
                             name: String::from("entity"),
-                            spans: vec![offset],
-                            text: item.text.clone(),
+                            spans: vec![Span::Text(offset)],
+
                             label: item.label.clone(),
                             score: item.score,
                         });
@@ -226,8 +240,8 @@ impl RemoteModel {
             .filter_map(|item| {
                 Some(Annotation {
                     name: String::from("entity"),
-                    spans: vec![anchor::find(text, &item.text)?],
-                    text: item.text,
+                    spans: vec![Span::Text(anchor::find(text, &item.text)?)],
+
                     label: item.label.to_lowercase(),
                     score: item.score,
                 })
@@ -239,9 +253,22 @@ impl RemoteModel {
 /// Generation is a plain completion, not a schema-constrained one: the output is prose, and
 /// wrapping it in a JSON envelope buys nothing.
 impl Generate for RemoteModel {
-    fn generate(&self, _ctx: &Context, text: &[&str], options: &GenOpts) -> Result<Vec<String>, Error> {
+    fn generate(&self, _ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+        options.validate()?;
+
+        if options.language.is_some() || options.beams.is_some() {
+            return Err(Error::custom(
+                "ai::config",
+                "hosted text generation does not support language or beams",
+            ));
+        }
+
+        let text = decode_text(input)?;
+        let prompt = options.prompt.unwrap_or(
+            "Summarize the text the user gives you. Be concise and factual; use only information present in the text.",
+        );
         text.iter()
-            .map(|text| self.client().complete(options.prompt, text, options.max_len))
+            .map(|text| self.client().complete(prompt, text, options.max_len))
             .collect()
     }
 }

@@ -5,8 +5,9 @@ use candle_nn::{Embedding, Linear, Module, VarBuilder, embedding, ops};
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
+use crate::pipelines::common::decode_text;
 use crate::tasks::{aggregation, decode_entities};
-use crate::types::{Annotation, Offset};
+use crate::types::{Annotation, Offset, Span};
 
 use super::config::Config;
 use super::encoder::Encoder;
@@ -64,10 +65,10 @@ impl Classifier {
 
                 Ok(vec![Annotation {
                     name: String::from("classification"),
-                    text: text.to_string(),
+
                     label: self.labels[index].clone(),
                     score: *score as f64,
-                    spans: vec![Offset::new(0, text.chars().count() as u32)],
+                    spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
                 }])
             })
             .collect()
@@ -115,7 +116,8 @@ impl Forward for Classifier {
 }
 
 impl Classify for Classifier {
-    fn classify(&self, ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        let text = decode_text(input)?;
         options.validate()?;
 
         if options.labels.is_some() {
@@ -132,9 +134,11 @@ impl Classify for Classifier {
             ));
         }
 
-        match options.mode {
-            ClassifyMode::Text => self.text(ctx, text),
-            ClassifyMode::Spans => self.spans(ctx, text),
-        }
+        let out = match options.mode {
+            ClassifyMode::Whole => self.text(ctx, &text),
+            ClassifyMode::Regions => self.spans(ctx, &text),
+        }?;
+
+        out.into_iter().map(|annotations| options.apply(annotations)).collect()
     }
 }

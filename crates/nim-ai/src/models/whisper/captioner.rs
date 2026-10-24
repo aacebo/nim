@@ -4,7 +4,7 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{AudioToText, Context};
+use crate::models::{Context, Generate, GenerateOptions};
 
 use super::config::Config;
 use super::model::Model;
@@ -142,15 +142,20 @@ fn repeats(tokens: &[u32], token: u32) -> bool {
         .any(|ngram| ngram[..NGRAM - 1] == candidate[..NGRAM - 1] && ngram[NGRAM - 1] == token)
 }
 
-impl AudioToText for Captioner {
-    fn audio_to_text(
-        &self,
-        ctx: &Context,
-        audio: &[Vec<u8>],
-        beams: Option<usize>,
-        max_len: Option<usize>,
-    ) -> Result<Vec<String>, Error> {
-        audio
+impl Generate for Captioner {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+        options.validate()?;
+
+        if options.prompt.is_some() || options.language.is_some() {
+            return Err(Error::custom(
+                "ai::config",
+                "this generator does not support the supplied prompt or language",
+            ));
+        }
+
+        let beams = options.beams;
+        let max_len = options.max_len;
+        input
             .iter()
             .map(|bytes| self.one(ctx, bytes, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
             .collect()

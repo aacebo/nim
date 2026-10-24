@@ -1,5 +1,6 @@
 use crate::Error;
-use crate::models::{Detection, ModelArgs, load};
+use crate::models::{ClassifyMode, ClassifyOptions, ModelArgs, load};
+use crate::types::Annotation;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
@@ -19,15 +20,19 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[Vec<u8>]) -> Result<Vec<Vec<Detection>>, Error> {
+pub fn run(input: &[&[u8]]) -> Result<Vec<Vec<Annotation>>, Error> {
     run_with(input, Default::default())
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[Vec<u8>], options: Options) -> Result<Vec<Vec<Detection>>, Error> {
-    if !options.min_score.is_finite() || !(0.0..=1.0).contains(&options.min_score) {
-        return Err(Error::custom("ai::config", "min_score must be finite and between 0 and 1"));
-    }
+pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Vec<Annotation>>, Error> {
+    let classify_options = ClassifyOptions {
+        mode: ClassifyMode::Regions,
+        min_score: options.min_score,
+        limit: Some(options.limit),
+        ..Default::default()
+    };
+    classify_options.validate()?;
 
     if input.is_empty() {
         return Ok(Vec::new());
@@ -39,9 +44,6 @@ pub fn run_with(input: &[Vec<u8>], options: Options) -> Result<Vec<Vec<Detection
 
     let api_key = options.model.api_key.clone();
     let model = load(&options.model.resolve(super::defaults::detect())?, &api_key)?;
-    let capable = model.as_image_detect().ok_or_else(|| model.cannot("image-detect"))?;
-    input
-        .iter()
-        .map(|image| capable.detect_image(&model.context(), image, options.min_score, options.limit))
-        .collect()
+    let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
+    crate::tasks::classify(capable, &model.context(), input, classify_options.clone())
 }

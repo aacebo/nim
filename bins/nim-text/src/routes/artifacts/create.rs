@@ -14,7 +14,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         } => tokio::fs::read_to_string(path).await?,
     };
 
-    let artifacts = nim::ai::pipelines::text::summarize::run(&[&text])?;
+    let artifacts = nim::ai::pipelines::text::summarize::run(&[text.as_bytes()])?;
     let Some(summary) = artifacts.first() else {
         return Err(Error::custom(format!(
             "summary could not be generated from artifact `{}`",
@@ -90,10 +90,11 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Extract Entities
 
-    let annotations = nim::ai::pipelines::text::classify::entities(std::slice::from_ref(&text.as_str()))?;
+    let annotations = nim::ai::pipelines::text::classify::entities(&[text.as_bytes()])?;
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
+    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
 
     for (i, annotation) in annotations.iter().enumerate() {
         let existing = ctx
@@ -109,6 +110,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let spans = annotation
             .spans
             .iter()
+            .filter_map(nim::ai::types::Span::as_text)
             .map(|v| nim::state::Span {
                 start: v.begin,
                 end: v.end,
@@ -133,10 +135,11 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Extract Keywords
 
-    let annotations = nim::ai::pipelines::text::classify::keywords(std::slice::from_ref(&text.as_str()))?;
+    let annotations = nim::ai::pipelines::text::classify::keywords(&[text.as_bytes()])?;
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
+    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
 
     for (i, annotation) in annotations.iter().enumerate() {
         let existing = ctx
@@ -152,6 +155,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let spans = annotation
             .spans
             .iter()
+            .filter_map(nim::ai::types::Span::as_text)
             .map(|v| nim::state::Span {
                 start: v.begin,
                 end: v.end,
@@ -176,14 +180,15 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Extract PII
 
-    let annotations = nim::ai::pipelines::text::classify::pii(std::slice::from_ref(&text.as_str()))?;
+    let annotations = nim::ai::pipelines::text::classify::pii(&[text.as_bytes()])?;
     let Some(annotations) = annotations.first() else {
         return Ok(());
     };
 
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
+    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
 
     for (i, annotation) in annotations.iter().enumerate() {
         let existing = ctx
@@ -199,6 +204,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let spans = annotation
             .spans
             .iter()
+            .filter_map(nim::ai::types::Span::as_text)
             .map(|span| nim::state::Span {
                 start: span.begin,
                 end: span.end,

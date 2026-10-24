@@ -3,88 +3,19 @@ use tokenizers::Tokenizer;
 
 use crate::Error;
 use crate::pipelines::common::Batch;
-use crate::types::Annotation;
+use crate::types::{Annotation, Span};
 
-/// Text in, text out. BART does this by beam search; a hosted model by its completion endpoint.
 pub trait Generate: Send + Sync {
-    fn generate(&self, ctx: &Context, text: &[&str], opts: &GenOpts) -> Result<Vec<String>, Error>;
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error>;
 }
 
 /// A sentence vector per input.
 pub trait Embed: Send + Sync {
-    fn embed(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<f32>>, Error>;
+    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error>;
 }
 
 pub trait Classify: Send + Sync {
-    fn classify(&self, ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error>;
-}
-
-/// Image classification
-#[cfg(feature = "vision")]
-pub trait ImageClassify: Send + Sync {
-    fn classify_image(&self, ctx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
-}
-
-#[cfg(feature = "vision")]
-pub trait ImageDetect: Send + Sync {
-    fn detect_image(&self, ctx: &Context, image: &[u8], min_score: f64, limit: usize) -> Result<Vec<Detection>, Error>;
-}
-
-#[cfg(feature = "vision")]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Detection {
-    pub class_id: usize,
-    pub label: String,
-    pub score: f64,
-    pub bbox: BoundingBox,
-}
-
-#[cfg(feature = "vision")]
-#[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct BoundingBox {
-    pub xmin: f32,
-    pub ymin: f32,
-    pub xmax: f32,
-    pub ymax: f32,
-}
-
-#[cfg(feature = "audio")]
-pub trait AudioClassify: Send + Sync {
-    fn classify_audio(&self, ctx: &Context, audio: &[u8], limit: usize) -> Result<Vec<Label>, Error>;
-}
-
-#[cfg(feature = "vision")]
-pub trait ImageToText: Send + Sync {
-    fn image_to_text(
-        &self,
-        ctx: &Context,
-        images: &[Vec<u8>],
-        beams: Option<usize>,
-        max_len: Option<usize>,
-    ) -> Result<Vec<String>, Error>;
-}
-
-#[cfg(feature = "audio")]
-pub trait Transcribe: Send + Sync {
-    fn transcribe(
-        &self,
-        ctx: &Context,
-        audio: &[Vec<u8>],
-        language: Option<&str>,
-        beams: Option<usize>,
-        max_len: Option<usize>,
-    ) -> Result<Vec<String>, Error>;
-}
-
-#[cfg(feature = "audio")]
-pub trait AudioToText: Send + Sync {
-    fn audio_to_text(
-        &self,
-        ctx: &Context,
-        audio: &[Vec<u8>],
-        beams: Option<usize>,
-        max_len: Option<usize>,
-    ) -> Result<Vec<String>, Error>;
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error>;
 }
 
 /// Borrows what a model needs to turn text into tensors. A loaded model owns its weights; the
@@ -132,13 +63,6 @@ impl<'a> Context<'a> {
     }
 }
 
-/// One label for a whole input.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Label {
-    pub label: String,
-    pub score: f64,
-}
-
 /// A whole word: sub-word pieces already merged, carrying BYTE offsets into the source text.
 #[derive(Debug, Clone)]
 pub struct Word {
@@ -151,13 +75,15 @@ pub struct Word {
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub enum ClassifyMode {
     #[default]
-    Text,
-    Spans,
+    Whole,
+    Regions,
 }
 
 #[derive(Debug, Clone)]
 pub struct ClassifyOptions<'a> {
     pub mode: ClassifyMode,
+    pub min_score: f64,
+    pub limit: Option<usize>,
     pub labels: Option<&'a [String]>,
     pub multi_label: bool,
     pub hypothesis_template: &'a str,
@@ -166,7 +92,9 @@ pub struct ClassifyOptions<'a> {
 impl Default for ClassifyOptions<'_> {
     fn default() -> Self {
         Self {
-            mode: ClassifyMode::Text,
+            mode: ClassifyMode::Whole,
+            min_score: 0.0,
+            limit: None,
             labels: None,
             multi_label: false,
             hypothesis_template: "This example is about {}.",
@@ -176,6 +104,10 @@ impl Default for ClassifyOptions<'_> {
 
 impl ClassifyOptions<'_> {
     pub fn validate(&self) -> Result<(), Error> {
+        if !self.min_score.is_finite() || !(0.0..=1.0).contains(&self.min_score) {
+            return Err(Error::custom("ai::config", "min_score must be finite and between 0 and 1"));
+        }
+
         if self.hypothesis_template.matches("{}").count() != 1 {
             return Err(Error::custom(
                 "ai::config",
@@ -199,21 +131,54 @@ impl ClassifyOptions<'_> {
 
         Ok(())
     }
+
+    pub fn apply(&self, mut annotations: Vec<Annotation>) -> Result<Vec<Annotation>, Error> {
+        self.validate()?;
+
+        if annotations.iter().any(|annotation| {
+            !annotation.score.is_finite()
+                || !(0.0..=1.0).contains(&annotation.score)
+                || self.labels.is_some_and(|labels| !labels.contains(&annotation.label))
+        }) {
+            return Err(Error::custom(
+                "ai::invalid",
+                "classification returned an invalid label or score",
+            ));
+        }
+
+        annotations.retain(|annotation| annotation.score >= self.min_score);
+
+        if let Some(limit) = self.limit {
+            annotations.sort_by(|left, right| right.score.total_cmp(&left.score));
+            annotations.truncate(limit);
+        }
+
+        if self.mode == ClassifyMode::Regions
+            && annotations.iter().all(|annotation| {
+                !annotation.spans.is_empty() && annotation.spans.iter().all(|span| matches!(span, Span::Text(_)))
+            })
+        {
+            annotations.sort_by_key(|annotation| annotation.spans[0].as_text().map(|offset| offset.begin));
+        }
+
+        Ok(annotations)
+    }
 }
 
-pub struct GenOpts {
-    pub prompt: &'static str,
+#[derive(Debug, Default, Clone)]
+pub struct GenerateOptions<'a> {
+    pub prompt: Option<&'a str>,
+    pub language: Option<&'a str>,
     pub max_len: Option<usize>,
     pub beams: Option<usize>,
 }
 
-impl Default for GenOpts {
-    fn default() -> Self {
-        Self {
-            prompt: "Summarize the text the user gives you. Be concise and factual; use only \
-                     information present in the text.",
-            max_len: None,
-            beams: None,
+impl GenerateOptions<'_> {
+    pub fn validate(&self) -> Result<(), Error> {
+        if self.beams == Some(0) || self.max_len == Some(0) {
+            return Err(Error::custom("ai::config", "beams and max_len must be greater than zero"));
         }
+
+        Ok(())
     }
 }

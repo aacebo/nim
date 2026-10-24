@@ -18,7 +18,12 @@ impl DistilBert {
     }
 
     pub fn forward(&self, ids: &Tensor, padding: &Tensor) -> Result<Tensor, Error> {
-        Ok(self.inner.forward(ids, padding)?)
+        let padding = if padding.rank() == 2 {
+            padding.unsqueeze(1)?.unsqueeze(1)?
+        } else {
+            padding.clone()
+        };
+        Ok(self.inner.forward(ids, &padding)?)
     }
 }
 

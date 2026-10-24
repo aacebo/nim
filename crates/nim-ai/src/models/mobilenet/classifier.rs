@@ -2,7 +2,8 @@ use candle_core::Tensor;
 use candle_nn::{Linear, Module, VarBuilder, linear, ops};
 
 use crate::Error;
-use crate::models::{Context, Forward, ImageClassify, Label};
+use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
+use crate::types::Annotation;
 
 use super::config::Config;
 use super::model::MobileNetV2;
@@ -38,20 +39,43 @@ impl Forward for Classifier {
     }
 }
 
-impl ImageClassify for Classifier {
-    fn classify_image(&self, ctx: &Context, image: &[u8], limit: usize) -> Result<Vec<Label>, Error> {
-        let input = self.processor.tensor(image, ctx.device())?;
-        let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
-        let mut labels: Vec<Label> = probabilities[0]
+impl Classify for Classifier {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        options.validate()?;
+
+        if options.mode != ClassifyMode::Whole
+            || options.labels.is_some()
+            || options.multi_label
+            || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
+        {
+            return Err(Error::custom(
+                "ai::config",
+                "this classifier only supports whole-input classification with fixed labels",
+            ));
+        }
+
+        input
             .iter()
-            .enumerate()
-            .map(|(index, score)| Label {
-                label: self.labels[index].clone(),
-                score: *score as f64,
+            .map(|input| {
+                if options.limit == Some(0) {
+                    return Ok(Vec::new());
+                }
+
+                let input = self.processor.tensor(input, ctx.device())?;
+                let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
+                let mut labels: Vec<Annotation> = probabilities[0]
+                    .iter()
+                    .enumerate()
+                    .map(|(index, score)| Annotation {
+                        name: String::from("classification"),
+                        spans: Vec::new(),
+                        label: self.labels[index].clone(),
+                        score: *score as f64,
+                    })
+                    .collect();
+                labels.sort_by(|left, right| right.score.total_cmp(&left.score));
+                options.apply(labels)
             })
-            .collect();
-        labels.sort_by(|left, right| right.score.total_cmp(&left.score));
-        labels.truncate(limit.min(labels.len()));
-        Ok(labels)
+            .collect()
     }
 }

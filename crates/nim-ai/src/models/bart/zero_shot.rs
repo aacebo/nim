@@ -6,8 +6,9 @@ use tokenizers::{TruncationParams, TruncationStrategy};
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
+use crate::pipelines::common::decode_text;
 use crate::tasks::zero_shot::{self, softmax};
-use crate::types::{Annotation, Offset};
+use crate::types::{Annotation, Offset, Span};
 
 use super::config::Config;
 use super::decoder::Decoder;
@@ -76,7 +77,7 @@ impl ZeroShotClassifier {
         Ok(Forward::forward(self, input)?.squeeze(0)?.to_vec1::<f32>()?)
     }
 
-    fn custom_text(&self, ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn custom_text(&self, ctx: &Context, text: &[&str], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
         let mut tokenizer = ctx.tokenizer()?.clone();
         tokenizer.with_padding(None);
         tokenizer
@@ -117,10 +118,10 @@ impl ZeroShotClassifier {
                     .zip(scores)
                     .map(|(label, score)| Annotation {
                         name: String::from("classification"),
-                        text: text.to_string(),
+
                         label: label.clone(),
                         score,
-                        spans: vec![Offset::new(0, text.chars().count() as u32)],
+                        spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
                     })
                     .collect())
             })
@@ -152,10 +153,10 @@ impl ZeroShotClassifier {
 
                 Ok(vec![Annotation {
                     name: String::from("classification"),
-                    text: text.to_string(),
+
                     label: self.labels[index].clone(),
                     score,
-                    spans: vec![Offset::new(0, text.chars().count() as u32)],
+                    spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
                 }])
             })
             .collect()
@@ -210,18 +211,24 @@ impl Forward for ZeroShotClassifier {
 }
 
 impl Classify for ZeroShotClassifier {
-    fn classify(&self, ctx: &Context, text: &[&str], options: &ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+        let text = decode_text(input)?;
         options.validate()?;
 
-        match (options.mode, options.labels) {
-            (ClassifyMode::Text, Some(_)) => Ok(self
-                .custom_text(ctx, text, options)?
+        let out = match (options.mode, options.labels) {
+            (ClassifyMode::Whole, Some(_)) => Ok(self
+                .custom_text(ctx, &text, options.clone())?
                 .into_iter()
                 .map(|annotations| zero_shot::select(annotations, options.multi_label))
                 .collect()),
-            (ClassifyMode::Text, None) => self.text(ctx, text),
-            (ClassifyMode::Spans, Some(_)) => zero_shot::entities(self, ctx, text, options),
-            (ClassifyMode::Spans, None) => Err(Error::custom("ai::invalid", "NLI span classification requires custom labels")),
-        }
+            (ClassifyMode::Whole, None) => self.text(ctx, &text),
+            (ClassifyMode::Regions, Some(_)) => zero_shot::entities(self, ctx, input, options.clone())?
+                .into_iter()
+                .map(|annotations| zero_shot::retain(annotations, options.clone(), options.min_score))
+                .collect(),
+            (ClassifyMode::Regions, None) => Err(Error::custom("ai::invalid", "NLI span classification requires custom labels")),
+        }?;
+
+        out.into_iter().map(|annotations| options.apply(annotations)).collect()
     }
 }

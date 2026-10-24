@@ -16,7 +16,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Extract Captions (ex. "a dog running")
 
-    let captions = nim::ai::pipelines::images::captions::run(std::slice::from_ref(&bytes))?;
+    let captions = nim::ai::pipelines::images::captions::run(&[bytes.as_slice()])?;
     let Some(caption) = captions.first() else {
         return Err(Error::custom(format!(
             "no captions could be generated from artifact `{}`",
@@ -92,7 +92,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Extract Annotations (ex. "golden retriever")
 
-    let annotations = nim::ai::pipelines::images::classify::run(std::slice::from_ref(&bytes))?;
+    let annotations = nim::ai::pipelines::images::classify::run(&[bytes.as_slice()])?;
     let Some(annotations) = annotations.first() else {
         return Ok(());
     };
@@ -100,7 +100,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let annotations = annotations.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
+    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
 
     for (i, annotation) in annotations.iter().enumerate() {
         let existing = ctx
@@ -116,6 +117,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let spans = annotation
             .spans
             .iter()
+            .filter_map(nim::ai::types::Span::as_text)
             .map(|v| nim::state::Span {
                 start: v.begin,
                 end: v.end,
@@ -140,7 +142,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     // Extract Broader Annotations (ex. "dog")
 
-    let detections = nim::ai::pipelines::images::detect::run(std::slice::from_ref(&bytes))?;
+    let detections = nim::ai::pipelines::images::detect::run(&[bytes.as_slice()])?;
     let Some(detections) = detections.first() else {
         return Ok(());
     };
@@ -148,7 +150,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let detections = detections.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
     let labels = detections.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&labels)?;
+    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
 
     for (i, detection) in detections.iter().enumerate() {
         let existing = ctx

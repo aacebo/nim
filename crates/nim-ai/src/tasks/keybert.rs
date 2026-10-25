@@ -27,9 +27,30 @@ fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) ->
     batch.extend(candidates.iter().map(|candidate| candidate.text.as_bytes()));
 
     let vectors = model.embed(ctx, &batch)?;
-    let Some((document, vectors)) = vectors.split_first() else {
-        return Ok(Vec::new());
-    };
+    if vectors.len() != batch.len() {
+        return Err(Error::custom("ai::invalid", "keyword embeddings do not match input count"));
+    }
 
-    Ok(scorer::rank(candidates, document, vectors, top_n))
+    let document = &vectors[0];
+
+    if document.is_empty()
+        || vectors
+            .iter()
+            .any(|vector| vector.len() != document.len() || vector.iter().any(|value| !value.is_finite()))
+    {
+        return Err(Error::custom("ai::invalid", "invalid keyword embeddings"));
+    }
+
+    let mut keywords = scorer::rank(candidates, document, &vectors[1..], usize::MAX);
+
+    for keyword in &mut keywords {
+        if !keyword.score.is_finite() || !(-1.000001..=1.000001).contains(&keyword.score) {
+            return Err(Error::custom("ai::invalid", "invalid keyword cosine score"));
+        }
+
+        keyword.score = keyword.score.clamp(-1.0, 1.0);
+    }
+
+    keywords.truncate(top_n);
+    Ok(keywords)
 }

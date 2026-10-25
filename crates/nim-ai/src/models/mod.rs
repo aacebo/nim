@@ -9,6 +9,7 @@ pub mod detr;
 pub mod distilbert;
 #[cfg(feature = "vision")]
 pub mod git;
+pub mod keybert;
 #[cfg(feature = "vision")]
 pub mod mobilenet;
 #[cfg(feature = "audio")]
@@ -181,7 +182,7 @@ pub enum ClassifyMedia {
 /// A model with its weights loaded (or, for a remote model, its endpoint bound). The variant
 /// determines which capabilities exist: the `None` arms below are the empty cells of the matrix.
 pub enum AnyModel {
-    Embedder(bert::Embedder),
+    Embedder(keybert::KeyBert<bert::Embedder>),
     BartEntityClassifier(bart::Classifier),
     BartSequenceClassifier(bart::Classifier),
     BartZeroShotClassifier(bart::ZeroShotClassifier),
@@ -352,7 +353,7 @@ impl Model {
                         (_, true, true) => {
                             AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Regions)?)
                         }
-                        _ => AnyModel::Embedder(bert::Embedder::new(repo.vars()?, &config)?),
+                        _ => AnyModel::Embedder(keybert::KeyBert::new(bert::Embedder::new(repo.vars()?, &config)?)),
                     }
                 }
                 other => {
@@ -400,7 +401,8 @@ impl Model {
             (ClassifyMedia::Text, AnyModel::BartSequenceClassifier(_))
             | (ClassifyMedia::Text, AnyModel::BertSequenceClassifier(_))
             | (ClassifyMedia::Text, AnyModel::DistilBertSequenceClassifier(_)) => Ok(ClassifyMode::Whole),
-            (ClassifyMedia::Text, AnyModel::BartEntityClassifier(_))
+            (ClassifyMedia::Text, AnyModel::Embedder(_))
+            | (ClassifyMedia::Text, AnyModel::BartEntityClassifier(_))
             | (ClassifyMedia::Text, AnyModel::BertEntityClassifier(_))
             | (ClassifyMedia::Text, AnyModel::DistilBertEntityClassifier(_))
             | (ClassifyMedia::Text, AnyModel::BartZeroShotClassifier(_))
@@ -420,6 +422,7 @@ impl Model {
 
     pub fn as_classify(&self) -> Option<&dyn Classify> {
         match &self.model {
+            AnyModel::Embedder(model) => Some(model),
             AnyModel::BartSequenceClassifier(model) | AnyModel::BartEntityClassifier(model) => Some(model),
             AnyModel::BartZeroShotClassifier(model) => Some(model),
             AnyModel::BertSequenceClassifier(model) | AnyModel::BertEntityClassifier(model) => Some(model),

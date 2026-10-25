@@ -96,6 +96,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                 model: Some("dbmdz/bert-large-cased-finetuned-conll03-english".into()),
                 ..Default::default()
             },
+            min_score: 0.8,
             ..Default::default()
         },
     )?;
@@ -104,6 +105,24 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         return Ok(());
     };
 
+    let keywords = nim::ai::pipelines::text::classify::run_with(
+        &[text.as_bytes()],
+        nim::ai::pipelines::text::classify::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some("sentence-transformers/all-MiniLM-L6-v2".into()),
+                ..Default::default()
+            },
+            min_score: 0.2,
+            limit: Some(5),
+            ..Default::default()
+        },
+    )?;
+
+    let Some(keywords) = keywords.first() else {
+        return Ok(());
+    };
+
+    let annotations = annotations.iter().chain(keywords).collect::<Vec<_>>();
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();

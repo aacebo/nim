@@ -90,14 +90,37 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
-    // Extract Annotations (ex. "golden retriever")
+    let annotations = nim::ai::pipelines::images::classify::run_with(
+        &[bytes.as_slice()],
+        nim::ai::pipelines::images::classify::Options {
+            min_score: 0.2,
+            limit: Some(5),
+            ..Default::default()
+        },
+    )?;
 
-    let annotations = nim::ai::pipelines::images::classify::run(&[bytes.as_slice()])?;
     let Some(annotations) = annotations.first() else {
         return Ok(());
     };
 
-    let annotations = annotations.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
+    let regions = nim::ai::pipelines::images::classify::run_with(
+        &[bytes.as_slice()],
+        nim::ai::pipelines::images::classify::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some(String::from("facebook/detr-resnet-50")),
+                ..Default::default()
+            },
+            min_score: 0.2,
+            limit: Some(100),
+            ..Default::default()
+        },
+    )?;
+
+    let Some(regions) = regions.first() else {
+        return Ok(());
+    };
+
+    let annotations = annotations.iter().chain(regions).collect::<Vec<_>>();
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
@@ -140,46 +163,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         ctx.signals().publish("nim.annotation.create", annotation).await?;
     }
 
-    // Extract Broader Annotations (ex. "dog")
-
-    let detections = nim::ai::pipelines::images::detect::run(&[bytes.as_slice()])?;
-    let Some(detections) = detections.first() else {
-        return Ok(());
-    };
-
-    let detections = detections.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
-    let labels = detections.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
-    let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
-
-    for (i, detection) in detections.iter().enumerate() {
-        let existing = ctx
-            .services()
-            .annotations()
-            .find_by_artifact_label(signal.content.id, nim::state::Label::Unknown, labels[i])
-            .await?;
-
-        if existing.is_some() {
-            continue;
-        }
-
-        let annotation = ctx
-            .services()
-            .annotations()
-            .create(nim::state::AnnotationCreate {
-                artifact_id: signal.content.id,
-                label: nim::state::Label::Unknown,
-                text: labels[i].to_string(),
-                spans: Default::default(),
-                embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
-                confidence: detection.score as f32,
-            })
-            .await?;
-
-        ctx.signals().publish("nim.annotation.create", annotation).await?;
-    }
-
     // Calculate Memory Confidence
 
     let annotations = ctx.services().annotations().find_by_artifact_id(signal.content.id).await?;
@@ -188,6 +171,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     } else {
         annotations.iter().fold(0.0, |acc, v| acc + v.confidence) / annotations.len() as f32
     };
+
     let memory = ctx
         .services()
         .memories()

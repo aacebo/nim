@@ -37,11 +37,13 @@ use crate::Error;
 use crate::resources::Repository;
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
-#[macro_export]
-macro_rules! model_id {
-    ($value:literal) => {
-        $value.parse::<$crate::models::ModelId>()
-    };
+
+pub fn id(value: impl AsRef<str>) -> Result<ModelId, Error> {
+    value.as_ref().parse::<ModelId>()
+}
+
+pub fn refer(value: impl AsRef<str>) -> Result<ModelRef, Error> {
+    value.as_ref().parse::<ModelRef>()
 }
 
 pub trait Forward: Send + Sync {

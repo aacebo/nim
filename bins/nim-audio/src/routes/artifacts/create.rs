@@ -88,9 +88,19 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
-    let annotations = nim::ai::pipelines::audio::classify::run(&[bytes.as_slice()])?;
-    let annotations = annotations.first().map(Vec::as_slice).unwrap_or_default();
-    let annotations = annotations.iter().filter(|a| a.score >= 0.2).collect::<Vec<_>>();
+    let annotations = nim::ai::pipelines::audio::classify::run_with(
+        &[bytes.as_slice()],
+        nim::ai::pipelines::audio::classify::Options {
+            min_score: 0.2,
+            limit: Some(5),
+            ..Default::default()
+        },
+    )?;
+
+    let Some(annotations) = annotations.first() else {
+        return Ok(());
+    };
+
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
@@ -139,6 +149,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     } else {
         annotations.iter().fold(0.0, |acc, v| acc + v.confidence) / annotations.len() as f32
     };
+
     let memory = ctx
         .services()
         .memories()

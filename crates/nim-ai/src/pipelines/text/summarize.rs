@@ -1,6 +1,7 @@
 use crate::models::GenerateOptions;
 use crate::models::{ModelArgs, load};
-use crate::types::{Artifact, ArtifactContent};
+use crate::pipelines::text;
+use crate::types::Artifact;
 use crate::{Error, tasks};
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -30,13 +31,14 @@ pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Erro
         ..GenerateOptions::default()
     };
 
-    let out = tasks::summarize(capable, &model.context(), input, generation_options)?;
-    let artifacts: Vec<Artifact> = out
+    let artifacts = tasks::summarize(capable, &model.context(), input, generation_options)?;
+    let artifacts = text::embeddings::run(&artifacts.iter().map(String::as_bytes).collect::<Vec<_>>())?;
+    let artifacts = artifacts
         .into_iter()
-        .map(|summary| Artifact {
+        .map(|artifact| Artifact {
             name: "summary".to_string(),
-            value: ArtifactContent::text(summary),
-            vector: None,
+            value: artifact.value,
+            vector: artifact.vector,
         })
         .collect();
 

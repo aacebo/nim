@@ -88,16 +88,18 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
+    // Named entities: people, organizations, locations
     let annotations = nim::ai::pipelines::text::classify::run_with(
         &[text.as_bytes()],
         nim::ai::pipelines::text::classify::Options {
             model: nim::ai::models::ModelArgs {
-                model: Some(nim::ai::pipelines::text::defaults::token_classify().to_string()),
+                model: Some("dbmdz/bert-large-cased-finetuned-conll03-english".into()),
                 ..Default::default()
             },
             ..Default::default()
         },
     )?;
+
     let Some(annotations) = annotations.first() else {
         return Ok(());
     };
@@ -147,11 +149,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     // Calculate Memory Confidence
 
     let annotations = ctx.services().annotations().find_by_artifact_id(signal.content.id).await?;
-    let confidence = if annotations.is_empty() {
-        memory.confidence
-    } else {
-        annotations.iter().fold(0.0, |acc, v| acc + v.confidence) / annotations.len() as f32
-    };
+    let confidence = annotations.iter().fold(0.0, |acc, v| acc + v.confidence) / annotations.len() as f32;
     let memory = ctx
         .services()
         .memories()

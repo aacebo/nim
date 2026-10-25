@@ -1,25 +1,16 @@
 pub mod captions;
 pub mod classify;
-pub mod detect;
 
 /// Default models, one per capability. A model that cannot serve the routine you called is an
 /// error -- the empty cells of the capability matrix.
 pub mod defaults {
-    use crate::models::{ModelId, ModelRef};
+    use crate::models;
 
-    pub fn hub(repo: &str) -> ModelRef {
-        ModelRef::hub(repo.parse::<ModelId>().expect("built-in model ids are valid"))
+    pub fn classify() -> models::ModelRef {
+        models::refer("google/mobilenet_v2_1.0_224").expect("built-in model ids are valid")
     }
 
-    pub fn classify() -> ModelRef {
-        hub("google/mobilenet_v2_1.0_224")
-    }
-
-    pub fn detect() -> ModelRef {
-        hub("facebook/detr-resnet-50")
-    }
-
-    pub fn captions() -> ModelRef {
-        hub("microsoft/git-base")
+    pub fn captions() -> models::ModelRef {
+        models::refer("microsoft/git-base").expect("built-in model ids are valid")
     }
 }

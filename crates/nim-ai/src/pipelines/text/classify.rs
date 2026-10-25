@@ -24,7 +24,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             model: Default::default(),
-            min_score: 0.8,
+            min_score: 0.2,
             limit: None,
             labels: None,
             multi_label: false,

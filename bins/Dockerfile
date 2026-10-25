@@ -10,4 +10,3 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN rustup target add x86_64-unknown-linux-musl
 
 ENV OPENSSL_STATIC=1
-ENV OPENSSL_DIR=/usr

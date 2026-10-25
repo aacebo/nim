@@ -10,7 +10,7 @@ mod stopwords;
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Word};
-use crate::types::{Annotation, Keyword, Polarity, Sentiment, Span};
+use crate::types::{Annotation, Keyword, Offset, Polarity, Span};
 
 /// The user-facing routines, each a presentation over one model capability.
 ///
@@ -25,25 +25,6 @@ pub fn embed<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]]) -> Re
 /// special-casing a call into the embeddings pipeline's cache.
 pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
     keybert::keywords(model, ctx, input, top_n)
-}
-
-/// Sentiment is a *presentation* of sequence classification: the model returns a label, and this
-/// maps it onto the binary polarity the routine promises.
-pub fn sentiment<C: Classify + ?Sized>(model: &C, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Sentiment>, Error> {
-    classify(model, ctx, input, Default::default())?
-        .into_iter()
-        .map(|annotations| {
-            let annotation = annotations
-                .into_iter()
-                .next()
-                .ok_or_else(|| Error::custom("ai::invalid", "empty sentiment classification output"))?;
-
-            Ok(Sentiment {
-                polarity: Polarity::from_label(&annotation.label),
-                score: annotation.score,
-            })
-        })
-        .collect()
 }
 
 pub fn classify<C: Classify + ?Sized>(
@@ -88,6 +69,11 @@ pub fn classify<C: Classify + ?Sized>(
                             ));
                         }
                     }
+                    Span::Audio(time) => {
+                        if !time.begin.is_finite() || !time.end.is_finite() || time.begin < 0.0 || time.begin > time.end {
+                            return Err(Error::custom("ai::invalid", "invalid audio time span"));
+                        }
+                    }
                     Span::Image(bbox) => {
                         if [bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax]
                             .iter()
@@ -106,16 +92,26 @@ pub fn classify<C: Classify + ?Sized>(
     Ok(out)
 }
 
-pub fn entities<C: Classify + ?Sized>(model: &C, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<Annotation>>, Error> {
-    classify(
-        model,
-        ctx,
-        input,
-        ClassifyOptions {
-            mode: ClassifyMode::Regions,
-            ..Default::default()
+pub(crate) fn classification(labels: &[String], index: usize, score: f64, text: &str) -> Annotation {
+    let sentiment = labels.len() == 2
+        && labels
+            .iter()
+            .any(|label| matches!(label.to_lowercase().as_str(), "positive" | "pos"))
+        && labels
+            .iter()
+            .any(|label| matches!(label.to_lowercase().as_str(), "negative" | "neg"));
+    let label = &labels[index];
+
+    Annotation {
+        name: String::from(if sentiment { "sentiment" } else { "classification" }),
+        label: if sentiment {
+            Polarity::from_label(label).as_str().to_string()
+        } else {
+            label.clone()
         },
-    )
+        score,
+        spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
+    }
 }
 
 pub(crate) fn decode_entities(words: Vec<Word>, text: &str, labels: &[String]) -> Vec<Annotation> {

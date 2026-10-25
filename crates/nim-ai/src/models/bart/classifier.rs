@@ -6,8 +6,8 @@ use candle_nn::{Embedding, Linear, Module, VarBuilder, embedding, ops};
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::pipelines::common::decode_text;
-use crate::tasks::{aggregation, decode_entities};
-use crate::types::{Annotation, Offset, Span};
+use crate::tasks::{aggregation, classification, decode_entities};
+use crate::types::Annotation;
 
 use super::config::Config;
 use super::encoder::Encoder;
@@ -63,13 +63,7 @@ impl Classifier {
                     .max_by(|(_, left), (_, right)| left.total_cmp(right))
                     .ok_or_else(|| Error::custom("ai::invalid", "empty classification output"))?;
 
-                Ok(vec![Annotation {
-                    name: String::from("classification"),
-
-                    label: self.labels[index].clone(),
-                    score: *score as f64,
-                    spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
-                }])
+                Ok(vec![classification(&self.labels, index, *score as f64, text)])
             })
             .collect()
     }
@@ -120,10 +114,13 @@ impl Classify for Classifier {
         let text = decode_text(input)?;
         options.validate()?;
 
-        if options.labels.is_some() {
+        if options.labels.is_some()
+            || options.multi_label
+            || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
+        {
             return Err(Error::custom(
                 "ai::invalid",
-                format!("{} cannot classify custom labels", ctx.name()),
+                format!("{} only supports fixed labels", ctx.name()),
             ));
         }
 

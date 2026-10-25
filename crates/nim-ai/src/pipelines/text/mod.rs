@@ -1,39 +1,40 @@
 pub mod classify;
 pub mod embeddings;
 pub mod generate;
-pub mod sentiment;
 pub mod summarize;
 
 /// Default models, one per capability. A model that cannot serve the routine you called is an
 /// error -- the empty cells of the capability matrix.
 pub mod defaults {
-    use crate::models::{ModelId, ModelRef};
-
-    pub fn hub(repo: &str) -> ModelRef {
-        ModelRef::hub(repo.parse::<ModelId>().expect("built-in model ids are valid"))
-    }
+    use crate::{model_id, models::ModelRef};
 
     pub fn embed() -> ModelRef {
-        hub("sentence-transformers/all-MiniLM-L12-v2")
+        let id = model_id!("sentence-transformers/all-MiniLM-L12-v2").expect("built-in model ids are valid");
+        ModelRef::hub(id)
     }
 
     pub fn keywords() -> ModelRef {
-        hub("sentence-transformers/all-MiniLM-L6-v2")
+        let id = model_id!("sentence-transformers/all-MiniLM-L6-v2").expect("built-in model ids are valid");
+        ModelRef::hub(id)
     }
 
     pub fn classify() -> ModelRef {
-        hub("distilbert-base-uncased-finetuned-sst-2-english")
+        let id = model_id!("distilbert-base-uncased-finetuned-sst-2-english").expect("built-in model ids are valid");
+        ModelRef::hub(id)
     }
 
     pub fn zero_shot() -> ModelRef {
-        hub("facebook/bart-large-mnli")
+        let id = model_id!("facebook/bart-large-mnli").expect("built-in model ids are valid");
+        ModelRef::hub(id)
     }
 
     pub fn token_classify() -> ModelRef {
-        hub("dbmdz/bert-large-cased-finetuned-conll03-english")
+        let id = model_id!("dbmdz/bert-large-cased-finetuned-conll03-english").expect("built-in model ids are valid");
+        ModelRef::hub(id)
     }
 
     pub fn generate() -> ModelRef {
-        hub("facebook/bart-large-cnn")
+        let id = model_id!("facebook/bart-large-cnn").expect("built-in model ids are valid");
+        ModelRef::hub(id)
     }
 }

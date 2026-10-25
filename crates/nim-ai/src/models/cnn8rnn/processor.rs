@@ -17,8 +17,20 @@ impl Processor {
         Self { filters, window }
     }
 
-    pub fn features(&self, bytes: &[u8], config: &Config) -> Result<Vec<Vec<f32>>, Error> {
-        let samples = resample(decode(bytes)?, config.sample_rate)?;
+    pub fn features(&self, bytes: &[u8], config: &Config) -> Result<(Vec<Vec<f32>>, f64), Error> {
+        let (samples, sample_rate) = decode(bytes)?;
+
+        if sample_rate == 0 {
+            return Err(Error::custom("ai::audio", "audio sample rate is zero"));
+        }
+
+        let duration = samples.len() as f64 / sample_rate as f64;
+        let samples = resample((samples, sample_rate), config.sample_rate)?;
+
+        if samples.is_empty() {
+            return Err(Error::custom("ai::audio", "audio is too short after resampling"));
+        }
+
         let padding = self.window.len() / 2;
         let mut padded = Vec::with_capacity(samples.len() + padding * 2);
 
@@ -59,7 +71,7 @@ impl Processor {
             *value = (10.0 * value.max(1e-10).log10()).max(maximum - 80.0);
         }
 
-        Ok(frames)
+        Ok((frames, duration))
     }
 }
 

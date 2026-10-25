@@ -4,6 +4,7 @@ use candle_core::{Device, Tensor};
 use image::{GenericImageView, ImageReader, imageops::FilterType};
 
 use crate::Error;
+use crate::types::BoundingBox;
 
 #[derive(serde::Deserialize)]
 pub struct Processor {
@@ -23,7 +24,7 @@ struct Size {
 }
 
 impl Processor {
-    pub fn tensor(&self, bytes: &[u8], device: &Device) -> Result<Tensor, Error> {
+    pub fn tensor(&self, bytes: &[u8], device: &Device) -> Result<(Tensor, BoundingBox), Error> {
         let image = ImageReader::new(Cursor::new(bytes))
             .with_guessed_format()
             .map_err(|e| Error::custom("ai::image", e))?
@@ -59,7 +60,15 @@ impl Processor {
                     (pixel[channel] as f32 * self.rescale_factor - self.image_mean[channel]) / self.image_std[channel];
             }
         }
-        Ok(Tensor::from_vec(values, (1, 3, height as usize, width as usize), device)?)
+        Ok((
+            Tensor::from_vec(values, (1, 3, height as usize, width as usize), device)?,
+            BoundingBox {
+                xmin: 0.0,
+                ymin: 0.0,
+                xmax: source_width as f32,
+                ymax: source_height as f32,
+            },
+        ))
     }
 }
 

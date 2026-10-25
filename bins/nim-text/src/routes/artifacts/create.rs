@@ -88,99 +88,16 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
-    // Extract Entities
-
-    let annotations = nim::ai::pipelines::text::classify::entities(&[text.as_bytes()])?;
-    let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
-    let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
-
-    for (i, annotation) in annotations.iter().enumerate() {
-        let existing = ctx
-            .services()
-            .annotations()
-            .find_by_artifact_label(signal.content.id, nim::state::Label::Unknown, labels[i])
-            .await?;
-
-        if existing.is_some() {
-            continue;
-        }
-
-        let spans = annotation
-            .spans
-            .iter()
-            .filter_map(nim::ai::types::Span::as_text)
-            .map(|v| nim::state::Span {
-                start: v.begin,
-                end: v.end,
-            })
-            .collect::<Vec<_>>();
-
-        let annotation = ctx
-            .services()
-            .annotations()
-            .create(nim::state::AnnotationCreate {
-                artifact_id: signal.content.id,
-                label: nim::state::Label::Unknown,
-                text: labels[i].to_string(),
-                spans: &spans,
-                embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
-                confidence: annotation.score as f32,
-            })
-            .await?;
-
-        ctx.signals().publish("nim.annotation.create", annotation).await?;
-    }
-
-    // Extract Keywords
-
-    let annotations = nim::ai::pipelines::text::classify::keywords(&[text.as_bytes()])?;
-    let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
-    let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-    let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
-    let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
-
-    for (i, annotation) in annotations.iter().enumerate() {
-        let existing = ctx
-            .services()
-            .annotations()
-            .find_by_artifact_label(signal.content.id, nim::state::Label::Unknown, labels[i])
-            .await?;
-
-        if existing.is_some() {
-            continue;
-        }
-
-        let spans = annotation
-            .spans
-            .iter()
-            .filter_map(nim::ai::types::Span::as_text)
-            .map(|v| nim::state::Span {
-                start: v.begin,
-                end: v.end,
-            })
-            .collect::<Vec<_>>();
-
-        let annotation = ctx
-            .services()
-            .annotations()
-            .create(nim::state::AnnotationCreate {
-                artifact_id: signal.content.id,
-                label: nim::state::Label::Unknown,
-                text: labels[i].to_string(),
-                spans: &spans,
-                embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
-                confidence: annotation.score as f32,
-            })
-            .await?;
-
-        ctx.signals().publish("nim.annotation.create", annotation).await?;
-    }
-
-    // Extract PII
-
-    let annotations = nim::ai::pipelines::text::classify::pii(&[text.as_bytes()])?;
+    let annotations = nim::ai::pipelines::text::classify::run_with(
+        &[text.as_bytes()],
+        nim::ai::pipelines::text::classify::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some(nim::ai::pipelines::text::defaults::token_classify().to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )?;
     let Some(annotations) = annotations.first() else {
         return Ok(());
     };
@@ -205,11 +122,12 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .spans
             .iter()
             .filter_map(nim::ai::types::Span::as_text)
-            .map(|span| nim::state::Span {
-                start: span.begin,
-                end: span.end,
+            .map(|v| nim::state::Span {
+                start: v.begin,
+                end: v.end,
             })
             .collect::<Vec<_>>();
+
         let annotation = ctx
             .services()
             .annotations()

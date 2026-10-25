@@ -3,7 +3,7 @@ use candle_nn::{Linear, Module, VarBuilder, linear, ops};
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
-use crate::types::Annotation;
+use crate::types::{Annotation, Span};
 
 use super::config::Config;
 use super::model::MobileNetV2;
@@ -61,14 +61,14 @@ impl Classify for Classifier {
                     return Ok(Vec::new());
                 }
 
-                let input = self.processor.tensor(input, ctx.device())?;
+                let (input, bounds) = self.processor.tensor(input, ctx.device())?;
                 let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
                 let mut labels: Vec<Annotation> = probabilities[0]
                     .iter()
                     .enumerate()
                     .map(|(index, score)| Annotation {
                         name: String::from("classification"),
-                        spans: Vec::new(),
+                        spans: vec![Span::Image(bounds)],
                         label: self.labels[index].clone(),
                         score: *score as f64,
                     })

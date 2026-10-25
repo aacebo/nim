@@ -1,19 +1,20 @@
 use crate::Error;
 
-use super::{BoundingBox, Offset};
+use super::{BoundingBox, Offset, TimeSpan};
 
 #[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum Span {
     Text(Offset),
     Image(BoundingBox),
+    Audio(TimeSpan),
 }
 
 impl Span {
     pub fn as_text(&self) -> Option<&Offset> {
         match self {
             Self::Text(offset) => Some(offset),
-            Self::Image(_) => None,
+            Self::Image(_) | Self::Audio(_) => None,
         }
     }
 

@@ -28,8 +28,10 @@ services:
 
   gateway:
     container_name: nim-gateway
-    image: rust:alpine
-    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-gateway --release"
+    build:
+      context: .
+      dockerfile: bins/Dockerfile
+    command: cargo run -p nim-gateway --release
     working_dir: /app
     ports:
       - 3000:8080
@@ -51,8 +53,10 @@ services:
 
   text:
     container_name: nim-text
-    image: rust:alpine
-    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-text --release"
+    build:
+      context: .
+      dockerfile: bins/Dockerfile
+    command: cargo run -p nim-text --release
     working_dir: /app
     environment:
       NATS_URL: nats://nats:4222
@@ -70,8 +74,10 @@ services:
 
   audio:
     container_name: nim-audio
-    image: rust:alpine
-    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-audio --release"
+    build:
+      context: .
+      dockerfile: bins/Dockerfile
+    command: cargo run -p nim-audio --release
     working_dir: /app
     environment:
       NATS_URL: nats://nats:4222
@@ -91,8 +97,10 @@ services:
 
   vision:
     container_name: nim-vision
-    image: rust:alpine
-    command: sh -c "apk add musl-dev pkgconfig openssl-dev openssl-libs-static g++ && cargo run -p nim-vision --release"
+    build:
+      context: .
+      dockerfile: bins/Dockerfile
+    command: cargo run -p nim-vision --release
     working_dir: /app
     environment:
       NATS_URL: nats://nats:4222

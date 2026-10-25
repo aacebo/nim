@@ -1,18 +1,34 @@
-use crate::Error;
-use crate::models::{ClassifyMode, ClassifyOptions, ModelArgs, load};
+use crate::models::{ClassifyMedia, ClassifyOptions, ModelArgs, load};
 use crate::types::Annotation;
+use crate::{Error, tasks};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
     pub model: ModelArgs,
-    pub limit: usize,
+    pub min_score: f64,
+
+    #[serde(default)]
+    pub limit: Option<usize>,
+
+    #[serde(default)]
+    pub labels: Option<Vec<String>>,
+
+    #[serde(default)]
+    pub multi_label: bool,
+
+    #[serde(default)]
+    pub hypothesis_template: Option<String>,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
             model: Default::default(),
-            limit: 5,
+            min_score: 0.0,
+            limit: Some(5),
+            labels: None,
+            multi_label: false,
+            hypothesis_template: None,
         }
     }
 }
@@ -24,24 +40,26 @@ pub fn run(input: &[&[u8]]) -> Result<Vec<Vec<Annotation>>, Error> {
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Vec<Annotation>>, Error> {
-    let classify_options = ClassifyOptions {
-        mode: ClassifyMode::Whole,
-        min_score: 0.0,
-        limit: Some(options.limit),
+    let mut classify_options = ClassifyOptions {
+        min_score: options.min_score,
+        limit: options.limit,
+        labels: options.labels.as_deref(),
+        multi_label: options.multi_label,
+        hypothesis_template: options.hypothesis_template.as_deref().unwrap_or("This example is about {}."),
         ..Default::default()
     };
+
     classify_options.validate()?;
 
     if input.is_empty() {
         return Ok(Vec::new());
     }
 
-    if options.limit == 0 {
-        return Ok(vec![Vec::new(); input.len()]);
-    }
-
     let api_key = options.model.api_key.clone();
-    let model = load(&options.model.resolve(super::defaults::classify())?, &api_key)?;
+    let default = super::defaults::classify();
+    let model = load(&options.model.resolve(default)?, &api_key)?;
+    classify_options.mode = model.classify_mode(ClassifyMedia::Audio)?;
     let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
-    crate::tasks::classify(capable, &model.context(), input, classify_options.clone())
+    let out = tasks::classify(capable, &model.context(), input, classify_options)?;
+    Ok(out)
 }

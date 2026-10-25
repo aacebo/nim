@@ -50,8 +50,8 @@ impl Model {
         })
     }
 
-    pub fn forward(&self, bytes: &[u8], config: &Config, device: &candle_core::Device) -> Result<Tensor, Error> {
-        let features = self.processor.features(bytes, config)?;
+    pub fn forward(&self, bytes: &[u8], config: &Config, device: &candle_core::Device) -> Result<(Tensor, f64), Error> {
+        let (features, duration) = self.processor.features(bytes, config)?;
         let frames = features.len();
         let values = features.into_iter().flatten().collect::<Vec<_>>();
         let mut output = Tensor::from_vec(values, (1, frames, 64), device)?
@@ -71,7 +71,7 @@ impl Model {
         let right = self.backward.forward(&output.contiguous()?.flip(&[1])?)?.flip(&[1])?;
         let output = candle_nn::ops::sigmoid(&Tensor::cat(&[left, right], 2)?.apply(&self.classifier)?)?;
 
-        Ok(output.sqr()?.sum(1)?.broadcast_div(&output.sum(1)?)?)
+        Ok((output.sqr()?.sum(1)?.broadcast_div(&output.sum(1)?)?, duration))
     }
 }
 

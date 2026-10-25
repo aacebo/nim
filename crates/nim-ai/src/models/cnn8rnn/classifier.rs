@@ -4,7 +4,7 @@ use candle_nn::VarBuilder;
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
-use crate::types::Annotation;
+use crate::types::{Annotation, Span, TimeSpan};
 
 use super::config::Config;
 use super::model::Model;
@@ -51,13 +51,17 @@ impl Classify for Classifier {
                     .model
                     .lock()
                     .map_err(|_| Error::custom("ai", "audio classification model lock poisoned"))?;
-                let probabilities = model.forward(input, &self.config, ctx.device())?.to_vec2::<f32>()?;
+                let (probabilities, duration) = model.forward(input, &self.config, ctx.device())?;
+                let probabilities = probabilities.to_vec2::<f32>()?;
                 let mut labels: Vec<_> = probabilities[0]
                     .iter()
                     .enumerate()
                     .map(|(index, score)| Annotation {
                         name: String::from("classification"),
-                        spans: Vec::new(),
+                        spans: vec![Span::Audio(TimeSpan {
+                            begin: 0.0,
+                            end: duration,
+                        })],
                         label: self.labels[index].clone(),
                         score: *score as f64,
                     })

@@ -113,7 +113,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                 ..Default::default()
             },
             min_score: 0.2,
-            limit: Some(5),
             ..Default::default()
         },
     )?;

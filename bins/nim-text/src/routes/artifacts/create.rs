@@ -126,12 +126,46 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
     let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
+    let label_annotations = nim::ai::pipelines::text::classify::run_with(
+        &input,
+        nim::ai::pipelines::text::classify::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some("facebook/bart-large-mnli".into()),
+                ..Default::default()
+            },
+            labels: Some(vec![
+                nim::state::Label::Entity.as_classify_label().to_string(),
+                nim::state::Label::Valence.as_classify_label().to_string(),
+                nim::state::Label::Emotion.as_classify_label().to_string(),
+                nim::state::Label::Salience.as_classify_label().to_string(),
+                nim::state::Label::Threat.as_classify_label().to_string(),
+                nim::state::Label::Reward.as_classify_label().to_string(),
+                nim::state::Label::Novelty.as_classify_label().to_string(),
+                nim::state::Label::Familiarity.as_classify_label().to_string(),
+                nim::state::Label::Confidence.as_classify_label().to_string(),
+                nim::state::Label::SelfRelevance.as_classify_label().to_string(),
+                nim::state::Label::SocialRelevance.as_classify_label().to_string(),
+                nim::state::Label::Temporal.as_classify_label().to_string(),
+                nim::state::Label::Spatial.as_classify_label().to_string(),
+            ]),
+            multi_label: true,
+            ..Default::default()
+        },
+    )?;
 
     for (i, annotation) in annotations.iter().enumerate() {
+        let mut label_annotations = label_annotations[i].clone();
+        label_annotations.sort_by(|a, b| b.score.total_cmp(&a.score));
+        let label = if let Some(first) = label_annotations.first() {
+            nim::state::Label::try_from_classify_label(&first.label).unwrap_or_default()
+        } else {
+            nim::state::Label::Unknown
+        };
+
         let existing = ctx
             .services()
             .annotations()
-            .find_by_artifact_label(signal.content.id, nim::state::Label::Unknown, labels[i])
+            .find_by_artifact_label(signal.content.id, label, labels[i])
             .await?;
 
         if existing.is_some() {
@@ -153,7 +187,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .annotations()
             .create(nim::state::AnnotationCreate {
                 artifact_id: signal.content.id,
-                label: nim::state::Label::Unknown,
+                label,
                 text: labels[i].to_string(),
                 spans: &spans,
                 embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),

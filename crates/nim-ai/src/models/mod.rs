@@ -84,6 +84,7 @@ impl ModelArgs {
 
 /// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
 /// for two routines now loads its weights once.
+#[tracing::instrument]
 pub fn load(model: &ModelRef, api_key: &Option<String>) -> Result<std::sync::Arc<crate::models::Model>, Error> {
     use candle_core::{DType, Device};
 

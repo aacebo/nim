@@ -1,6 +1,6 @@
 pub use nim_store::Span;
 
-use crate::{Embedding, MemoryId};
+use crate::{Embedding, Error, MemoryId};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Annotation {
@@ -162,6 +162,46 @@ pub enum Label {
     /// unknown
     #[default]
     Unknown,
+}
+
+impl Label {
+    pub fn try_from_classify_label(label: impl AsRef<str>) -> Result<Self, Error> {
+        match label.as_ref() {
+            "a person, animal, object, or organization" => Ok(Self::Entity),
+            "positive or negative feelings" => Ok(Self::Valence),
+            "an emotion or emotional reaction" => Ok(Self::Emotion),
+            "importance or attention priority" => Ok(Self::Salience),
+            "danger, harm, or risk" => Ok(Self::Threat),
+            "a benefit, gain, or reward" => Ok(Self::Reward),
+            "something new or unexpected" => Ok(Self::Novelty),
+            "something known or familiar" => Ok(Self::Familiarity),
+            "certainty, doubt, or uncertainty" => Ok(Self::Confidence),
+            "the speaker's identity, needs, or goals" => Ok(Self::SelfRelevance),
+            "relationships or social interactions" => Ok(Self::SocialRelevance),
+            "a time, date, or duration" => Ok(Self::Temporal),
+            "a location, direction, or spacial relationship" => Ok(Self::Spatial),
+            v => Err(Error::custom(format!("provided label `{v}` is invalid"))),
+        }
+    }
+
+    pub fn as_classify_label(&self) -> &'static str {
+        match self {
+            Self::Entity => "a person, animal, object, or organization",
+            Self::Valence => "positive or negative feelings",
+            Self::Emotion => "an emotion or emotional reaction",
+            Self::Salience => "importance or attention priority",
+            Self::Threat => "danger, harm, or risk",
+            Self::Reward => "a benefit, gain, or reward",
+            Self::Novelty => "something new or unexpected",
+            Self::Familiarity => "something known or familiar",
+            Self::Confidence => "certainty, doubt, or uncertainty",
+            Self::SelfRelevance => "the speaker's identity, needs, or goals",
+            Self::SocialRelevance => "relationships or social interactions",
+            Self::Temporal => "a time, date, or duration",
+            Self::Spatial => "a location, direction, or spacial relationship",
+            Self::Unknown => "unknown",
+        }
+    }
 }
 
 impl std::fmt::Display for Label {

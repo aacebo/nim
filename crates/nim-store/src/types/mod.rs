@@ -9,6 +9,7 @@ mod plan;
 mod prediction;
 mod region;
 mod source;
+mod span;
 
 pub use annotation::*;
 pub use artifact::*;
@@ -21,3 +22,4 @@ pub use plan::*;
 pub use prediction::*;
 pub use region::*;
 pub use source::*;
+pub use span::*;

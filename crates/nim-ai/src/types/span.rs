@@ -18,6 +18,20 @@ impl Span {
         }
     }
 
+    pub fn as_image(&self) -> Option<&BoundingBox> {
+        match self {
+            Self::Image(v) => Some(v),
+            Self::Text(_) | Self::Audio(_) => None,
+        }
+    }
+
+    pub fn as_audio(&self) -> Option<&TimeSpan> {
+        match self {
+            Self::Audio(v) => Some(v),
+            Self::Text(_) | Self::Image(_) => None,
+        }
+    }
+
     pub fn text<'a>(&self, input: &'a [u8]) -> Result<Option<&'a str>, Error> {
         let Self::Text(offset) = self else {
             return Ok(None);

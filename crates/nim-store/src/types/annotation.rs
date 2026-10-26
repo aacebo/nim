@@ -1,3 +1,5 @@
+use crate::Span;
+
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct AnnotationRow {
     pub id: uuid::Uuid,
@@ -9,12 +11,6 @@ pub struct AnnotationRow {
     pub embedding: Option<pgvector::Vector>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Span {
-    pub start: u32,
-    pub end: u32,
 }
 
 #[non_exhaustive]

@@ -196,7 +196,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .spans
             .iter()
             .filter_map(nim::ai::types::Span::as_text)
-            .map(|v| nim::state::Span {
+            .map(|v| nim::state::Span::Text {
                 start: v.begin,
                 end: v.end,
             })

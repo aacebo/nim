@@ -172,8 +172,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let spans = annotation
             .spans
             .iter()
-            .filter_map(nim::ai::types::Span::as_text)
-            .map(|v| nim::state::Span {
+            .filter_map(nim::ai::types::Span::as_audio)
+            .map(|v| nim::state::Span::Audio {
                 start: v.begin,
                 end: v.end,
             })

@@ -195,10 +195,12 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let spans = annotation
             .spans
             .iter()
-            .filter_map(nim::ai::types::Span::as_text)
-            .map(|v| nim::state::Span {
-                start: v.begin,
-                end: v.end,
+            .filter_map(nim::ai::types::Span::as_image)
+            .map(|v| nim::state::Span::Image {
+                xmin: v.xmin,
+                ymin: v.ymin,
+                xmax: v.xmax,
+                ymax: v.ymax,
             })
             .collect::<Vec<_>>();
 

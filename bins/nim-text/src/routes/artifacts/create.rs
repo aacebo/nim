@@ -14,6 +14,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         } => tokio::fs::read_to_string(path).await?,
     };
 
+    tracing::debug!("summarizing...");
     let artifacts = nim::ai::pipelines::text::summarize::run(&[text.as_bytes()])?;
     let Some(summary) = artifacts.first() else {
         return Err(Error::custom(format!(
@@ -22,6 +23,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         )));
     };
 
+    ctx.ack_progress().await?;
     let artifact = ctx
         .services()
         .artifacts()
@@ -50,6 +52,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     };
 
     let memory = if let Some(v) = memory {
+        tracing::debug!("updating existing memory...");
         let mut sources = v.sources;
 
         if !sources.contains(&nim::state::Source::Region(nim::state::Region::Text)) {
@@ -71,6 +74,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         ctx.signals().publish("nim.memory.update", memory.clone()).await?;
         memory
     } else {
+        tracing::debug!("creating new memory...");
         let memory = ctx
             .services()
             .memories()
@@ -86,9 +90,13 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         memory
     };
 
+    ctx.ack_progress().await?;
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
     // Named entities: people, organizations, locations
+
+    tracing::debug!("extracting entities...");
+
     let annotations = nim::ai::pipelines::text::classify::run_with(
         &[text.as_bytes()],
         nim::ai::pipelines::text::classify::Options {
@@ -104,6 +112,9 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let Some(annotations) = annotations.first() else {
         return Ok(());
     };
+
+    ctx.ack_progress().await?;
+    tracing::debug!("extracting keywords...");
 
     let keywords = nim::ai::pipelines::text::classify::run_with(
         &[text.as_bytes()],
@@ -121,11 +132,17 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         return Ok(());
     };
 
+    ctx.ack_progress().await?;
     let annotations = annotations.iter().chain(keywords).collect::<Vec<_>>();
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+
+    tracing::debug!("generating label embeddings...");
     let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
+    ctx.ack_progress().await?;
+
+    tracing::debug!("generating label categories...");
     let label_annotations = nim::ai::pipelines::text::classify::run_with(
         &input,
         nim::ai::pipelines::text::classify::Options {
@@ -153,6 +170,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         },
     )?;
 
+    ctx.ack_progress().await?;
+
     for (i, annotation) in annotations.iter().enumerate() {
         let mut label_annotations = label_annotations[i].clone();
         label_annotations.sort_by(|a, b| b.score.total_cmp(&a.score));
@@ -172,6 +191,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             continue;
         }
 
+        tracing::debug!("creating annotation [{label}] -> {}", annotation.score);
         let spans = annotation
             .spans
             .iter()
@@ -196,6 +216,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .await?;
 
         ctx.signals().publish("nim.annotation.create", annotation).await?;
+        ctx.ack_progress().await?;
     }
 
     // Calculate Memory Confidence

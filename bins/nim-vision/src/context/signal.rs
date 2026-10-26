@@ -21,6 +21,11 @@ impl SignalContext {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn ack_progress(&self) -> Result<(), Error> {
+        Ok(self.message.ack_with(nim::signals::AckKind::Progress).await?)
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn nack(&self) -> Result<(), Error> {
         Ok(self
             .message

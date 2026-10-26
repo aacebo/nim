@@ -1,7 +1,9 @@
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use crate::{
     Error,
+    clients::download::Download,
     resources::{Asset, AssetData, Repository, Uri, cache},
 };
 
@@ -30,28 +32,62 @@ impl Repository for Http {
     }
 
     fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
-        let url = url::Url::from_file_path(path).map_err(|_| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
+        let filename = path
+            .to_str()
+            .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
+        let key = url::Url::from_file_path(path)
+            .map(|url| url.to_string())
+            .unwrap_or_else(|_| filename.to_string());
         let cached = cache::dir()
             .unwrap_or_else(std::env::temp_dir)
             .join("urls")
             .join(slug(&self.base.to_string()))
-            .join(url.as_str());
+            .join(key);
+        let mut progress = Download::new(&self.base.to_string(), filename);
 
         if cached.exists() {
+            progress.cached();
             return Ok(cached);
         }
 
-        let url = self.base.join(url.as_str())?.to_string();
-        let response = reqwest::blocking::get(&url)?;
-        let response = response.error_for_status()?;
-        let bytes = response.bytes()?;
+        progress.start();
 
-        if let Some(dir) = cached.parent() {
-            std::fs::create_dir_all(dir)?;
+        let result = (|| -> Result<PathBuf, Error> {
+            let url = self.base.join(filename)?.to_string();
+            let mut response = reqwest::blocking::get(&url)?.error_for_status()?;
+            progress.reset(response.content_length());
+            let mut bytes = Vec::new();
+            let mut buffer = [0u8; 65536];
+
+            loop {
+                let read = response.read(&mut buffer)?;
+
+                if read == 0 {
+                    break;
+                }
+
+                bytes.extend_from_slice(&buffer[..read]);
+                progress.update(read);
+            }
+
+            if let Some(dir) = cached.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+
+            std::fs::write(&cached, &bytes)?;
+            Ok(cached)
+        })();
+
+        match result {
+            Ok(cached) => {
+                progress.complete();
+                Ok(cached)
+            }
+            Err(error) => {
+                progress.failed();
+                Err(error)
+            }
         }
-
-        std::fs::write(&cached, &bytes)?;
-        Ok(cached)
     }
 }
 

@@ -14,6 +14,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         } => tokio::fs::read(path).await?.to_vec(),
     };
 
+    tracing::debug!("generating captions...");
     let captions = nim::ai::pipelines::audio::captions::run(&[bytes.as_slice()])?;
     let Some(caption) = captions.first() else {
         return Err(Error::custom(format!(
@@ -22,6 +23,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         )));
     };
 
+    ctx.ack_progress().await?;
     let artifact = ctx
         .services()
         .artifacts()
@@ -50,6 +52,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     };
 
     let memory = if let Some(v) = memory {
+        tracing::debug!("updating existing memory...");
         let mut sources = v.sources;
 
         if !sources.contains(&nim::state::Source::Region(nim::state::Region::Audio)) {
@@ -71,6 +74,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         ctx.signals().publish("nim.memory.update", memory.clone()).await?;
         memory
     } else {
+        tracing::debug!("creating new memory...");
         let memory = ctx
             .services()
             .memories()
@@ -86,8 +90,10 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         memory
     };
 
+    ctx.ack_progress().await?;
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
+    tracing::debug!("classifying audio...");
     let annotations = nim::ai::pipelines::audio::classify::run_with(
         &[bytes.as_slice()],
         nim::ai::pipelines::audio::classify::Options {
@@ -101,22 +107,68 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         return Ok(());
     };
 
+    ctx.ack_progress().await?;
+
     let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
     let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
     let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
+
+    tracing::debug!("generating label embeddings...");
     let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
+    ctx.ack_progress().await?;
+
+    tracing::debug!("generating label categories...");
+    let label_annotations = nim::ai::pipelines::text::classify::run_with(
+        &input,
+        nim::ai::pipelines::text::classify::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some("facebook/bart-large-mnli".into()),
+                ..Default::default()
+            },
+            labels: Some(vec![
+                nim::state::Label::Entity.as_classify_label().to_string(),
+                nim::state::Label::Valence.as_classify_label().to_string(),
+                nim::state::Label::Emotion.as_classify_label().to_string(),
+                nim::state::Label::Salience.as_classify_label().to_string(),
+                nim::state::Label::Threat.as_classify_label().to_string(),
+                nim::state::Label::Reward.as_classify_label().to_string(),
+                nim::state::Label::Novelty.as_classify_label().to_string(),
+                nim::state::Label::Familiarity.as_classify_label().to_string(),
+                nim::state::Label::Confidence.as_classify_label().to_string(),
+                nim::state::Label::SelfRelevance.as_classify_label().to_string(),
+                nim::state::Label::SocialRelevance.as_classify_label().to_string(),
+                nim::state::Label::Temporal.as_classify_label().to_string(),
+                nim::state::Label::Spatial.as_classify_label().to_string(),
+            ]),
+            multi_label: true,
+            min_score: 0.2,
+            limit: None,
+            ..Default::default()
+        },
+    )?;
+
+    ctx.ack_progress().await?;
 
     for (i, annotation) in annotations.iter().enumerate() {
+        let mut label_annotations = label_annotations.get(i).cloned().unwrap_or_default();
+        label_annotations.sort_by(|a, b| b.score.total_cmp(&a.score));
+        let label = if let Some(first) = label_annotations.first() {
+            nim::state::Label::try_from_classify_label(&first.label).unwrap_or_default()
+        } else {
+            nim::state::Label::Unknown
+        };
+
         let existing = ctx
             .services()
             .annotations()
-            .find_by_artifact_label(signal.content.id, nim::state::Label::Unknown, labels[i])
+            .find_by_artifact_label(signal.content.id, label, labels[i])
             .await?;
 
         if existing.is_some() {
             continue;
         }
 
+        tracing::debug!("creating annotation [{label}] -> {}", annotation.score);
         let spans = annotation
             .spans
             .iter()
@@ -132,7 +184,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .annotations()
             .create(nim::state::AnnotationCreate {
                 artifact_id: signal.content.id,
-                label: nim::state::Label::Unknown,
+                label,
                 text: labels[i].to_string(),
                 spans: &spans,
                 embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
@@ -141,6 +193,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .await?;
 
         ctx.signals().publish("nim.annotation.create", annotation).await?;
+        ctx.ack_progress().await?;
     }
 
     let annotations = ctx.services().annotations().find_by_artifact_id(signal.content.id).await?;

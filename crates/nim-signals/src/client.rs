@@ -47,6 +47,7 @@ impl Client {
                 async_nats::jetstream::consumer::pull::Config {
                     durable_name: Some(self.name.clone()),
                     filter_subject: subject.to_subject().into_string(),
+                    ack_wait: std::time::Duration::from_mins(5),
                     ..Default::default()
                 },
             )

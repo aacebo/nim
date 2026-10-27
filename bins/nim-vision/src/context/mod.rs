@@ -41,63 +41,9 @@ impl Context {
         );
 
         sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
-        let signals = nim::signals::connect_with(
-            "vision",
-            &config.nats_url,
-            nim::signals::ConnectOptions {
-                streams: vec![
-                    nim::signals::StreamConfig {
-                        name: "ARTIFACTS".into(),
-                        max_messages: 10_000,
-                        subjects: vec![
-                            "nim.vision.artifact.create".into(),
-                            "nim.audio.artifact.create".into(),
-                            "nim.text.artifact.create".into(),
-                            "nim.unknown.artifact.create".into(),
-                            "nim.vision.artifact.update".into(),
-                            "nim.audio.artifact.update".into(),
-                            "nim.text.artifact.update".into(),
-                            "nim.unknown.artifact.update".into(),
-                        ],
-                        ..Default::default()
-                    },
-                    nim::signals::StreamConfig {
-                        name: "MEMORIES".into(),
-                        max_messages: 10_000,
-                        subjects: vec![
-                            "nim.memory.create".into(),
-                            "nim.memory.update".into(),
-                            "nim.memory.delete".into(),
-                        ],
-                        ..Default::default()
-                    },
-                    nim::signals::StreamConfig {
-                        name: "ENTITIES".into(),
-                        max_messages: 10_000,
-                        subjects: vec![
-                            "nim.entity.create".into(),
-                            "nim.entity.update".into(),
-                            "nim.entity.delete".into(),
-                        ],
-                        ..Default::default()
-                    },
-                    nim::signals::StreamConfig {
-                        name: "ANNOTATIONS".into(),
-                        max_messages: 10_000,
-                        subjects: vec![
-                            "nim.annotation.create".into(),
-                            "nim.annotation.update".into(),
-                            "nim.annotation.delete".into(),
-                        ],
-                        ..Default::default()
-                    },
-                ],
-                ..Default::default()
-            },
-        )
-        .await?;
-
+        let signals = nim::signals::connect("vision", &config.nats_url).await?;
         let signals = std::sync::Arc::new(signals);
+
         Ok(Self {
             span,
             config,

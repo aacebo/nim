@@ -31,7 +31,7 @@ async fn main() -> Result<(), Error> {
     while let Some(req) = artifacts.next().await {
         let (message, signal) = req?;
         let subject = message.subject.to_string();
-        let ctx = ctx.clone().into_signal(message);
+        let ctx = ctx.clone().into_signal(signal.id, message);
 
         tracing::info!("[{subject}] -> processing...");
 

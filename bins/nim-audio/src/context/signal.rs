@@ -4,15 +4,30 @@ use crate::{Context, Error};
 pub struct SignalContext {
     inner: Context,
     message: nim::signals::Message,
+    signals: std::sync::Arc<nim::signals::SourceClient>,
 }
 
 impl SignalContext {
-    pub(crate) fn new(inner: Context, message: nim::signals::Message) -> Self {
-        Self { inner, message }
+    pub(crate) fn new(inner: Context, source_id: uuid::Uuid, message: nim::signals::Message) -> Self {
+        let signals = inner.signals.source(source_id);
+
+        Self {
+            inner,
+            message,
+            signals: std::sync::Arc::new(signals),
+        }
     }
 
     pub fn span(&self) -> &tracing::Span {
-        &self.span
+        &self.inner.span
+    }
+
+    pub fn services(&self) -> nim::state::Services<'_> {
+        self.inner.services()
+    }
+
+    pub fn signals(&self) -> &nim::signals::SourceClient {
+        &self.signals
     }
 
     #[tracing::instrument(skip(self))]
@@ -31,13 +46,5 @@ impl SignalContext {
             .message
             .ack_with(nim::signals::AckKind::Nak(Some(std::time::Duration::from_millis(1000 * 5))))
             .await?)
-    }
-}
-
-impl std::ops::Deref for SignalContext {
-    type Target = super::Context;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
     }
 }

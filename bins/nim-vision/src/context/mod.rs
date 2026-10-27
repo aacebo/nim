@@ -25,8 +25,8 @@ impl Context {
         &self.signals
     }
 
-    pub fn into_signal(self, message: nim::signals::Message) -> SignalContext {
-        SignalContext::new(self, message)
+    pub fn into_signal(self, id: uuid::Uuid, message: nim::signals::Message) -> SignalContext {
+        SignalContext::new(self, id, message)
     }
 }
 

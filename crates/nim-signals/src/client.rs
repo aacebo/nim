@@ -2,6 +2,7 @@ use async_nats::{jetstream, service::ServiceExt};
 
 use crate::{Error, Service, ServiceError, Signal, Stream};
 
+#[derive(Clone)]
 pub struct Client {
     name: String,
     context: jetstream::Context,
@@ -12,6 +13,13 @@ impl Client {
         Self {
             name: name.as_ref().to_string(),
             context,
+        }
+    }
+
+    pub fn source(&self, source_id: uuid::Uuid) -> SourceClient {
+        SourceClient {
+            source_id,
+            inner: self.clone(),
         }
     }
 
@@ -27,7 +35,13 @@ impl Client {
         S: std::fmt::Debug + async_nats::ToSubject,
         T: std::fmt::Debug + serde::Serialize,
     {
-        let signal = Signal::from(signal);
+        let signal = Signal {
+            id: uuid::Uuid::now_v7(),
+            source_id: None,
+            content: signal,
+            sent_at: chrono::Utc::now(),
+        };
+
         let bytes = serde_json::to_vec(&signal)?;
         let _ = self.context.publish(subject, bytes.into()).await?.await?;
         Ok(())
@@ -84,5 +98,30 @@ impl Client {
         }
 
         Ok(serde_json::from_slice(&message.payload)?)
+    }
+}
+
+pub struct SourceClient {
+    source_id: uuid::Uuid,
+    inner: Client,
+}
+
+impl SourceClient {
+    #[tracing::instrument(skip(self))]
+    pub async fn publish<S, T>(&self, subject: S, signal: T) -> Result<(), Error>
+    where
+        S: std::fmt::Debug + async_nats::ToSubject,
+        T: std::fmt::Debug + serde::Serialize,
+    {
+        let signal = Signal {
+            id: uuid::Uuid::now_v7(),
+            source_id: Some(self.source_id),
+            content: signal,
+            sent_at: chrono::Utc::now(),
+        };
+
+        let bytes = serde_json::to_vec(&signal)?;
+        let _ = self.inner.context.publish(subject, bytes.into()).await?.await?;
+        Ok(())
     }
 }

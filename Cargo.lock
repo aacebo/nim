@@ -2332,6 +2332,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nim-sleep"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "nim",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "nim-state"
 version = "0.0.0"
 dependencies = [

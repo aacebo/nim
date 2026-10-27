@@ -30,7 +30,7 @@ services:
     container_name: nim-gateway
     build:
       context: .
-      dockerfile: bins/Dockerfile
+      dockerfile: bins/nim-gateway/Dockerfile
     command: cargo run -p nim-gateway --release
     working_dir: /app
     ports:
@@ -54,7 +54,7 @@ services:
     container_name: nim-text
     build:
       context: .
-      dockerfile: bins/Dockerfile
+      dockerfile: bins/nim-text/Dockerfile
     command: cargo run -p nim-text --release
     working_dir: /app
     environment:
@@ -75,7 +75,7 @@ services:
     container_name: nim-audio
     build:
       context: .
-      dockerfile: bins/Dockerfile
+      dockerfile: bins/nim-audio/Dockerfile
     command: cargo run -p nim-audio --release
     working_dir: /app
     environment:
@@ -97,7 +97,7 @@ services:
     container_name: nim-vision
     build:
       context: .
-      dockerfile: bins/Dockerfile
+      dockerfile: bins/nim-vision/Dockerfile
     command: cargo run -p nim-vision --release
     working_dir: /app
     environment:
@@ -113,6 +113,27 @@ services:
         condition: service_healthy
       nats:
         condition: service_started
+
+  sleep:
+    container_name: nim-sleep
+    build:
+      context: .
+      dockerfile: bins/nim-sleep/Dockerfile
+    command: crond -f -l 2
+    working_dir: /app
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      RUST_LOG: info
+    volumes:
+      - .:/app
+      - /app/target
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   nats:

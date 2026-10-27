@@ -1,1 +1,5 @@
-0 2 * * * cd /app && /usr/local/cargo/bin/cargo run -p nim-sleep --release > /proc/1/fd/1 2>&1
+PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/bin:/bin
+DATABASE_URL=postgres://admin:admin@postgres:5432/main
+NATS_URL=nats://nats:4222
+
+*/3 * * * * root cd /app && /usr/local/cargo/bin/cargo run -p nim-sleep --release > /proc/1/fd/1 2>&1

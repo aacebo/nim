@@ -32,36 +32,12 @@ async fn main() -> Result<(), Error> {
 
 #[tracing::instrument]
 async fn start() -> Result<(), Error> {
-    tracing::info!("listening...");
+    tracing::info!("started");
     Ok(())
 }
 
 #[tracing::instrument]
 async fn stop() -> Result<(), Error> {
-    let ctrl_c = async {
-        if let Err(error) = tokio::signal::ctrl_c().await {
-            tracing::error!(%error, "failed to listen for Ctrl-C");
-        }
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
-            Ok(mut signal) => {
-                signal.recv().await;
-            }
-            Err(error) => tracing::error!(%error, "failed to listen for SIGTERM"),
-        }
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {}
-        _ = terminate => {}
-    }
-
-    tracing::info!("shutdown signal received");
+    tracing::info!("complete");
     Ok(())
 }

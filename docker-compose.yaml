@@ -122,12 +122,12 @@ services:
     volumes:
       - .:/app
       - /app/target
+      - ./.cache:/.cache
     depends_on:
       postgres:
         condition: service_healthy
       nats:
         condition: service_started
-    restart: unless-stopped
 
 volumes:
   nats:

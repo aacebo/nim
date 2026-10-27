@@ -8,4 +8,4 @@ WORKDIR /app
 
 COPY --chmod=0644 bins/nim-sleep/crontab /etc/cron.d/nim-sleep
 
-CMD ["sh", "-c", "printenv | sed -n '/^DATABASE_URL=/p; /^NATS_URL=/p; /^RUST_LOG=/p' > /etc/environment && exec cron -f"]
+CMD ["sh", "-c", "printenv > /etc/environment && cargo build -p nim-sleep --release && exec cron -f"]

@@ -1,1 +1,2 @@
+PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 */5 * * * * root cd /app && /usr/local/cargo/bin/cargo run -p nim-sleep --release > /proc/1/fd/1 2>&1

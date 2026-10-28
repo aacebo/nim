@@ -12,13 +12,16 @@ const REQUEST_ID_HEADER: &str = "X-Request-ID";
 
 #[derive(Clone)]
 pub struct HttpContext {
-    #[allow(unused)]
     request_id: uuid::Uuid,
     span: tracing::Span,
     inner: Arc<super::Context>,
 }
 
 impl HttpContext {
+    pub fn request_id(&self) -> &uuid::Uuid {
+        &self.request_id
+    }
+
     pub fn span(&self) -> &tracing::Span {
         &self.span
     }
@@ -54,6 +57,8 @@ where
     name = "http.request",
     skip_all,
     fields(
+        otel.kind = "server",
+        network.protocol.name = "http",
         request_id = tracing::field::Empty,
         method = tracing::field::Empty,
         path = tracing::field::Empty,

@@ -1,7 +1,7 @@
 {
   "uid": "nim-service-mesh",
   "title": "NIM Service Mesh",
-  "description": "Trace-derived traffic between NIM services. Edges represent observed operations, not network-level connections. Metrics begin when Alloy receives correlated spans; idle services may not appear.",
+  "description": "Trace-derived traffic between NIM services. Edges represent observed operations, not network-level connections. Metrics begin when Alloy receives correlated spans; idle services may not appear. Connections are colored by transport: NATS blue, HTTP orange, Unknown/other gray.",
   "tags": [
     "nim",
     "observability",
@@ -23,11 +23,11 @@
     {
       "id": 1,
       "title": "Service traffic flow",
-      "description": "Connections inferred from correlated producer/consumer and client/server spans. Generate traffic and select a time range that includes it.",
+      "description": "Trace-derived service connections. Blue: NATS. Orange: HTTP. Gray: Unknown/other. Hover or click an edge for transport and request rate. Separate transports between the same services have distinct edges.",
       "type": "nodeGraph",
       "datasource": {
-        "type": "tempo",
-        "uid": "tempo"
+        "type": "prometheus",
+        "uid": "prometheus"
       },
       "gridPos": {
         "x": 0,
@@ -37,20 +37,107 @@
       },
       "targets": [
         {
-          "refId": "A",
+          "refId": "edges",
           "datasource": {
-            "type": "tempo",
-            "uid": "tempo"
+            "type": "prometheus",
+            "uid": "prometheus"
           },
-          "queryType": "serviceMap",
-          "serviceMapQuery": "{client=~\"nim-.*\",server=~\"nim-.*\"}"
+          "expr": "label_replace(label_replace(label_replace(label_join(label_replace(label_replace(label_replace(sum by (client, server, transport) (label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__range]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__range]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__range]), \"transport\", \"unknown\", \"client\", \".*\")), \"color\", \"#8E8E8E\", \"transport\", \".*\"), \"color\", \"#5794F2\", \"transport\", \"nats\"), \"color\", \"#FF9830\", \"transport\", \"http\"), \"id\", \"|\", \"client\", \"server\", \"transport\"), \"source\", \"$1\", \"client\", \"(.+)\"), \"target\", \"$1\", \"server\", \"(.+)\"), \"detail__transport\", \"$1\", \"transport\", \"(.+)\")",
+          "format": "table",
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
         "defaults": {},
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mainstat"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "displayName",
+                "value": "Request rate"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "detail__transport"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Transport"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "nats": {
+                        "text": "NATS"
+                      },
+                      "http": {
+                        "text": "HTTP"
+                      },
+                      "unknown": {
+                        "text": "Unknown"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
-      "options": {}
+      "options": {},
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "reduceRow",
+            "reduce": {
+              "reducer": "sum",
+              "include": [
+                "Value"
+              ]
+            },
+            "alias": "mainstat",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "client": true,
+              "server": true,
+              "transport": true,
+              "Value": true
+            },
+            "indexByName": {
+              "id": 0,
+              "source": 1,
+              "target": 2,
+              "detail__transport": 3,
+              "mainstat": 4,
+              "color": 5
+            },
+            "renameByName": {}
+          }
+        }
+      ]
     },
     {
       "id": 2,
@@ -62,7 +149,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 15,
+        "y": 17,
         "w": 8,
         "h": 8
       },
@@ -73,8 +160,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (client, server) (rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}[$__rate_interval]))",
-          "legendFormat": "{{client}} \u2192 {{server}}",
+          "expr": "sum by (client, server, transport) (label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__rate_interval]), \"transport\", \"unknown\", \"client\", \".*\"))",
+          "legendFormat": "{{client}} \u2192 {{server}} [{{transport}}]",
           "range": true
         }
       ],
@@ -106,7 +193,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 15,
+        "y": 17,
         "w": 8,
         "h": 8
       },
@@ -117,8 +204,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (client, server) (rate(traces_service_graph_request_failed_total{client=~\"nim-.*\",server=~\"nim-.*\"}[$__rate_interval])) / sum by (client, server) (rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}[$__rate_interval]))",
-          "legendFormat": "{{client}} \u2192 {{server}}",
+          "expr": "(sum by (client, server, transport) (label_replace(rate(traces_service_graph_request_failed_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_failed_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_failed_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__rate_interval]), \"transport\", \"unknown\", \"client\", \".*\")) or 0 * sum by (client, server, transport) (label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__rate_interval]), \"transport\", \"unknown\", \"client\", \".*\"))) / (sum by (client, server, transport) (label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__rate_interval]), \"transport\", \"unknown\", \"client\", \".*\")) > 0)",
+          "legendFormat": "{{client}} \u2192 {{server}} [{{transport}}]",
           "range": true
         }
       ],
@@ -150,7 +237,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 15,
+        "y": 17,
         "w": 8,
         "h": 8
       },
@@ -161,8 +248,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (le, client, server) (rate(traces_service_graph_request_server_seconds_bucket{client=~\"nim-.*\",server=~\"nim-.*\"}[$__rate_interval])))",
-          "legendFormat": "{{client}} \u2192 {{server}}",
+          "expr": "histogram_quantile(0.95, sum by (le, client, server, transport) (label_replace(rate(traces_service_graph_request_server_seconds_bucket{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_server_seconds_bucket{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__rate_interval]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_server_seconds_bucket{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__rate_interval]), \"transport\", \"unknown\", \"client\", \".*\")))",
+          "legendFormat": "{{client}} \u2192 {{server}} [{{transport}}]",
           "range": true
         }
       ],
@@ -182,6 +269,21 @@
           "mode": "multi",
           "sort": "desc"
         }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Transport legend",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 2
+      },
+      "options": {
+        "mode": "html",
+        "content": "<p><span style=\"color: #5794F2\">\u25cf NATS</span> &nbsp; <span style=\"color: #FF9830\">\u25cf HTTP</span> &nbsp; <span style=\"color: #8E8E8E\">\u25cf Unknown / other</span> &nbsp; Hover or click a connection for transport details.</p>"
       }
     }
   ],

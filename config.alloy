@@ -45,8 +45,23 @@ otelcol.receiver.otlp "local" {
   }
 
   output {
-    traces  = [otelcol.processor.batch.local.input]
+    traces  = [otelcol.processor.transform.transport.input]
     metrics = [otelcol.processor.batch.local.input]
+  }
+}
+
+otelcol.processor.transform "transport" {
+  trace_statements {
+    context = "span"
+    statements = [
+      `set(attributes["nim.transport"], "unknown")`,
+      `set(attributes["nim.transport"], attributes["network.protocol.name"]) where attributes["network.protocol.name"] != nil and attributes["network.protocol.name"] != ""`,
+      `set(attributes["nim.transport"], attributes["messaging.system"]) where attributes["messaging.system"] != nil and attributes["messaging.system"] != ""`,
+    ]
+  }
+
+  output {
+    traces = [otelcol.processor.batch.local.input]
   }
 }
 
@@ -62,6 +77,7 @@ otelcol.processor.batch "local" {
 }
 
 otelcol.connector.servicegraph "local" {
+  dimensions             = ["nim.transport"]
   metrics_flush_interval = "15s"
 
   output {

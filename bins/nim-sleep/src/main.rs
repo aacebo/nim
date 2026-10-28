@@ -15,7 +15,8 @@ async fn main() -> Result<(), Error> {
         .with(
             tracing_subscriber::filter::Targets::new()
                 .with_target("nim_sleep", tracing::Level::INFO)
-                .with_target("nim_ai", tracing::Level::INFO),
+                .with_target("nim_ai", tracing::Level::INFO)
+                .with_target("nim_state", tracing::Level::INFO),
         )
         .init();
 

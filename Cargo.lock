@@ -2300,6 +2300,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nim-encode"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "futures-util",
+ "nim",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "nim-gateway"
 version = "0.0.0"
 dependencies = [

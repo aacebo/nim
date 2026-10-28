@@ -110,6 +110,27 @@ services:
       nats:
         condition: service_started
 
+  encode:
+    container_name: nim-encode
+    build:
+      context: .
+      dockerfile: bins/nim-encode/Dockerfile
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      RUST_LOG: info
+      NIM_CACHE: /.cache
+    volumes:
+      - .:/app
+      - /app/target
+      - staging:/.staging
+      - ./.cache:/.cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
   sleep:
     container_name: nim-sleep
     build:

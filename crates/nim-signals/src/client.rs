@@ -28,7 +28,11 @@ impl Client {
         }
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(
+        name = "signal.publish",
+        skip(self, signal),
+        fields(otel.kind = "producer", messaging.system = "nats"),
+    )]
     pub async fn publish<S, T>(&self, subject: S, signal: T) -> Result<(), Error>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
@@ -57,7 +61,6 @@ impl Client {
     {
         let name = self.context.stream_by_subject(subject.to_subject().as_str()).await?;
         let stream = self.context.get_stream(&name).await?;
-
         let consumer = stream
             .get_or_create_consumer(
                 &self.name,
@@ -81,7 +84,11 @@ pub struct SourceClient {
 }
 
 impl SourceClient {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(
+        name = "signal.publish",
+        skip(self, signal),
+        fields(otel.kind = "producer", messaging.system = "nats"),
+    )]
     pub async fn publish<S, T>(&self, subject: S, signal: T) -> Result<(), Error>
     where
         S: std::fmt::Debug + async_nats::ToSubject,

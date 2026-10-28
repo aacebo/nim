@@ -49,7 +49,9 @@ where
             if let Some(headers) = &message.headers {
                 let span = tracing::info_span!(
                     "signal.process",
-                    subject = %message.subject,
+                    otel.kind = "consumer",
+                    messaging.system = "nats",
+                    messaging.destination.name = %message.subject,
                 );
 
                 let parent = self.propagator.extract(&NatsExtractor::from(headers));

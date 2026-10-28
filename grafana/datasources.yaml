@@ -19,6 +19,13 @@ datasources:
     type: tempo
     access: proxy
     url: http://tempo:3200
+    jsonData:
+      serviceMap:
+        datasourceUid: prometheus
+      tracesToMetrics:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
 
   - name: PostgreSQL
     uid: postgres

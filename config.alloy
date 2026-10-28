@@ -52,7 +52,34 @@ otelcol.receiver.otlp "local" {
 
 otelcol.processor.batch "local" {
   output {
-    traces  = [otelcol.exporter.otlp.tempo.input]
+    traces = [
+      otelcol.exporter.otlp.tempo.input,
+      otelcol.connector.servicegraph.local.input,
+      otelcol.connector.spanmetrics.local.input,
+    ]
+    metrics = [otelcol.exporter.prometheus.local.input]
+  }
+}
+
+otelcol.connector.servicegraph "local" {
+  metrics_flush_interval = "15s"
+
+  output {
+    metrics = [otelcol.exporter.prometheus.local.input]
+  }
+}
+
+otelcol.connector.spanmetrics "local" {
+  namespace              = "traces.spanmetrics"
+  metrics_flush_interval = "15s"
+
+  histogram {
+    unit = "s"
+
+    explicit {}
+  }
+
+  output {
     metrics = [otelcol.exporter.prometheus.local.input]
   }
 }

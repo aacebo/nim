@@ -80,6 +80,10 @@ otelcol.connector.servicegraph "local" {
   dimensions             = ["nim.transport"]
   metrics_flush_interval = "15s"
 
+  store {
+    ttl = "5m"
+  }
+
   output {
     metrics = [otelcol.exporter.prometheus.local.input]
   }

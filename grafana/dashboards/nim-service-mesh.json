@@ -23,7 +23,7 @@
     {
       "id": 1,
       "title": "Service traffic flow",
-      "description": "Trace-derived service connections. Blue: NATS. Orange: HTTP. Gray: Unknown/other. Hover or click an edge for transport and request rate. Separate transports between the same services have distinct edges.",
+      "description": "Nodes identify service roles: HTTP gateway or NATS worker. Edge hover shows HTTP/NATS and request rate. HTTP clients is an aggregate ingress node derived from actual gateway HTTP server spans. Click an edge for details. Individual requests are listed below.",
       "type": "nodeGraph",
       "datasource": {
         "type": "prometheus",
@@ -42,7 +42,18 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "label_replace(label_replace(label_replace(label_join(label_replace(label_replace(label_replace(sum by (client, server, transport) (label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__range]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__range]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__range]), \"transport\", \"unknown\", \"client\", \".*\")), \"color\", \"#8E8E8E\", \"transport\", \".*\"), \"color\", \"#5794F2\", \"transport\", \"nats\"), \"color\", \"#FF9830\", \"transport\", \"http\"), \"id\", \"|\", \"client\", \"server\", \"transport\"), \"source\", \"$1\", \"client\", \"(.+)\"), \"target\", \"$1\", \"server\", \"(.+)\"), \"detail__transport\", \"$1\", \"transport\", \"(.+)\")",
+          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_replace(label_replace((sum by (client, server, transport) (label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport!~\"unknown|\"}[$__range]), \"transport\", \"$1\", \"client_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport!~\"unknown|\"}[$__range]), \"transport\", \"$1\", \"server_nim_transport\", \"(.+)\") or label_replace(rate(traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\",client_nim_transport=~\"unknown|\",server_nim_transport=~\"unknown|\"}[$__range]), \"transport\", \"unknown\", \"client\", \".*\")) or label_replace(label_replace(label_replace(sum(rate(traces_spanmetrics_calls_total{service_name=\"nim-gateway\",span_kind=\"SPAN_KIND_SERVER\",span_name=\"http.request\"}[$__range])), \"client\", \"http-clients\", \"__name__\", \".*\"), \"server\", \"nim-gateway\", \"__name__\", \".*\"), \"transport\", \"http\", \"__name__\", \".*\")), \"color\", \"#8E8E8E\", \"__name__\", \".*\"), \"color\", \"#5794F2\", \"transport\", \"nats\"), \"color\", \"#FF9830\", \"transport\", \"http\"), \"id\", \"|\", \"client\", \"server\", \"transport\"), \"source\", \"$1\", \"client\", \"(.+)\"), \"target\", \"$1\", \"server\", \"(.+)\"), \"mainstat\", \"$1\", \"transport\", \"(.+)\"), \"mainstat\", \"NATS\", \"transport\", \"nats\"), \"mainstat\", \"HTTP\", \"transport\", \"http\"), \"detail__transport\", \"$1\", \"mainstat\", \"(.+)\")",
+          "format": "table",
+          "instant": true,
+          "range": false
+        },
+        {
+          "refId": "nodes",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace((sum by (id) (label_replace(sum by (client) (traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}), \"id\", \"$1\", \"client\", \"(.+)\") or label_replace(sum by (server) (traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}), \"id\", \"$1\", \"server\", \"(.+)\")) or label_replace(sum(rate(traces_spanmetrics_calls_total{service_name=\"nim-gateway\",span_kind=\"SPAN_KIND_SERVER\",span_name=\"http.request\"}[$__range])), \"id\", \"nim-gateway\", \"__name__\", \".*\") or label_replace(sum(rate(traces_spanmetrics_calls_total{service_name=\"nim-gateway\",span_kind=\"SPAN_KIND_SERVER\",span_name=\"http.request\"}[$__range])), \"id\", \"http-clients\", \"__name__\", \".*\")), \"title\", \"$1\", \"id\", \"(.+)\"), \"subtitle\", \"NATS worker\", \"__name__\", \".*\"), \"subtitle\", \"HTTP gateway\", \"id\", \"nim-gateway\"), \"subtitle\", \"HTTP clients\", \"id\", \"http-clients\"), \"detail__role\", \"$1\", \"subtitle\", \"(.+)\")",
           "format": "table",
           "instant": true,
           "range": false
@@ -50,70 +61,39 @@
       ],
       "fieldConfig": {
         "defaults": {},
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "mainstat"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "reqps"
-              },
-              {
-                "id": "displayName",
-                "value": "Request rate"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "detail__transport"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Transport"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "nats": {
-                        "text": "NATS"
-                      },
-                      "http": {
-                        "text": "HTTP"
-                      },
-                      "unknown": {
-                        "text": "Unknown"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
-      "options": {},
+      "options": {
+        "edges": {
+          "secondaryStatUnit": "reqps"
+        }
+      },
       "transformations": [
         {
           "id": "calculateField",
+          "filter": {
+            "id": "byRefId",
+            "options": "edges"
+          },
           "options": {
             "mode": "reduceRow",
             "reduce": {
               "reducer": "sum",
               "include": [
-                "Value"
+                "Value",
+                "Value #edges"
               ]
             },
-            "alias": "mainstat",
+            "alias": "secondarystat",
             "replaceFields": false
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(id|source|target|title|subtitle|mainstat|secondarystat|detail__.*|color)$"
+            }
           }
         },
         {
@@ -126,14 +106,7 @@
               "transport": true,
               "Value": true
             },
-            "indexByName": {
-              "id": 0,
-              "source": 1,
-              "target": 2,
-              "detail__transport": 3,
-              "mainstat": 4,
-              "color": 5
-            },
+            "indexByName": {},
             "renameByName": {}
           }
         }
@@ -212,7 +185,8 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "min": 0
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -225,7 +199,8 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "description": "Failed requests divided by total requests. The axis is fixed at 0\u2013100%; idle connections have no rate."
     },
     {
       "id": 4,
@@ -283,7 +258,67 @@
       },
       "options": {
         "mode": "html",
-        "content": "<p><span style=\"color: #5794F2\">\u25cf NATS</span> &nbsp; <span style=\"color: #FF9830\">\u25cf HTTP</span> &nbsp; <span style=\"color: #8E8E8E\">\u25cf Unknown / other</span> &nbsp; Hover or click a connection for transport details.</p>"
+        "content": "<p><span style=\"color: #5794F2\">\u25cf NATS</span> &nbsp; <span style=\"color: #FF9830\">\u25cf HTTP</span> &nbsp; <span style=\"color: #8E8E8E\">\u25cf Unknown / other</span> &nbsp; Nodes show service roles. Edge hover shows transport. HTTP clients aggregates inbound gateway requests; open a request trace below to inspect its publications.</p>"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Inbound HTTP requests \u2014 open a trace to inspect triggered publications",
+      "type": "table",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"nim-gateway\" && name = \"http.request\" }",
+          "limit": 50,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Trace ID"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "data-links"
+                }
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open request and publications",
+                    "url": "/explore?schemaVersion=1&panes=%7B%22trace%22%3A%7B%22datasource%22%3A%22tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22traceId%22%2C%22query%22%3A%22${__value.raw}%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22tempo%22%7D%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D%7D",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
       }
     }
   ],

@@ -5,7 +5,7 @@ include:
 
 services:
   postgres:
-    container_name: nim-postgres
+    container_name: postgres
     image: pgvector/pgvector:pg17
     ports:
       - 5432:5432
@@ -20,7 +20,7 @@ services:
       retries: 5
 
   nats:
-    container_name: nim-nats
+    container_name: nats
     image: nats:latest
     command: ["-js", "-sd", "/data"]
     ports:
@@ -35,7 +35,7 @@ services:
       context: .
       dockerfile: bins/nim-gateway/Dockerfile
     ports:
-      - 5000:8080
+      - 9999:8080
     environment:
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgres://admin:admin@postgres:5432/main

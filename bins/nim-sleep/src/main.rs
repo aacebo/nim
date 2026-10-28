@@ -12,6 +12,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 async fn main() -> Result<(), Error> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
+        .with(tracing_opentelemetry::layer())
         .with(
             tracing_subscriber::filter::Targets::new()
                 .with_target("nim_sleep", tracing::Level::INFO)

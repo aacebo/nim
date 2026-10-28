@@ -1,0 +1,363 @@
+{
+  "uid": "nim-memories",
+  "title": "NIM Memories",
+  "description": "Browse the 200 most recently updated memories. Click a memory_id to load linked artifacts and annotations; click an artifact_id to view content and narrow annotations. Select All artifacts to return to all annotations for the memory. Dropdowns list up to 500 recent entities. Entity browsing is independent of the dashboard time range. Detail tables are limited to 500 artifacts and 1000 annotations.",
+  "tags": [
+    "nim",
+    "postgres",
+    "memories"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "links": [
+    {
+      "title": "All memories",
+      "type": "link",
+      "url": "/d/nim-memories?var-memory=all&var-artifact=all",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "memory",
+        "label": "Memory",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "query": "SELECT __text, __value FROM (\n    SELECT 'All memories' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT type || ' \u00b7 ' || id::text, id::text, 1, updated_at\n    FROM memories\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "definition": "SELECT __text, __value FROM (\n    SELECT 'All memories' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT type || ' \u00b7 ' || id::text, id::text, 1, updated_at\n    FROM memories\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "All memories",
+          "value": "all"
+        },
+        "options": []
+      },
+      {
+        "name": "artifact",
+        "label": "Artifact",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "query": "SELECT __text, __value FROM (\n    SELECT 'All artifacts' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT a.name || ' \u00b7 ' || a.id::text, a.id::text, 1, a.updated_at\n    FROM memories_artifacts ma\n    JOIN artifacts a ON a.id = ma.artifact_id\n    WHERE ma.memory_id::text = ${memory:sqlstring}\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "definition": "SELECT __text, __value FROM (\n    SELECT 'All artifacts' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT a.name || ' \u00b7 ' || a.id::text, a.id::text, 1, a.updated_at\n    FROM memories_artifacts ma\n    JOIN artifacts a ON a.id = ma.artifact_id\n    WHERE ma.memory_id::text = ${memory:sqlstring}\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "All artifacts",
+          "value": "all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Memories \u2014 click memory_id to drill down",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    m.id::text AS memory_id,\n    m.type,\n    m.salience,\n    m.strength,\n    m.confidence,\n    m.recalls,\n    (SELECT COUNT(*) FROM memories_artifacts ma WHERE ma.memory_id = m.id) AS artifacts,\n    (SELECT COUNT(*) FROM annotations an WHERE EXISTS (\n        SELECT 1 FROM memories_artifacts ma\n        WHERE ma.memory_id = m.id AND ma.artifact_id = an.artifact_id\n    )) AS annotations,\n    m.created_at,\n    m.updated_at\nFROM memories m\nWHERE (${memory:sqlstring} = 'all' OR m.id::text = ${memory:sqlstring})\nORDER BY m.updated_at DESC\nLIMIT 200"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "memory_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View memory artifacts and annotations",
+                    "url": "/d/nim-memories?var-memory=${__value.raw}&var-artifact=all",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Selected memory",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    m.id::text AS memory_id,\n    m.type,\n    m.sources::text AS sources,\n    m.contexts::text AS contexts,\n    m.version,\n    m.salience,\n    m.strength,\n    m.confidence,\n    m.recalls,\n    m.recalled_at,\n    m.created_at,\n    m.updated_at\nFROM memories m\nWHERE m.id::text = ${memory:sqlstring}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Linked artifacts \u2014 click artifact_id to drill down",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    a.id::text AS artifact_id,\n    a.type,\n    a.name,\n    a.summary,\n    (SELECT COUNT(*) FROM annotations an WHERE an.artifact_id = a.id) AS annotations,\n    a.created_at,\n    a.updated_at\nFROM memories_artifacts ma\nJOIN artifacts a ON a.id = ma.artifact_id\nWHERE ma.memory_id::text = ${memory:sqlstring}\n  AND (${artifact:sqlstring} = 'all' OR a.id::text = ${artifact:sqlstring})\nORDER BY a.updated_at DESC\nLIMIT 500"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "artifact_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View artifact content and annotations",
+                    "url": "/d/nim-memories?var-memory=${memory:percentencode}&var-artifact=${__value.raw}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Selected artifact content",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    a.id::text AS artifact_id,\n    a.name,\n    a.type,\n    a.summary,\n    a.content::text AS content\nFROM artifacts a\nJOIN memories_artifacts ma ON ma.artifact_id = a.id\nWHERE ma.memory_id::text = ${memory:sqlstring}\n  AND a.id::text = ${artifact:sqlstring}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Annotations for linked artifacts",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    an.id::text AS annotation_id,\n    a.id::text AS artifact_id,\n    a.name AS artifact_name,\n    an.label,\n    an.text,\n    an.confidence,\n    an.spans::text AS spans,\n    an.created_at,\n    an.updated_at\nFROM memories_artifacts ma\nJOIN artifacts a ON a.id = ma.artifact_id\nJOIN annotations an ON an.artifact_id = a.id\nWHERE ma.memory_id::text = ${memory:sqlstring}\n  AND (${artifact:sqlstring} = 'all' OR a.id::text = ${artifact:sqlstring})\nORDER BY an.created_at DESC\nLIMIT 1000"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "artifact_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View artifact",
+                    "url": "/d/nim-memories?var-memory=${memory:percentencode}&var-artifact=${__value.raw}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    }
+  ]
+}

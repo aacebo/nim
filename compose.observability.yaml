@@ -57,6 +57,18 @@ services:
     depends_on:
       - nats
 
+  telegraf:
+    container_name: telegraf
+    image: telegraf:latest
+    user: "0:0"
+    entrypoint: ["telegraf"]
+    command: ["--config", "/etc/telegraf/telegraf.conf"]
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-nim}
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   alloy:
     container_name: alloy
     image: grafana/alloy:latest

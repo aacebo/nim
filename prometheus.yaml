@@ -13,3 +13,8 @@ scrape_configs:
   - job_name: nats
     static_configs:
       - targets: ["nats-exporter:7777"]
+
+  - job_name: nim-resources
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["telegraf:9273"]

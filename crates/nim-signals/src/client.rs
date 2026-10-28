@@ -50,7 +50,11 @@ impl Client {
         let mut headers = async_nats::HeaderMap::new();
         self.propagator
             .inject_context(&context, &mut NatsInjector::from(&mut headers));
-        let _ = self.context.publish(subject, bytes.into()).await?.await?;
+        let _ = self
+            .context
+            .publish_with_headers(subject, headers, bytes.into())
+            .await?
+            .await?;
         Ok(())
     }
 

@@ -12,12 +12,13 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(tracing_opentelemetry::layer())
+        .with(tracing_subscriber::fmt::layer().json())
+        .with(nim::signals::trace::layer("nim-gateway"))
         .with(
             tracing_subscriber::filter::Targets::new()
                 .with_target("nim_gateway", tracing::Level::INFO)
-                .with_target("nim_state", tracing::Level::INFO),
+                .with_target("nim_state", tracing::Level::INFO)
+                .with_target("nim_signals", tracing::Level::INFO),
         )
         .init();
 

@@ -1,9 +1,11 @@
 mod client;
 mod endpoint;
 mod error;
+mod headers;
 mod request;
 mod service;
 mod stream;
+pub mod trace;
 mod types;
 
 pub use client::*;

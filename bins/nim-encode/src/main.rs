@@ -8,17 +8,20 @@ pub use context::*;
 pub use error::*;
 
 use futures_util::StreamExt;
+use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(tracing_opentelemetry::layer())
+        .with(tracing_subscriber::fmt::layer().json())
+        .with(nim::signals::trace::layer("nim-encode"))
         .with(
             tracing_subscriber::filter::Targets::new()
                 .with_target("nim_encode", tracing::Level::INFO)
-                .with_target("nim_ai", tracing::Level::INFO),
+                .with_target("nim_ai", tracing::Level::INFO)
+                .with_target("nim_state", tracing::Level::INFO)
+                .with_target("nim_signals", tracing::Level::INFO),
         )
         .init();
 
@@ -37,8 +40,8 @@ async fn main() -> Result<(), Error> {
         tracing::info!("[{subject}] -> processing...");
 
         let res = match subject.as_str() {
-            "nim.memory.create" => Some(tokio::spawn(routes::memory::create::run(ctx.clone(), signal)).await?),
-            "nim.memory.update" => Some(tokio::spawn(routes::memory::update::run(ctx.clone(), signal)).await?),
+            "nim.memory.create" => Some(tokio::spawn(routes::memory::create::run(ctx.clone(), signal).in_current_span()).await?),
+            "nim.memory.update" => Some(tokio::spawn(routes::memory::update::run(ctx.clone(), signal).in_current_span()).await?),
             _ => None,
         };
 

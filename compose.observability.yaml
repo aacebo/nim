@@ -42,11 +42,20 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
       - grafana:/var/lib/grafana
-      - ./grafana.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
       - loki
       - tempo
+
+  nats-exporter:
+    container_name: nats-exporter
+    image: natsio/prometheus-nats-exporter:latest
+    command: ["-varz", "-jsz=all", "http://nats:8222"]
+    depends_on:
+      - nats
 
   alloy:
     container_name: alloy

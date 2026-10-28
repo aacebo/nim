@@ -19,3 +19,17 @@ datasources:
     type: tempo
     access: proxy
     url: http://tempo:3200
+
+  - name: PostgreSQL
+    uid: postgres
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: postgres:5432
+    user: admin
+    jsonData:
+      database: main
+      sslmode: disable
+      postgresVersion: 1700
+      timescaledb: false
+    secureJsonData:
+      password: admin

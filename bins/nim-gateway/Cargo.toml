@@ -23,5 +23,4 @@ sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros", "m
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tracing-opentelemetry = { workspace = true }
 futures-util = { workspace = true }

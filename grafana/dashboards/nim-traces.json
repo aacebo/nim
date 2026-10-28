@@ -1,0 +1,177 @@
+{
+  "uid": "nim-traces",
+  "title": "NIM Trace Overview",
+  "description": "Trace searches use Tempo directly; no span-metrics generator is required. Service is a regular expression.",
+  "tags": [
+    "nim",
+    "observability"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "textbox",
+        "query": "nim-.*",
+        "current": {
+          "text": "nim-.*",
+          "value": "nim-.*"
+        },
+        "options": []
+      },
+      {
+        "name": "slow",
+        "label": "Slow threshold",
+        "type": "custom",
+        "query": "100ms,500ms,1s,5s,10s",
+        "current": {
+          "text": "1s",
+          "value": "1s"
+        },
+        "options": [
+          {
+            "text": "100ms",
+            "value": "100ms",
+            "selected": false
+          },
+          {
+            "text": "500ms",
+            "value": "500ms",
+            "selected": false
+          },
+          {
+            "text": "1s",
+            "value": "1s",
+            "selected": true
+          },
+          {
+            "text": "5s",
+            "value": "5s",
+            "selected": false
+          },
+          {
+            "text": "10s",
+            "value": "10s",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Recent traces",
+      "type": "table",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"${service:raw}\" }",
+          "limit": 50,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 2,
+      "title": "Slow traces",
+      "type": "table",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"${service:raw}\" && duration > $slow }",
+          "limit": 50,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 3,
+      "title": "Failed traces",
+      "type": "table",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"${service:raw}\" && status = error }",
+          "limit": 50,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {}
+    }
+  ]
+}

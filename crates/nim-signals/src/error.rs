@@ -4,6 +4,7 @@ pub enum Error {
     Nats(async_nats::Error),
     Json(serde_json::Error),
     Service(ServiceError),
+    OpenTelemetry(tracing_opentelemetry::SetParentError),
 }
 
 impl<T> From<async_nats::error::Error<T>> for Error
@@ -39,12 +40,19 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl From<tracing_opentelemetry::SetParentError> for Error {
+    fn from(value: tracing_opentelemetry::SetParentError) -> Self {
+        Self::OpenTelemetry(value)
+    }
+}
+
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Nats(err) => write!(f, "{err:#?}"),
             Self::Json(err) => write!(f, "{err:#?}"),
             Self::Service(err) => write!(f, "{err:#?}"),
+            Self::OpenTelemetry(err) => write!(f, "{err:#?}"),
         }
     }
 }
@@ -55,6 +63,7 @@ impl std::fmt::Display for Error {
             Self::Nats(err) => write!(f, "{err}"),
             Self::Json(err) => write!(f, "{err}"),
             Self::Service(err) => write!(f, "{err}"),
+            Self::OpenTelemetry(err) => write!(f, "{err}"),
         }
     }
 }
@@ -65,6 +74,7 @@ impl std::error::Error for Error {
             Self::Nats(err) => Some(err.as_ref()),
             Self::Json(err) => Some(err),
             Self::Service(err) => Some(err),
+            Self::OpenTelemetry(err) => Some(err),
         }
     }
 }

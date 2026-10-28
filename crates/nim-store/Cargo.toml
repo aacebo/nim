@@ -15,6 +15,6 @@ workspace = true
 uuid.workspace = true
 chrono.workspace = true
 serde.workspace = true
+tracing.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio", "migrate", "derive", "postgres", "uuid", "chrono", "json"] }
 pgvector = { version = "0.4.2", features = ["sqlx"] }
-tracing.workspace = true

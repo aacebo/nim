@@ -1,16 +1,21 @@
 use async_nats::jetstream;
+use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::{Error, Signal};
+use crate::{Error, Signal, headers::NatsExtractor};
 
 pub struct Stream<T> {
     inner: jetstream::consumer::pull::Stream,
+    propagator: TraceContextPropagator,
     __data__: std::marker::PhantomData<T>,
 }
 
-impl<T> From<jetstream::consumer::pull::Stream> for Stream<T> {
-    fn from(inner: jetstream::consumer::pull::Stream) -> Self {
+impl<T> Stream<T> {
+    pub(crate) fn new(inner: jetstream::consumer::pull::Stream, propagator: TraceContextPropagator) -> Self {
         Self {
             inner,
+            propagator,
             __data__: std::marker::PhantomData,
         }
     }
@@ -40,6 +45,20 @@ where
                 Err(err) => return Some(Err(err.into())),
                 Ok(v) => v,
             };
+
+            if let Some(headers) = &message.headers {
+                let span = tracing::info_span!(
+                    "signal.process",
+                    subject = %message.subject,
+                );
+
+                let parent = self.propagator.extract(&NatsExtractor::from(headers));
+
+                match span.set_parent(parent) {
+                    Err(err) => return Some(Err(err.into())),
+                    Ok(v) => v,
+                };
+            }
 
             Some(Ok((message, signal)))
         })

@@ -22,7 +22,14 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
     let results = ctx
         .services()
         .memories()
-        .search(embedding.as_slice(), nim::state::MemoryType::Working, 10)
+        .search(
+            embedding.as_slice(),
+            nim::store::MemoryFilter {
+                limit: Some(10),
+                min_score: Some(0.7),
+                ..Default::default()
+            },
+        )
         .await
         .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
 

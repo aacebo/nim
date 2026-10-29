@@ -152,6 +152,7 @@ impl<'a> EntityStorage<'a> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct EntityMemoriesStorage<'a> {
     pool: &'a sqlx::PgPool,
 }

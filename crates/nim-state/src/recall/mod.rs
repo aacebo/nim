@@ -6,17 +6,17 @@ mod update;
 pub use create::*;
 pub use update::*;
 
-use nim_store::{GoalStorage, PgPool};
+use nim_store::{PgPool, RecallStorage};
 
 #[derive(Copy, Clone)]
-pub struct GoalService<'a> {
-    store: GoalStorage<'a>,
+pub struct RecallService<'a> {
+    store: RecallStorage<'a>,
 }
 
-impl<'a> GoalService<'a> {
+impl<'a> RecallService<'a> {
     pub fn new(pool: &'a PgPool) -> Self {
         Self {
-            store: GoalStorage::new(pool),
+            store: RecallStorage::new(pool),
         }
     }
 }

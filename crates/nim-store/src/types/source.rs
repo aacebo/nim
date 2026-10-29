@@ -8,6 +8,4 @@ pub enum Source {
     Region(Region),
     Memory(uuid::Uuid),
     Entity(uuid::Uuid),
-    Prediction(uuid::Uuid),
-    Fact(uuid::Uuid),
 }

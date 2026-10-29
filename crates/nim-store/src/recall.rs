@@ -1,28 +1,26 @@
 use crate::types;
 
 #[derive(Copy, Clone)]
-pub struct PredictionStorage<'a> {
+pub struct RecallStorage<'a> {
     pool: &'a sqlx::PgPool,
 }
 
-impl<'a> PredictionStorage<'a> {
+impl<'a> RecallStorage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self { pool }
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::PredictionRow, sqlx::Error> {
+    pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::RecallRow, sqlx::Error> {
         sqlx::query_as(
             r#"
             SELECT
                 id,
-                version,
-                hypothesis,
-                confidence,
-                deadline,
-                created_at,
-                updated_at
-            FROM predictions
+                trigger,
+                source,
+                query,
+                created_at
+            FROM recalls
             WHERE id = $1
             "#,
         )
@@ -32,75 +30,62 @@ impl<'a> PredictionStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self, value: types::PredictionRow) -> Result<types::PredictionRow, sqlx::Error> {
+    pub async fn create(&self, value: types::RecallRow) -> Result<types::RecallRow, sqlx::Error> {
         sqlx::query_as(
             r#"
-            INSERT INTO predictions (
+            INSERT INTO recalls (
                 id,
-                version,
-                hypothesis,
-                confidence,
-                deadline,
-                created_at,
-                updated_at
+                trigger,
+                source,
+                query,
+                created_at
             )
             VALUES (
                 $1,
                 $2,
                 $3,
                 $4,
-                $5,
-                $6,
-                $7
+                $5
             )
             RETURNING
                 id,
-                version,
-                hypothesis,
-                confidence,
-                deadline,
-                created_at,
-                updated_at
+                trigger,
+                source,
+                query,
+                created_at
             "#,
         )
         .bind(value.id)
-        .bind(value.version)
-        .bind(value.hypothesis)
-        .bind(value.confidence)
-        .bind(value.deadline)
+        .bind(value.trigger)
+        .bind(value.source)
+        .bind(value.query)
         .bind(value.created_at)
-        .bind(value.updated_at)
         .fetch_one(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::PredictionRow) -> Result<types::PredictionRow, sqlx::Error> {
+    pub async fn update(&self, value: types::RecallRow) -> Result<types::RecallRow, sqlx::Error> {
         sqlx::query_as(
             r#"
-            UPDATE predictions
+            UPDATE recalls
             SET
-                version = version + 1,
-                hypothesis = $2,
-                confidence = $3,
-                deadline = $4,
-                updated_at = $5
+                trigger = $2,
+                source = $3,
+                query = $4
             WHERE id = $1
             RETURNING
                 id,
-                version,
-                hypothesis,
-                confidence,
-                deadline,
-                created_at,
-                updated_at
+                trigger,
+                source,
+                query,
+                created_at
             "#,
         )
         .bind(value.id)
-        .bind(value.hypothesis)
-        .bind(value.confidence)
-        .bind(value.deadline)
-        .bind(chrono::Utc::now())
+        .bind(value.trigger)
+        .bind(value.source)
+        .bind(value.query)
         .fetch_one(self.pool)
         .await
     }
@@ -109,7 +94,7 @@ impl<'a> PredictionStorage<'a> {
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
-            DELETE FROM predictions
+            DELETE FROM recalls
             WHERE id = $1
             "#,
         )
@@ -121,80 +106,84 @@ impl<'a> PredictionStorage<'a> {
 }
 
 #[derive(Copy, Clone)]
-pub struct PredictionMemoriesStorage<'a> {
+pub struct MemoryRecallsStorage<'a> {
     pool: &'a sqlx::PgPool,
 }
 
-impl<'a> PredictionMemoriesStorage<'a> {
+impl<'a> MemoryRecallsStorage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self { pool }
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_id(
-        &self,
-        prediction_id: uuid::Uuid,
-        memory_id: uuid::Uuid,
-    ) -> Result<types::PredictionMemoryRow, sqlx::Error> {
+    pub async fn find_by_id(&self, memory_id: uuid::Uuid, recall_id: uuid::Uuid) -> Result<types::MemoryRecallRow, sqlx::Error> {
         sqlx::query_as(
             r#"
             SELECT
-                prediction_id,
                 memory_id,
+                recall_id,
+                score,
                 created_at
-            FROM predictions_memories
-            WHERE prediction_id = $1 AND memory_id = $2
+            FROM memories_recalls
+            WHERE memory_id = $1 AND recall_id = $2
             "#,
         )
-        .bind(prediction_id)
         .bind(memory_id)
+        .bind(recall_id)
         .fetch_one(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self, value: types::PredictionMemoryRow) -> Result<types::PredictionMemoryRow, sqlx::Error> {
+    pub async fn create(&self, value: types::MemoryRecallRow) -> Result<types::MemoryRecallRow, sqlx::Error> {
         sqlx::query_as(
             r#"
-            INSERT INTO predictions_memories (
-                prediction_id,
+            INSERT INTO memories_recalls (
                 memory_id,
+                recall_id,
+                score,
                 created_at
             )
             VALUES (
                 $1,
                 $2,
-                $3
+                $3,
+                $4
             )
             RETURNING
-                prediction_id,
                 memory_id,
+                recall_id,
+                score,
                 created_at
             "#,
         )
-        .bind(value.prediction_id)
         .bind(value.memory_id)
+        .bind(value.recall_id)
+        .bind(value.score)
         .bind(value.created_at)
         .fetch_one(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::PredictionMemoryRow) -> Result<types::PredictionMemoryRow, sqlx::Error> {
+    pub async fn update(&self, value: types::MemoryRecallRow) -> Result<types::MemoryRecallRow, sqlx::Error> {
         sqlx::query_as(
             r#"
-            UPDATE predictions_memories
+            UPDATE memories_recalls
             SET
-                created_at = $3
-            WHERE prediction_id = $1 AND memory_id = $2
+                score = $3,
+                created_at = $4
+            WHERE memory_id = $1 AND recall_id = $2
             RETURNING
-                prediction_id,
                 memory_id,
+                recall_id,
+                score,
                 created_at
             "#,
         )
-        .bind(value.prediction_id)
         .bind(value.memory_id)
+        .bind(value.recall_id)
+        .bind(value.score)
         .bind(value.created_at)
         .fetch_one(self.pool)
         .await
@@ -204,8 +193,8 @@ impl<'a> PredictionMemoriesStorage<'a> {
     pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
-            DELETE FROM predictions_memories
-            WHERE prediction_id = $1 AND memory_id = $2
+            DELETE FROM memories_recalls
+            WHERE memory_id = $1 AND recall_id = $2
             "#,
         )
         .bind(id.0)

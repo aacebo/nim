@@ -44,7 +44,14 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let memory = if let Some(embedding) = caption.vector.as_deref() {
         ctx.services()
             .memories()
-            .search(embedding, nim::state::MemoryType::Working, 10)
+            .search(
+                embedding,
+                nim::store::MemoryFilter {
+                    ty: Some(nim::store::MemoryType::Working),
+                    limit: Some(10),
+                    min_score: Some(0.2),
+                },
+            )
             .await?
             .first()
             .cloned()

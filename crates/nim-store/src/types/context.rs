@@ -18,9 +18,6 @@ pub enum Context {
         valence: f32,
         arousal: f32,
     },
-    Goal {
-        goals: Vec<uuid::Uuid>,
-    },
     Situational {
         activity: Option<String>,
         environment: Option<String>,

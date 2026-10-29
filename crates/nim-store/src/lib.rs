@@ -1,22 +1,16 @@
 mod annotation;
 mod artifact;
 mod entity;
-mod fact;
-mod goal;
 mod memory;
-mod plan;
-mod prediction;
+mod recall;
 mod search;
 mod types;
 
 pub use annotation::*;
 pub use artifact::*;
 pub use entity::*;
-pub use fact::*;
-pub use goal::*;
 pub use memory::*;
-pub use plan::*;
-pub use prediction::*;
+pub use recall::*;
 pub use search::*;
 pub use types::*;
 
@@ -31,11 +25,12 @@ pub struct Storage<'a> {
     _annotations: AnnotationStorage<'a>,
     _artifacts: ArtifactStorage<'a>,
     _entities: EntityStorage<'a>,
-    _goals: GoalStorage<'a>,
+    _entity_relations: EntityRelationsStorage<'a>,
+    _entity_memories: EntityMemoriesStorage<'a>,
     _memories: MemoryStorage<'a>,
-    _facts: FactStorage<'a>,
-    _plans: PlanStorage<'a>,
-    _predictions: PredictionStorage<'a>,
+    _memory_relations: MemoryRelationsStorage<'a>,
+    _recalls: RecallStorage<'a>,
+    _memory_recalls: MemoryRecallsStorage<'a>,
 }
 
 impl<'a> Storage<'a> {
@@ -44,11 +39,12 @@ impl<'a> Storage<'a> {
             _annotations: AnnotationStorage::new(pool),
             _artifacts: ArtifactStorage::new(pool),
             _entities: EntityStorage::new(pool),
-            _goals: GoalStorage::new(pool),
+            _entity_relations: EntityRelationsStorage::new(pool),
+            _entity_memories: EntityMemoriesStorage::new(pool),
             _memories: MemoryStorage::new(pool),
-            _facts: FactStorage::new(pool),
-            _plans: PlanStorage::new(pool),
-            _predictions: PredictionStorage::new(pool),
+            _memory_relations: MemoryRelationsStorage::new(pool),
+            _recalls: RecallStorage::new(pool),
+            _memory_recalls: MemoryRecallsStorage::new(pool),
         }
     }
 
@@ -64,23 +60,27 @@ impl<'a> Storage<'a> {
         self._entities
     }
 
-    pub fn goals(&self) -> GoalStorage<'a> {
-        self._goals
+    pub fn entity_relations(&self) -> EntityRelationsStorage<'a> {
+        self._entity_relations
+    }
+
+    pub fn entity_memories(&self) -> EntityMemoriesStorage<'a> {
+        self._entity_memories
     }
 
     pub fn memories(&self) -> MemoryStorage<'a> {
         self._memories
     }
 
-    pub fn facts(&self) -> FactStorage<'a> {
-        self._facts
+    pub fn memory_relations(&self) -> MemoryRelationsStorage<'a> {
+        self._memory_relations
     }
 
-    pub fn plans(&self) -> PlanStorage<'a> {
-        self._plans
+    pub fn recalls(&self) -> RecallStorage<'a> {
+        self._recalls
     }
 
-    pub fn predictions(&self) -> PredictionStorage<'a> {
-        self._predictions
+    pub fn memory_recalls(&self) -> MemoryRecallsStorage<'a> {
+        self._memory_recalls
     }
 }

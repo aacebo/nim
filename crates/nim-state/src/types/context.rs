@@ -1,4 +1,4 @@
-use crate::{EntityId, GoalId};
+use crate::EntityId;
 
 #[non_exhaustive]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -19,9 +19,6 @@ pub enum Context {
     Emotional {
         valence: f32,
         arousal: f32,
-    },
-    Goal {
-        goals: Vec<GoalId>,
     },
     Situational {
         activity: Option<String>,
@@ -46,9 +43,6 @@ impl From<nim_store::Context> for Context {
                 entities: entities.into_iter().map(EntityId::from).collect(),
             },
             nim_store::Context::Emotional { valence, arousal } => Self::Emotional { valence, arousal },
-            nim_store::Context::Goal { goals } => Self::Goal {
-                goals: goals.into_iter().map(GoalId::from).collect(),
-            },
             nim_store::Context::Situational { activity, environment } => Self::Situational { activity, environment },
             _ => unreachable!(),
         }
@@ -72,9 +66,6 @@ impl From<Context> for nim_store::Context {
                 entities: entities.into_iter().map(uuid::Uuid::from).collect(),
             },
             Context::Emotional { valence, arousal } => Self::Emotional { valence, arousal },
-            Context::Goal { goals } => Self::Goal {
-                goals: goals.into_iter().map(uuid::Uuid::from).collect(),
-            },
             Context::Situational { activity, environment } => Self::Situational { activity, environment },
         }
     }

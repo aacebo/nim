@@ -1,11 +1,11 @@
-use nim_store::SearchItem;
+use nim_store::{MemoryFilter, SearchItem};
 
-use crate::{Error, Memory, MemoryService, MemoryType};
+use crate::{Error, Memory, MemoryService};
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn search(&self, embedding: &[f32], ty: MemoryType, limit: usize) -> Result<Vec<SearchItem<Memory>>, Error> {
-        let rows = self.storage.memories().search(embedding, ty.into(), limit).await?;
+    pub async fn search(&self, embedding: &[f32], filter: MemoryFilter) -> Result<Vec<SearchItem<Memory>>, Error> {
+        let rows = self.storage.memories().search(embedding, filter).await?;
 
         Ok(rows
             .into_iter()

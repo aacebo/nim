@@ -80,6 +80,12 @@ impl Context {
                         ],
                         ..Default::default()
                     },
+                    nim::signals::StreamConfig {
+                        name: "RECALLS".into(),
+                        max_messages: 10_000,
+                        subjects: vec!["nim.recall.create".into(), "nim.recall.update".into()],
+                        ..Default::default()
+                    },
                 ],
                 ..Default::default()
             },

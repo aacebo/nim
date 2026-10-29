@@ -2,7 +2,7 @@
 pub struct SearchItem<T> {
     pub similarity: f32,
 
-    #[serde(flatten)]
+    #[serde(rename = "data")]
     inner: T,
 }
 

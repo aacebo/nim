@@ -33,5 +33,22 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
         .await
         .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
 
+    let _recall = ctx
+        .services()
+        .recalls()
+        .create(nim::state::RecallCreate {
+            trigger: nim::state::RecallTrigger::Explicit,
+            source: nim::state::RecallSource::User,
+            query: Some(body.text.clone()),
+        })
+        .await
+        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+
+    // for item in &results {
+    //     ctx
+    //         .services()
+    //         .memories()
+    // }
+
     Ok(axum::Json(results).into_response())
 }

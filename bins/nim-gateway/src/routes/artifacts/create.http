@@ -1,4 +1,14 @@
-POST http://localhost:9999/files
+POST http://localhost:9999/artifacts
+Content-Type: application/json
+
+{
+    "name": "dog_walking_in_grassy_field",
+    "text": "today I was walking and passed by a large grassy field where I saw a dog playing fetch with their owner"
+}
+
+###
+
+POST http://localhost:9999/artifacts
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
@@ -10,7 +20,7 @@ Content-Type: image/png
 
 ###
 
-POST http://localhost:9999/files
+POST http://localhost:9999/artifacts
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW

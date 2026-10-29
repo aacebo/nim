@@ -3,12 +3,12 @@ use axum::response::IntoResponse;
 use crate::http::HttpContext;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Query {
+pub struct Body {
     pub text: String,
 }
 
-pub async fn route(ctx: HttpContext, query: axum::extract::Query<Query>) -> axum::response::Result<axum::response::Response> {
-    let artifacts = nim::ai::pipelines::text::embeddings::run(&[query.text.as_bytes()])
+pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::response::Result<axum::response::Response> {
+    let artifacts = nim::ai::pipelines::text::embeddings::run(&[body.text.as_bytes()])
         .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
 
     let Some(artifact) = artifacts.first() else {

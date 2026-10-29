@@ -1,7 +1,0 @@
-POST http://localhost:9999/text
-Content-Type: application/json
-
-{
-    "name": "dog_walking_in_grassy_field",
-    "text": "today I was walking and passed by a large grassy field where I saw a dog playing fetch with their owner"
-}

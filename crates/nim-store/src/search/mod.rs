@@ -1,6 +1,8 @@
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct SearchItem<T> {
     pub similarity: f32,
 
+    #[serde(flatten)]
     inner: T,
 }
 

@@ -44,6 +44,11 @@ services:
       - .:/app
       - /app/target
       - staging:/.staging
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,10 +71,8 @@ services:
       - staging:/.staging
       - ./.cache:/.cache
     depends_on:
-      postgres:
+      gateway:
         condition: service_healthy
-      nats:
-        condition: service_started
 
   audio:
     container_name: nim-audio
@@ -87,10 +90,8 @@ services:
       - staging:/.staging
       - ./.cache:/.cache
     depends_on:
-      postgres:
+      gateway:
         condition: service_healthy
-      nats:
-        condition: service_started
 
   vision:
     container_name: nim-vision
@@ -108,10 +109,8 @@ services:
       - staging:/.staging
       - ./.cache:/.cache
     depends_on:
-      postgres:
+      gateway:
         condition: service_healthy
-      nats:
-        condition: service_started
 
   encode:
     container_name: nim-encode
@@ -129,10 +128,8 @@ services:
       - staging:/.staging
       - ./.cache:/.cache
     depends_on:
-      postgres:
+      gateway:
         condition: service_healthy
-      nats:
-        condition: service_started
 
   sleep:
     container_name: nim-sleep
@@ -148,10 +145,8 @@ services:
       - /app/target
       - ./.cache:/.cache
     depends_on:
-      postgres:
+      gateway:
         condition: service_healthy
-      nats:
-        condition: service_started
 
 volumes:
   nats:

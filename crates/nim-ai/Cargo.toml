@@ -39,9 +39,9 @@ hound = { version = "3.5", optional = true }
 rustfft = { version = "6", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-candle-core = { version = "0.11", features = ["accelerate"] }
-candle-nn = { version = "0.11", features = ["accelerate"] }
-candle-transformers = { version = "0.11", features = ["accelerate"] }
+candle-core = { version = "0.11", features = ["accelerate", "metal"] }
+candle-nn = { version = "0.11", features = ["accelerate", "metal"] }
+candle-transformers = { version = "0.11", features = ["accelerate", "metal"] }
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 candle-core = { version = "0.11", features = ["mkl"] }

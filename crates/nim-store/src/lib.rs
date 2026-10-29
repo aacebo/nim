@@ -24,6 +24,7 @@ pub use sqlx::types::Json;
 pub struct Storage<'a> {
     _annotations: AnnotationStorage<'a>,
     _artifacts: ArtifactStorage<'a>,
+    _memory_artifacts: MemoryArtifactsStorage<'a>,
     _entities: EntityStorage<'a>,
     _entity_relations: EntityRelationsStorage<'a>,
     _entity_memories: EntityMemoriesStorage<'a>,
@@ -38,6 +39,7 @@ impl<'a> Storage<'a> {
         Self {
             _annotations: AnnotationStorage::new(pool),
             _artifacts: ArtifactStorage::new(pool),
+            _memory_artifacts: MemoryArtifactsStorage::new(pool),
             _entities: EntityStorage::new(pool),
             _entity_relations: EntityRelationsStorage::new(pool),
             _entity_memories: EntityMemoriesStorage::new(pool),
@@ -54,6 +56,10 @@ impl<'a> Storage<'a> {
 
     pub fn artifacts(&self) -> ArtifactStorage<'a> {
         self._artifacts
+    }
+
+    pub fn memory_artifacts(&self) -> MemoryArtifactsStorage<'a> {
+        self._memory_artifacts
     }
 
     pub fn entities(&self) -> EntityStorage<'a> {

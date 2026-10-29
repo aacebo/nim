@@ -178,3 +178,20 @@ impl From<MemoryType> for nim_store::MemoryType {
         }
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MemoryRelation {
+    pub source_id: MemoryId,
+    pub target_id: MemoryId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::MemoryRelationRow> for MemoryRelation {
+    fn from(value: nim_store::MemoryRelationRow) -> Self {
+        Self {
+            source_id: value.source_id.into(),
+            target_id: value.target_id.into(),
+            created_at: value.created_at,
+        }
+    }
+}

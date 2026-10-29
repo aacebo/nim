@@ -15,7 +15,8 @@ impl<'a> ArtifactService<'a> {
     pub async fn create(&self, value: ArtifactCreate) -> Result<Artifact, Error> {
         let now = chrono::Utc::now();
         let row = self
-            .store
+            .storage
+            .artifacts()
             .create(ArtifactRow {
                 id: uuid::Uuid::now_v7(),
                 name: value.name,

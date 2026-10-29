@@ -133,21 +133,44 @@ impl<'a> ArtifactStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn link(&self, memory_id: uuid::Uuid, artifact_id: uuid::Uuid) -> Result<types::MemoryArtifactRow, sqlx::Error> {
+    pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            DELETE FROM artifacts
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .execute(self.pool)
+        .await?;
+        Ok(())
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct MemoryArtifactsStorage<'a> {
+    pool: &'a sqlx::PgPool,
+}
+
+impl<'a> MemoryArtifactsStorage<'a> {
+    pub fn new(pool: &'a sqlx::PgPool) -> Self {
+        Self { pool }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_id(
+        &self,
+        memory_id: uuid::Uuid,
+        artifact_id: uuid::Uuid,
+    ) -> Result<types::MemoryArtifactRow, sqlx::Error> {
         sqlx::query_as(
             r#"
-            INSERT INTO memories_artifacts (
-                memory_id,
-                artifact_id
-            )
-            VALUES (
-                $1,
-                $2
-            )
-            RETURNING
+            SELECT
                 memory_id,
                 artifact_id,
                 created_at
+            FROM memories_artifacts
+            WHERE memory_id = $1 AND artifact_id = $2
             "#,
         )
         .bind(memory_id)
@@ -157,30 +180,63 @@ impl<'a> ArtifactStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn unlink(&self, memory_id: uuid::Uuid, artifact_id: uuid::Uuid) -> Result<(), sqlx::Error> {
+    pub async fn create(&self, value: types::MemoryArtifactRow) -> Result<types::MemoryArtifactRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            INSERT INTO memories_artifacts (
+                memory_id,
+                artifact_id,
+                created_at
+            )
+            VALUES (
+                $1,
+                $2,
+                $3
+            )
+            RETURNING
+                memory_id,
+                artifact_id,
+                created_at
+            "#,
+        )
+        .bind(value.memory_id)
+        .bind(value.artifact_id)
+        .bind(value.created_at)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn update(&self, value: types::MemoryArtifactRow) -> Result<types::MemoryArtifactRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            UPDATE memories_artifacts
+            SET
+                created_at = $3
+            WHERE memory_id = $1 AND artifact_id = $2
+            RETURNING
+                memory_id,
+                artifact_id,
+                created_at
+            "#,
+        )
+        .bind(value.memory_id)
+        .bind(value.artifact_id)
+        .bind(value.created_at)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
             DELETE FROM memories_artifacts
             WHERE memory_id = $1 AND artifact_id = $2
             "#,
         )
-        .bind(memory_id)
-        .bind(artifact_id)
-        .execute(self.pool)
-        .await?;
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r#"
-            DELETE FROM artifacts
-            WHERE id = $1
-            "#,
-        )
-        .bind(id)
+        .bind(id.0)
+        .bind(id.1)
         .execute(self.pool)
         .await?;
         Ok(())

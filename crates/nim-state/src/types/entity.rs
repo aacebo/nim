@@ -1,4 +1,4 @@
-use crate::{Embedding, Version};
+use crate::{Embedding, MemoryId, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Entity {
@@ -170,6 +170,60 @@ impl std::fmt::Display for EntityRelationType {
             Self::WorksOn => write!(f, "works_on"),
             Self::Owns => write!(f, "owns"),
             Self::RelatedTo => write!(f, "related_to"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EntityMemory {
+    pub entity_id: EntityId,
+    pub memory_id: MemoryId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::EntityMemoryRow> for EntityMemory {
+    fn from(value: nim_store::EntityMemoryRow) -> Self {
+        Self {
+            entity_id: value.entity_id.into(),
+            memory_id: value.memory_id.into(),
+            created_at: value.created_at,
+        }
+    }
+}
+
+impl From<nim_store::EntityRelationRow> for EntityRelation {
+    fn from(value: nim_store::EntityRelationRow) -> Self {
+        Self {
+            ty: value.ty.into(),
+            source: value.source_id.into(),
+            target: value.target_id.into(),
+            created_at: value.created_at,
+        }
+    }
+}
+
+impl From<nim_store::EntityRelationType> for EntityRelationType {
+    fn from(value: nim_store::EntityRelationType) -> Self {
+        match value {
+            nim_store::EntityRelationType::PartOf => Self::PartOf,
+            nim_store::EntityRelationType::MemberOf => Self::MemberOf,
+            nim_store::EntityRelationType::LocatedIn => Self::LocatedIn,
+            nim_store::EntityRelationType::WorksOn => Self::WorksOn,
+            nim_store::EntityRelationType::Owns => Self::Owns,
+            nim_store::EntityRelationType::RelatedTo => Self::RelatedTo,
+        }
+    }
+}
+
+impl From<EntityRelationType> for nim_store::EntityRelationType {
+    fn from(value: EntityRelationType) -> Self {
+        match value {
+            EntityRelationType::PartOf => Self::PartOf,
+            EntityRelationType::MemberOf => Self::MemberOf,
+            EntityRelationType::LocatedIn => Self::LocatedIn,
+            EntityRelationType::WorksOn => Self::WorksOn,
+            EntityRelationType::Owns => Self::Owns,
+            EntityRelationType::RelatedTo => Self::RelatedTo,
         }
     }
 }

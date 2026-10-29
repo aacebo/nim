@@ -13,7 +13,8 @@ impl<'a> EntityService<'a> {
     pub async fn create(&self, value: EntityCreate) -> Result<Entity, Error> {
         let now = chrono::Utc::now();
         let row = self
-            .store
+            .storage
+            .entities()
             .create(EntityRow {
                 id: uuid::Uuid::now_v7(),
                 ty: value.ty.into(),

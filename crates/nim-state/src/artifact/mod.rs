@@ -9,17 +9,17 @@ mod update;
 pub use create::*;
 pub use update::*;
 
-use nim_store::{ArtifactStorage, PgPool};
+use nim_store::{PgPool, Storage};
 
 #[derive(Copy, Clone)]
 pub struct ArtifactService<'a> {
-    store: ArtifactStorage<'a>,
+    storage: Storage<'a>,
 }
 
 impl<'a> ArtifactService<'a> {
     pub fn new(pool: &'a PgPool) -> Self {
         Self {
-            store: ArtifactStorage::new(pool),
+            storage: Storage::new(pool),
         }
     }
 }

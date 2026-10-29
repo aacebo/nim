@@ -11,7 +11,7 @@ pub struct ArtifactUpdate {
 impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self, value))]
     pub async fn update(&self, id: ArtifactId, value: ArtifactUpdate) -> Result<Artifact, Error> {
-        let mut row = self.store.find_by_id(id.into()).await?;
+        let mut row = self.storage.artifacts().find_by_id(id.into()).await?;
 
         if let Some(value) = value.name {
             row.name = value;
@@ -29,6 +29,6 @@ impl<'a> ArtifactService<'a> {
             row.embedding = Some(value.into());
         }
 
-        Ok(self.store.update(row).await?.into())
+        Ok(self.storage.artifacts().update(row).await?.into())
     }
 }

@@ -44,11 +44,13 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
         .await
         .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
 
-    // for item in &results {
-    //     ctx
-    //         .services()
-    //         .memories()
-    // }
+    for item in &results {
+        ctx.services()
+            .recalls()
+            .link(item.id, recall.id, item.similarity)
+            .await
+            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+    }
 
     ctx.signals()
         .publish("nim.recall.create", recall)

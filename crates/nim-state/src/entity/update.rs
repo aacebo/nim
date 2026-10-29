@@ -14,7 +14,7 @@ pub struct EntityUpdate {
 impl<'a> EntityService<'a> {
     #[tracing::instrument(skip(self))]
     pub async fn update(&self, id: EntityId, value: EntityUpdate) -> Result<Entity, Error> {
-        let mut row = self.store.find_by_id(id.into()).await?;
+        let mut row = self.storage.entities().find_by_id(id.into()).await?;
 
         if let Some(value) = value.ty {
             row.ty = value.into();
@@ -45,6 +45,6 @@ impl<'a> EntityService<'a> {
         }
 
         row.version += 1;
-        Ok(self.store.update(row).await?.into())
+        Ok(self.storage.entities().update(row).await?.into())
     }
 }

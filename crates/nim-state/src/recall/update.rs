@@ -10,7 +10,7 @@ pub struct RecallUpdate {
 impl<'a> RecallService<'a> {
     #[tracing::instrument(skip(self))]
     pub async fn update(&self, id: RecallId, value: RecallUpdate) -> Result<Recall, Error> {
-        let mut row = self.store.find_by_id(id.into()).await?;
+        let mut row = self.storage.recalls().find_by_id(id.into()).await?;
 
         if let Some(value) = value.trigger {
             row.trigger = value.into();
@@ -24,6 +24,6 @@ impl<'a> RecallService<'a> {
             row.query = Some(value);
         }
 
-        Ok(self.store.update(row).await?.into())
+        Ok(self.storage.recalls().update(row).await?.into())
     }
 }

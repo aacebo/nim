@@ -14,7 +14,8 @@ impl<'a> RecallService<'a> {
     pub async fn create(&self, value: RecallCreate) -> Result<Recall, Error> {
         let now = chrono::Utc::now();
         let row = self
-            .store
+            .storage
+            .recalls()
             .create(RecallRow {
                 id: uuid::Uuid::now_v7(),
                 trigger: value.trigger.into(),

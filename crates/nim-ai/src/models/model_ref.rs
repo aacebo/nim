@@ -39,6 +39,13 @@ impl ModelRef {
         self
     }
 
+    pub fn name(&self) -> String {
+        match self {
+            Self::Local(v) => v.name(),
+            Self::Remote(v) => v.id.to_string(),
+        }
+    }
+
     /// The weights-bearing model, or an error naming the remote one that has none.
     pub fn local_or_err(&self) -> Result<&LocalModel, Error> {
         match self {
@@ -83,6 +90,13 @@ pub enum LocalModel {
 }
 
 impl LocalModel {
+    pub fn name(&self) -> String {
+        match self {
+            Self::Hub(v) => v.to_string(),
+            Self::Path(v) => v.name().to_string(),
+        }
+    }
+
     pub fn loader(&self, device: Device, dtype: DType) -> Result<Loader, Error> {
         Ok(Loader::new(self.repository()?, device, dtype))
     }

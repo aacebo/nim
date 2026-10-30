@@ -43,6 +43,7 @@ impl Context {
         sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
         let signals = nim::signals::connect("text", &config.nats_url).await?;
         let signals = std::sync::Arc::new(signals);
+        nim::ai::register_model_observer(pool.as_ref().clone())?;
 
         Ok(Self {
             span,

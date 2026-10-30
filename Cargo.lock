@@ -2596,6 +2596,8 @@ dependencies = [
  "nim-signals",
  "nim-state",
  "nim-store",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

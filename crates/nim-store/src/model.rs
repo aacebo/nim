@@ -114,6 +114,68 @@ impl<'a> ModelStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn upsert(&self, value: types::ModelRow) -> Result<types::ModelRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            INSERT INTO models (
+                id,
+                version,
+                type,
+                name,
+                tasks,
+                architectures,
+                source,
+                weights,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                $9,
+                $10
+            )
+            ON CONFLICT (name) DO UPDATE
+            SET
+                version = models.version + 1,
+                type = EXCLUDED.type,
+                architectures = EXCLUDED.architectures,
+                source = EXCLUDED.source,
+                updated_at = EXCLUDED.updated_at
+            RETURNING
+                id,
+                version,
+                type,
+                name,
+                tasks,
+                architectures,
+                source,
+                weights,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(value.id)
+        .bind(value.version)
+        .bind(value.ty)
+        .bind(value.name)
+        .bind(value.tasks)
+        .bind(value.architectures)
+        .bind(value.source)
+        .bind(value.weights)
+        .bind(value.created_at)
+        .bind(value.updated_at)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::ModelRow) -> Result<types::ModelRow, sqlx::Error> {
         let row = sqlx::query_as(
             r#"

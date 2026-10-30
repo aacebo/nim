@@ -3,6 +3,7 @@ mod delete;
 mod find_by_id;
 mod find_by_name;
 mod update;
+mod upsert;
 
 pub use create::*;
 pub use update::*;

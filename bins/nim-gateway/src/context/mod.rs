@@ -76,6 +76,7 @@ impl Context {
         .await?;
 
         let signals = std::sync::Arc::new(signals);
+        nim::ai::register_model_observer(pool.as_ref().clone())?;
         Ok(Self { config, pool, signals })
     }
 }

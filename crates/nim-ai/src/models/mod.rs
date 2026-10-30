@@ -45,6 +45,8 @@ use crate::Error;
 use crate::resources::Repository;
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
+static OBSERVERS: std::sync::LazyLock<std::sync::RwLock<Vec<std::sync::Arc<dyn Observer>>>> =
+    std::sync::LazyLock::new(|| std::sync::RwLock::new(Vec::new()));
 
 pub fn id(value: impl AsRef<str>) -> Result<ModelId, Error> {
     value.as_ref().parse::<ModelId>()
@@ -61,12 +63,40 @@ pub fn load(model: &ModelRef) -> Result<std::sync::Arc<crate::models::Model>, Er
     use candle_core::{DType, Device};
 
     MODELS.get_or_build(Key::new(model), || {
-        Ok(std::sync::Arc::new(crate::models::Model::new(
-            model,
-            Device::Cpu,
-            DType::F32,
-        )?))
+        if let ModelRef::Remote(_) = model {
+            return Ok(std::sync::Arc::new(Model::new(model, Device::Cpu, DType::F32)?));
+        }
+
+        let observers = OBSERVERS.read()?.clone();
+        for observer in &observers {
+            observer.on_load(model);
+        }
+
+        match Model::new(model, Device::Cpu, DType::F32) {
+            Ok(loaded) => {
+                if let Some(config) = &loaded.config {
+                    for observer in &observers {
+                        observer.on_load_success(model, config);
+                    }
+                }
+
+                Ok(std::sync::Arc::new(loaded))
+            }
+            Err(error) => {
+                for observer in &observers {
+                    observer.on_load_error(model, &error);
+                }
+
+                Err(error)
+            }
+        }
     })
+}
+
+pub fn observe(observer: impl Observer + 'static) -> Result<(), Error> {
+    let mut guard = OBSERVERS.write()?;
+    guard.push(std::sync::Arc::new(observer));
+    Ok(())
 }
 
 pub trait Forward: Send + Sync {
@@ -127,6 +157,7 @@ pub struct Model {
     model: AnyModel,
     device: Device,
     tokenizer: Option<tokenizers::Tokenizer>,
+    config: Option<ModelConfig>,
 }
 
 impl Model {
@@ -139,6 +170,7 @@ impl Model {
                 model: AnyModel::Remote(remote.clone()),
                 device,
                 tokenizer: None,
+                config: None,
             }),
             ModelRef::Local(local) => Self::local(local, device, dtype, name),
         }
@@ -148,151 +180,153 @@ impl Model {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
         let model_config: ModelConfig = repo.config()?;
-        let model = if model_config.is_cnn8rnn_audio_classification() {
+
+        let model = match model_config.model_type {
             #[cfg(feature = "audio")]
-            {
+            _ if model_config.is_cnn8rnn_audio_classification() => {
                 let config: cnn8rnn::Config = repo.config()?;
                 let labels = repo.string("classes.txt")?.lines().map(str::to_string).collect();
                 AnyModel::AudioClassifier(cnn8rnn::Classifier::new(config, labels, repo.vars()?)?)
             }
-            #[cfg(not(feature = "audio"))]
-            return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
-        } else if model_config.is_cnn14_audio_captioning() {
             #[cfg(feature = "audio")]
-            {
+            _ if model_config.is_cnn14_audio_captioning() => {
                 let config: audiocap::Config = repo.config()?;
                 AnyModel::AudioCaptioner(audiocap::Captioner::new(config, repo.vars()?)?)
             }
             #[cfg(not(feature = "audio"))]
-            return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
-        } else {
-            match model_config.model_type {
-                #[cfg(not(feature = "vision"))]
-                ModelType::MobileNetV2 | ModelType::Git | ModelType::Detr => {
-                    return Err(Error::custom("ai::config", format!("{name} requires the `vision` feature")));
-                }
-                #[cfg(not(feature = "audio"))]
-                ModelType::Whisper => {
-                    return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
-                }
-                ModelType::Bart => {
-                    let config: bart::Config = repo.config()?;
+            _ if model_config.architectures.iter().any(|architecture| {
+                matches!(
+                    architecture,
+                    Architecture::Cnn8RnnSoundEventDetection | Architecture::Cnn14RnnTempAttnGruModel
+                )
+            }) =>
+            {
+                return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
+            }
+            #[cfg(not(feature = "vision"))]
+            ModelType::MobileNetV2 | ModelType::Git | ModelType::Detr => {
+                return Err(Error::custom("ai::config", format!("{name} requires the `vision` feature")));
+            }
+            #[cfg(not(feature = "audio"))]
+            ModelType::Whisper => {
+                return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
+            }
+            ModelType::Bart => {
+                let config: bart::Config = repo.config()?;
 
-                    match (
-                        model_config.is_sequence_classification(),
-                        model_config.is_token_classification(),
-                        config.id2label.is_empty(),
-                    ) {
-                        (true, _, false) if bart::ZeroShotClassifier::supports(&config) => {
-                            AnyModel::BartZeroShotClassifier(bart::ZeroShotClassifier::new(&config, repo.vars()?)?)
-                        }
-                        (true, _, false) => {
-                            AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Whole)?)
-                        }
-                        (_, true, false) => {
-                            AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Regions)?)
-                        }
-                        _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
+                match (
+                    model_config.is_sequence_classification(),
+                    model_config.is_token_classification(),
+                    config.id2label.is_empty(),
+                ) {
+                    (true, _, false) if bart::ZeroShotClassifier::supports(&config) => {
+                        AnyModel::BartZeroShotClassifier(bart::ZeroShotClassifier::new(&config, repo.vars()?)?)
                     }
-                }
-                ModelType::DistilBert => {
-                    let config: distilbert::Config = repo.config()?;
-
-                    match (
-                        model_config.is_sequence_classification(),
-                        model_config.is_token_classification(),
-                        !config.id2label.is_empty(),
-                    ) {
-                        (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(
-                            repo.vars()?,
-                            &config,
-                            ClassifyMode::Whole,
-                        )?),
-                        (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(
-                            repo.vars()?,
-                            &config,
-                            ClassifyMode::Regions,
-                        )?),
-                        _ => {
-                            return Err(Error::custom(
-                                "ai::invalid",
-                                format!("{name} has no compatible classification head"),
-                            ));
-                        }
+                    (true, _, false) => {
+                        AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Whole)?)
                     }
-                }
-                #[cfg(feature = "vision")]
-                ModelType::MobileNetV2 => {
-                    let config: mobilenet::Config = repo.config()?;
-                    let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
-                    AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
-                }
-                #[cfg(feature = "vision")]
-                ModelType::Detr => {
-                    let config: detr::Config = repo.config()?;
-                    config.validate()?;
-                    let processor: detr::Processor = repo.json("preprocessor_config.json")?;
-                    AnyModel::ObjectDetector(detr::Detector::new(repo.vars()?, config, processor)?)
-                }
-                #[cfg(feature = "vision")]
-                ModelType::Git => {
-                    let config: git::Config = repo.config()?;
-                    let processor: git::Processor = repo.json("preprocessor_config.json")?;
-                    AnyModel::ImageCaptioner(git::Captioner::new(config, processor, repo.vars()?)?)
-                }
-                #[cfg(feature = "audio")]
-                ModelType::Whisper => {
-                    let config: whisper::Config = repo.config()?;
-                    let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
-
-                    if model_config.is_audio_captioning() {
-                        AnyModel::WhisperCaptioner(whisper::Captioner::new(config, processor, repo.vars()?)?)
-                    } else {
-                        AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
+                    (_, true, false) => {
+                        AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Regions)?)
                     }
-                }
-                ModelType::Bert | ModelType::Unknown => {
-                    let config: bert::Config = repo.config()?;
-
-                    match (
-                        model_config.is_sequence_classification(),
-                        model_config.is_token_classification(),
-                        !config.id2label.is_empty(),
-                    ) {
-                        (true, _, true) => {
-                            AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Whole)?)
-                        }
-                        (_, true, true) => {
-                            AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Regions)?)
-                        }
-                        _ => AnyModel::Embedder(keybert::KeyBert::new(bert::Embedder::new(repo.vars()?, &config)?)),
-                    }
-                }
-                other => {
-                    return Err(Error::custom(
-                        "ai::invalid",
-                        format!("{name} has unsupported architecture `{other}`"),
-                    ));
+                    _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
                 }
             }
+            ModelType::DistilBert => {
+                let config: distilbert::Config = repo.config()?;
+
+                match (
+                    model_config.is_sequence_classification(),
+                    model_config.is_token_classification(),
+                    !config.id2label.is_empty(),
+                ) {
+                    (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(
+                        repo.vars()?,
+                        &config,
+                        ClassifyMode::Whole,
+                    )?),
+                    (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(
+                        repo.vars()?,
+                        &config,
+                        ClassifyMode::Regions,
+                    )?),
+                    _ => {
+                        return Err(Error::custom(
+                            "ai::invalid",
+                            format!("{name} has no compatible classification head"),
+                        ));
+                    }
+                }
+            }
+            #[cfg(feature = "vision")]
+            ModelType::MobileNetV2 => {
+                let config: mobilenet::Config = repo.config()?;
+                let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
+                AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
+            }
+            #[cfg(feature = "vision")]
+            ModelType::Detr => {
+                let config: detr::Config = repo.config()?;
+                config.validate()?;
+                let processor: detr::Processor = repo.json("preprocessor_config.json")?;
+                AnyModel::ObjectDetector(detr::Detector::new(repo.vars()?, config, processor)?)
+            }
+            #[cfg(feature = "vision")]
+            ModelType::Git => {
+                let config: git::Config = repo.config()?;
+                let processor: git::Processor = repo.json("preprocessor_config.json")?;
+                AnyModel::ImageCaptioner(git::Captioner::new(config, processor, repo.vars()?)?)
+            }
+            #[cfg(feature = "audio")]
+            ModelType::Whisper => {
+                let config: whisper::Config = repo.config()?;
+                let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
+
+                if model_config.is_audio_captioning() {
+                    AnyModel::WhisperCaptioner(whisper::Captioner::new(config, processor, repo.vars()?)?)
+                } else {
+                    AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
+                }
+            }
+            ModelType::Bert | ModelType::Unknown => {
+                let config: bert::Config = repo.config()?;
+
+                match (
+                    model_config.is_sequence_classification(),
+                    model_config.is_token_classification(),
+                    !config.id2label.is_empty(),
+                ) {
+                    (true, _, true) => {
+                        AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Whole)?)
+                    }
+                    (_, true, true) => {
+                        AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Regions)?)
+                    }
+                    _ => AnyModel::Embedder(keybert::KeyBert::new(bert::Embedder::new(repo.vars()?, &config)?)),
+                }
+            }
+            other => {
+                return Err(Error::custom(
+                    "ai::invalid",
+                    format!("{name} has unsupported architecture `{other}`"),
+                ));
+            }
+        };
+        let tokenizer = match &model {
+            #[cfg(feature = "audio")]
+            AnyModel::AudioClassifier(_) => None,
+            #[cfg(feature = "audio")]
+            AnyModel::AudioCaptioner(_) => Some(audiocap::tokenizer()?),
+            #[cfg(feature = "vision")]
+            AnyModel::VisionClassifier(_) | AnyModel::ObjectDetector(_) => None,
+            _ => Some(repo.tokenizer()?),
         };
 
         Ok(Self {
             model,
-            tokenizer: match (
-                model_config.is_cnn8rnn_audio_classification(),
-                model_config.is_cnn14_audio_captioning(),
-            ) {
-                (true, _) => None,
-                #[cfg(feature = "audio")]
-                (_, true) => Some(audiocap::tokenizer()?),
-                _ => match model_config.model_type {
-                    ModelType::MobileNetV2 | ModelType::Detr => None,
-                    _ => Some(repo.tokenizer()?),
-                },
-            },
+            tokenizer,
             device,
             name,
+            config: Some(model_config),
         })
     }
 

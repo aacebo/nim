@@ -12,7 +12,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-nim = { workspace = true, features = ["ai", "signals"] }
+nim = { workspace = true, features = ["runtime", "ai", "signals"] }
 axum = { workspace = true, features = ["multipart"] }
 mime = { workspace = true }
 mime_guess = { workspace = true }

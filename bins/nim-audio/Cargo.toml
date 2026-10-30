@@ -12,7 +12,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-nim = { workspace = true, features = ["signals", "ai", "audio"] }
+nim = { workspace = true, features = ["runtime", "signals", "ai", "audio"] }
 heck = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }

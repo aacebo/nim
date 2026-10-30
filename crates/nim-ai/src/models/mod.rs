@@ -45,8 +45,11 @@ use crate::Error;
 use crate::resources::Repository;
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
-static OBSERVERS: std::sync::LazyLock<std::sync::RwLock<Vec<std::sync::Arc<dyn Observer>>>> =
-    std::sync::LazyLock::new(|| std::sync::RwLock::new(Vec::new()));
+type LoadCallback = dyn Fn(&ModelRef, &ModelConfig) + Send + Sync + 'static;
+
+static LOAD_CALLBACKS: std::sync::LazyLock<std::sync::RwLock<std::collections::HashMap<u64, std::sync::Arc<LoadCallback>>>> =
+    std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashMap::new()));
+static NEXT_SUBSCRIPTION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 pub fn id(value: impl AsRef<str>) -> Result<ModelId, Error> {
     value.as_ref().parse::<ModelId>()
@@ -67,37 +70,29 @@ pub fn load(model: &ModelRef) -> Result<std::sync::Arc<crate::models::Model>, Er
             return Ok(std::sync::Arc::new(Model::new(model, Device::Cpu, DType::F32)?));
         }
 
-        let observers = OBSERVERS.read()?.clone();
+        let callbacks = LOAD_CALLBACKS.read()?.values().cloned().collect::<Vec<_>>();
+        let loaded = Model::new(model, Device::Cpu, DType::F32)?;
 
-        for observer in &observers {
-            observer.on_load(model);
-        }
-
-        match Model::new(model, Device::Cpu, DType::F32) {
-            Ok(loaded) => {
-                if let Some(config) = &loaded.config {
-                    for observer in &observers {
-                        observer.on_load_success(model, config);
-                    }
-                }
-
-                Ok(std::sync::Arc::new(loaded))
-            }
-            Err(error) => {
-                for observer in &observers {
-                    observer.on_load_error(model, &error);
-                }
-
-                Err(error)
+        if let Some(config) = &loaded.config {
+            for callback in &callbacks {
+                callback(model, config);
             }
         }
+
+        Ok(std::sync::Arc::new(loaded))
     })
 }
 
-pub fn observe(observer: impl Observer + 'static) -> Result<(), Error> {
-    let mut guard = OBSERVERS.write()?;
-    guard.push(std::sync::Arc::new(observer));
-    Ok(())
+pub fn on_load(callback: impl Fn(&ModelRef, &ModelConfig) + Send + Sync + 'static) -> Result<crate::Subscription, Error> {
+    let id = NEXT_SUBSCRIPTION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    LOAD_CALLBACKS.write()?.insert(id, std::sync::Arc::new(callback));
+
+    Ok(crate::Subscription::new(move || {
+        LOAD_CALLBACKS
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&id);
+    }))
 }
 
 pub trait Forward: Send + Sync {
@@ -105,12 +100,6 @@ pub trait Forward: Send + Sync {
     type Output;
 
     fn forward(&self, input: Self::Input) -> Result<Self::Output, Error>;
-}
-
-pub trait Observer: Send + Sync {
-    fn on_load(&self, _model: &ModelRef) {}
-    fn on_load_success(&self, _model: &ModelRef, _config: &ModelConfig) {}
-    fn on_load_error(&self, _model: &ModelRef, _error: &dyn std::error::Error) {}
 }
 
 #[derive(Debug, Copy, Clone)]

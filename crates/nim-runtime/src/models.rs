@@ -1,29 +1,12 @@
-pub use nim_ai::*;
+use nim_ai::models;
+use nim_state as state;
 
-use crate::{state, store};
+pub fn persist(pool: nim_store::PgPool) -> Result<nim_ai::Subscription, crate::Error> {
+    let runtime = tokio::runtime::Handle::try_current().map_err(|error| nim_ai::Error::custom("runtime", error))?;
 
-pub fn register_model_observer(pool: store::PgPool) -> Result<(), crate::Error> {
-    Ok(models::observe(ModelObserver::new(pool))?)
-}
-
-pub struct ModelObserver {
-    pool: store::PgPool,
-    runtime: tokio::runtime::Handle,
-}
-
-impl ModelObserver {
-    pub fn new(pool: store::PgPool) -> Self {
-        Self {
-            pool,
-            runtime: tokio::runtime::Handle::current(),
-        }
-    }
-}
-
-impl models::Observer for ModelObserver {
-    fn on_load_success(&self, model: &models::ModelRef, config: &models::ModelConfig) {
+    Ok(models::on_load(move |model, config| {
         let model = model.clone();
-        let pool = self.pool.clone();
+        let pool = pool.clone();
         let name = match &model {
             models::ModelRef::Local(models::LocalModel::Path(resource)) => resource.uri.to_string(),
             _ => model.name(),
@@ -31,7 +14,7 @@ impl models::Observer for ModelObserver {
         let ty = config.model_type.to_string();
         let architectures = config.architectures.iter().map(ToString::to_string).collect::<Vec<_>>();
 
-        self.runtime.spawn(async move {
+        runtime.spawn(async move {
             for attempt in 0..3 {
                 let result = async {
                     let source = match &model {
@@ -90,5 +73,5 @@ impl models::Observer for ModelObserver {
                 }
             }
         });
-    }
+    })?)
 }

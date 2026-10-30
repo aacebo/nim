@@ -7,6 +7,7 @@ pub struct Context {
     config: Config,
     pool: std::sync::Arc<sqlx::PgPool>,
     signals: std::sync::Arc<nim::signals::Client>,
+    _models: std::sync::Arc<nim::ai::Subscription>,
 }
 
 impl Context {
@@ -76,8 +77,13 @@ impl Context {
         .await?;
 
         let signals = std::sync::Arc::new(signals);
-        nim::ai::register_model_observer(pool.as_ref().clone())?;
-        Ok(Self { config, pool, signals })
+        let models = std::sync::Arc::new(nim::runtime::models::persist(pool.as_ref().clone()).map_err(nim::Error::from)?);
+        Ok(Self {
+            config,
+            pool,
+            signals,
+            _models: models,
+        })
     }
 }
 

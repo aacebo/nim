@@ -12,7 +12,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-nim = { workspace = true, features = ["signals", "ai"] }
+nim = { workspace = true, features = ["runtime", "signals", "ai"] }
 chrono = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio", "postgres", "macros", "migrate"] }

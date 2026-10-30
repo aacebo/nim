@@ -13,7 +13,8 @@ workspace = true
 
 [features]
 default = []
-ai = ["dep:nim-ai", "dep:tokio", "dep:tracing"]
+ai = ["dep:nim-ai", "nim-runtime?/ai"]
+runtime = ["dep:nim-runtime"]
 audio = ["nim-ai?/audio"]
 vision = ["nim-ai?/vision"]
 signals = ["dep:nim-signals"]
@@ -23,6 +24,4 @@ nim-state = { workspace = true }
 nim-store = { workspace = true }
 nim-signals = { workspace = true, optional = true }
 nim-ai = { workspace = true, optional = true }
-
-tokio = { workspace = true, optional = true, features = ["rt", "time"] }
-tracing = { workspace = true, optional = true }
+nim-runtime = { workspace = true, optional = true }

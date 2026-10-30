@@ -1,6 +1,8 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use sha2::{Digest, Sha256};
+
 use crate::{
     Error,
     clients::download::Download,
@@ -35,15 +37,9 @@ impl Repository for HttpRepository {
         let filename = path
             .to_str()
             .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
-        let key = url::Url::from_file_path(path)
-            .map(|url| url.to_string())
-            .unwrap_or_else(|_| filename.to_string());
-        let cached = cache::dir()
-            .unwrap_or_else(std::env::temp_dir)
-            .join("urls")
-            .join(slug(&self.base.to_string()))
-            .join(key);
         let uri = self.base.join(filename)?;
+        let key = format!("{:x}", Sha256::digest(uri.to_string().as_bytes()));
+        let cached = cache::dir().unwrap_or_else(std::env::temp_dir).join("urls").join(key);
         let mut progress = Download::new(&self.base.to_string(), filename);
 
         if cached.exists() {
@@ -54,7 +50,7 @@ impl Repository for HttpRepository {
         progress.start();
 
         let result = (|| -> Result<PathBuf, Error> {
-            let url = self.base.join(filename)?.to_string();
+            let url = uri.to_string();
             let mut response = reqwest::blocking::get(&url)?.error_for_status()?;
             progress.reset(response.content_length());
             let mut bytes = Vec::new();
@@ -90,8 +86,4 @@ impl Repository for HttpRepository {
             }
         }
     }
-}
-
-fn slug(base: &str) -> String {
-    base.chars().map(|ch| if ch.is_alphanumeric() { ch } else { '-' }).collect()
 }

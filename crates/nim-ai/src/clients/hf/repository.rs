@@ -47,6 +47,17 @@ impl Repository for HuggingFaceRepository {
     }
 
     fn resolve(&self, path: &Path) -> Result<Resource, Error> {
+        if path.as_os_str().is_empty() {
+            let cached = self.cache.get("").ok_or_else(|| {
+                Error::IO(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("{} has no cached repository", self.id),
+                ))
+            })?;
+
+            return Resource::from_path(cached);
+        }
+
         let path = path
             .to_str()
             .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;

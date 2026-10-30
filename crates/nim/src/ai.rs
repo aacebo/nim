@@ -24,7 +24,10 @@ impl models::Observer for ModelObserver {
     fn on_load_success(&self, model: &models::ModelRef, config: &models::ModelConfig) {
         let model = model.clone();
         let pool = self.pool.clone();
-        let name = model.name();
+        let name = match &model {
+            models::ModelRef::Local(models::LocalModel::Path(resource)) => resource.uri.to_string(),
+            _ => model.name(),
+        };
         let ty = config.model_type.to_string();
         let architectures = config.architectures.iter().map(ToString::to_string).collect::<Vec<_>>();
 
@@ -32,10 +35,12 @@ impl models::Observer for ModelObserver {
             for attempt in 0..3 {
                 let result = async {
                     let source = match &model {
-                        models::ModelRef::Local(models::LocalModel::Hub(id)) => {
+                        models::ModelRef::Local(local @ models::LocalModel::Hub(id)) => {
+                            let resource = local.repository()?.resolve(std::path::Path::new(""))?;
+
                             state::ModelSource::Local(state::LocalModelSource::Hub {
                                 id: id.to_string(),
-                                resource: id.cached_resource()?.map(|resource| state::ModelResource {
+                                resource: Some(state::ModelResource {
                                     uri: resource.uri.to_string(),
                                     format: resource.format.to_string(),
                                     path: resource.path,

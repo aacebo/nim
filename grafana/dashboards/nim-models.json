@@ -1,0 +1,271 @@
+{
+  "uid": "nim-models",
+  "title": "NIM Models",
+  "description": "Browse the 200 most recently updated registered models. Click a model_id to inspect metadata, source resources, and calibration weights. The dropdown lists up to 500 recent models. Registry browsing is independent of the dashboard time range.",
+  "tags": [
+    "nim",
+    "postgres",
+    "models"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "links": [
+    {
+      "title": "All models",
+      "type": "link",
+      "url": "/d/nim-models?var-model=all",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "model",
+        "label": "Model",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "query": "SELECT __text, __value FROM (\n    SELECT 'All models' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT name || ' · ' || id::text, id::text, 1, updated_at\n    FROM models\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "definition": "SELECT __text, __value FROM (\n    SELECT 'All models' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT name || ' · ' || id::text, id::text, 1, updated_at\n    FROM models\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "All models",
+          "value": "all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Models — click model_id to drill down",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    m.id::text AS model_id,\n    m.name,\n    m.type,\n    m.version,\n    array_to_string(m.tasks, ', ') AS tasks,\n    array_to_string(m.architectures, ', ') AS architectures,\n    m.source->>'type' AS source_type,\n    m.source->'value'->>'type' AS local_source,\n    m.source->'value'->>'provider' AS provider,\n    jsonb_array_length(m.weights) AS calibrations,\n    m.created_at,\n    m.updated_at\nFROM models m\nWHERE (${model:sqlstring} = 'all' OR m.id::text = ${model:sqlstring})\nORDER BY m.updated_at DESC, m.id\nLIMIT 200"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "model_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View model source and calibration weights",
+                    "url": "/d/nim-models?var-model=${__value.raw}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Selected model",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    m.id::text AS model_id,\n    m.name,\n    m.type,\n    m.version,\n    m.tasks::text AS tasks,\n    m.architectures::text AS architectures,\n    m.created_at,\n    m.updated_at\nFROM models m\nWHERE m.id::text = ${model:sqlstring}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Selected model source and resource",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    m.id::text AS model_id,\n    m.source->>'type' AS source_type,\n    m.source->'value'->>'type' AS local_source,\n    m.source->'value'->>'provider' AS provider,\n    m.source->'value'->>'id' AS source_id,\n    m.source->'value'->>'base_url' AS base_url,\n    COALESCE(m.source->'value'->'resource'->>'uri', m.source->'value'->>'uri') AS uri,\n    COALESCE(m.source->'value'->'resource'->>'format', m.source->'value'->>'format') AS format,\n    COALESCE(m.source->'value'->'resource'->>'path', m.source->'value'->>'path') AS cached_path,\n    COALESCE(m.source->'value'->'resource'->>'size', m.source->'value'->>'size')::numeric AS size_bytes,\n    m.source::text AS source\nFROM models m\nWHERE m.id::text = ${model:sqlstring}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Selected model calibration weights",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    m.id::text AS model_id,\n    w.ordinality AS position,\n    w.value->>'type' AS type,\n    (w.value->>'a')::double precision AS a,\n    (w.value->>'b')::double precision AS b,\n    w.value::text AS weights\nFROM models m\nCROSS JOIN LATERAL jsonb_array_elements(m.weights) WITH ORDINALITY AS w(value, ordinality)\nWHERE m.id::text = ${model:sqlstring}\nORDER BY w.ordinality"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    }
+  ]
+}

@@ -26,6 +26,7 @@ serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "charset", "default-tls", "http2", "json", "system-proxy"] }
 url = { workspace = true }
 tracing = { workspace = true }
+sha2 = "0.10"
 
 candle-core = { version = "0.11" }
 candle-nn = { version = "0.11" }

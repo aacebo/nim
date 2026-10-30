@@ -128,8 +128,8 @@ impl<'a> ArtifactStorage<'a> {
                 content = $3,
                 summary = $4,
                 embedding = $5,
-                confidence = $6,
-                salience = $7,
+                confidence = GREATEST(confidence, $6),
+                salience = GREATEST(salience, $7),
                 strength = GREATEST(strength, $8),
                 updated_at = $9
             WHERE id = $1
@@ -208,7 +208,7 @@ impl<'a> MemoryArtifactsStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::MemoryArtifactRow) -> Result<types::MemoryArtifactRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             INSERT INTO memories_artifacts (
                 memory_id,
@@ -220,6 +220,7 @@ impl<'a> MemoryArtifactsStorage<'a> {
                 $2,
                 $3
             )
+            ON CONFLICT DO NOTHING
             RETURNING
                 memory_id,
                 artifact_id,
@@ -229,29 +230,13 @@ impl<'a> MemoryArtifactsStorage<'a> {
         .bind(value.memory_id)
         .bind(value.artifact_id)
         .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
-    }
+        .fetch_optional(self.pool)
+        .await?;
 
-    #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::MemoryArtifactRow) -> Result<types::MemoryArtifactRow, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            UPDATE memories_artifacts
-            SET
-                created_at = $3
-            WHERE memory_id = $1 AND artifact_id = $2
-            RETURNING
-                memory_id,
-                artifact_id,
-                created_at
-            "#,
-        )
-        .bind(value.memory_id)
-        .bind(value.artifact_id)
-        .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.memory_id, value.artifact_id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

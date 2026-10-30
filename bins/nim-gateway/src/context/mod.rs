@@ -40,6 +40,7 @@ impl Context {
                         max_messages: 10_000,
                         subjects: vec![
                             "nim.artifact.create".into(),
+                            "nim.artifact.update".into(),
                             "nim.vision.artifact.create".into(),
                             "nim.audio.artifact.create".into(),
                             "nim.text.artifact.create".into(),

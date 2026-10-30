@@ -104,7 +104,7 @@ impl<'a> EntityStorage<'a> {
                 version = version + 1,
                 name = $3,
                 summary = $4,
-                confidence = $5,
+                confidence = GREATEST(confidence, $5),
                 embedding = $6,
                 recalls = $7,
                 recalled_at = $8,
@@ -182,7 +182,7 @@ impl<'a> EntityMemoriesStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::EntityMemoryRow) -> Result<types::EntityMemoryRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             INSERT INTO entities_memories (
                 entity_id,
@@ -194,6 +194,7 @@ impl<'a> EntityMemoriesStorage<'a> {
                 $2,
                 $3
             )
+            ON CONFLICT DO NOTHING
             RETURNING
                 entity_id,
                 memory_id,
@@ -203,29 +204,13 @@ impl<'a> EntityMemoriesStorage<'a> {
         .bind(value.entity_id)
         .bind(value.memory_id)
         .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
-    }
+        .fetch_optional(self.pool)
+        .await?;
 
-    #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::EntityMemoryRow) -> Result<types::EntityMemoryRow, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            UPDATE entities_memories
-            SET
-                created_at = $3
-            WHERE entity_id = $1 AND memory_id = $2
-            RETURNING
-                entity_id,
-                memory_id,
-                created_at
-            "#,
-        )
-        .bind(value.entity_id)
-        .bind(value.memory_id)
-        .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.entity_id, value.memory_id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]
@@ -281,7 +266,7 @@ impl<'a> EntityRelationsStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::EntityRelationRow) -> Result<types::EntityRelationRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             INSERT INTO entities_relations (
                 source_id,
@@ -295,6 +280,7 @@ impl<'a> EntityRelationsStorage<'a> {
                 $3,
                 $4
             )
+            ON CONFLICT DO NOTHING
             RETURNING
                 source_id,
                 target_id,
@@ -306,31 +292,13 @@ impl<'a> EntityRelationsStorage<'a> {
         .bind(value.target_id)
         .bind(value.ty)
         .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
-    }
+        .fetch_optional(self.pool)
+        .await?;
 
-    #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::EntityRelationRow) -> Result<types::EntityRelationRow, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            UPDATE entities_relations
-            SET
-                created_at = $4
-            WHERE source_id = $1 AND target_id = $2 AND type = $3
-            RETURNING
-                source_id,
-                target_id,
-                type,
-                created_at
-            "#,
-        )
-        .bind(value.source_id)
-        .bind(value.target_id)
-        .bind(value.ty)
-        .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.source_id, value.target_id, value.ty).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

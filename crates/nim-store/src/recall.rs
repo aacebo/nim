@@ -65,32 +65,6 @@ impl<'a> RecallStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::RecallRow) -> Result<types::RecallRow, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            UPDATE recalls
-            SET
-                trigger = $2,
-                source = $3,
-                query = $4
-            WHERE id = $1
-            RETURNING
-                id,
-                trigger,
-                source,
-                query,
-                created_at
-            "#,
-        )
-        .bind(value.id)
-        .bind(value.trigger)
-        .bind(value.source)
-        .bind(value.query)
-        .fetch_one(self.pool)
-        .await
-    }
-
-    #[tracing::instrument(skip(self))]
     pub async fn delete(&self, id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
@@ -136,7 +110,7 @@ impl<'a> MemoryRecallsStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::MemoryRecallRow) -> Result<types::MemoryRecallRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             INSERT INTO memories_recalls (
                 memory_id,
@@ -150,6 +124,7 @@ impl<'a> MemoryRecallsStorage<'a> {
                 $3,
                 $4
             )
+            ON CONFLICT DO NOTHING
             RETURNING
                 memory_id,
                 recall_id,
@@ -161,32 +136,13 @@ impl<'a> MemoryRecallsStorage<'a> {
         .bind(value.recall_id)
         .bind(value.score)
         .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
-    }
+        .fetch_optional(self.pool)
+        .await?;
 
-    #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::MemoryRecallRow) -> Result<types::MemoryRecallRow, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            UPDATE memories_recalls
-            SET
-                score = $3,
-                created_at = $4
-            WHERE memory_id = $1 AND recall_id = $2
-            RETURNING
-                memory_id,
-                recall_id,
-                score,
-                created_at
-            "#,
-        )
-        .bind(value.memory_id)
-        .bind(value.recall_id)
-        .bind(value.score)
-        .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.memory_id, value.recall_id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

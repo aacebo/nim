@@ -32,19 +32,29 @@ async fn main() -> Result<(), Error> {
 
     start().await?;
 
-    let memories = tokio::spawn(memories(ctx.clone()));
-    let artifacts = tokio::spawn(artifacts(ctx.clone()));
-    let Ok((memories, artifacts)) = tokio::try_join!(memories, artifacts) else {
-        return Err(Error::custom("an error occured"));
-    };
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let mut memories = tokio::spawn(memories(ctx.clone(), receiver.clone()));
+    let mut artifacts = tokio::spawn(artifacts(ctx, receiver));
 
-    match (memories, artifacts) {
-        (Ok(_), Ok(_)) => {}
-        (Err(err), _) => return Err(err),
-        (_, Err(err)) => return Err(err),
-    };
-
-    stop().await
+    tokio::select! {
+        result = &mut memories => {
+            artifacts.abort();
+            let _ = artifacts.await;
+            result?
+        }
+        result = &mut artifacts => {
+            memories.abort();
+            let _ = memories.await;
+            result?
+        }
+        result = stop() => {
+            let _ = shutdown.send(true);
+            let (memories, artifacts) = tokio::join!(memories, artifacts);
+            memories??;
+            artifacts??;
+            result
+        }
+    }
 }
 
 #[tracing::instrument]
@@ -83,11 +93,20 @@ async fn stop() -> Result<(), Error> {
     Ok(())
 }
 
-#[tracing::instrument(skip(ctx))]
-async fn memories(ctx: Context) -> Result<(), Error> {
+#[tracing::instrument(skip(ctx, shutdown))]
+async fn memories(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
     let mut memories = ctx.signals().subscribe("nim.memory.>").await?;
 
-    while let Some(req) = memories.next().await {
+    loop {
+        let req = tokio::select! {
+            biased;
+            _ = shutdown.changed() => break,
+            req = memories.next() => req,
+        };
+        let Some(req) = req else {
+            break;
+        };
+
         let (message, signal) = req?;
         let subject = message.subject.to_string();
         let ctx = ctx.clone().into_signal(signal.id, message);
@@ -126,11 +145,20 @@ async fn memories(ctx: Context) -> Result<(), Error> {
     Ok(())
 }
 
-#[tracing::instrument(skip(ctx))]
-async fn artifacts(ctx: Context) -> Result<(), Error> {
+#[tracing::instrument(skip(ctx, shutdown))]
+async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
     let mut artifacts = ctx.signals().subscribe("nim.artifact.>").await?;
 
-    while let Some(req) = artifacts.next().await {
+    loop {
+        let req = tokio::select! {
+            biased;
+            _ = shutdown.changed() => break,
+            req = artifacts.next() => req,
+        };
+        let Some(req) = req else {
+            break;
+        };
+
         let (message, signal) = req?;
         let subject = message.subject.to_string();
         let ctx = ctx.clone().into_signal(signal.id, message);

@@ -217,9 +217,9 @@ impl<'a> MemoryStorage<'a> {
                 type = $2,
                 sources = $3,
                 contexts = $4,
-                salience = $5,
+                salience = GREATEST(salience, $5),
                 strength = GREATEST(strength, $6),
-                confidence = $7,
+                confidence = GREATEST(confidence, $7),
                 recalls = $8,
                 recalled_at = $9,
                 updated_at = $10
@@ -303,7 +303,7 @@ impl<'a> MemoryRelationsStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::MemoryRelationRow) -> Result<types::MemoryRelationRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             INSERT INTO memories_relations (
                 source_id,
@@ -315,6 +315,7 @@ impl<'a> MemoryRelationsStorage<'a> {
                 $2,
                 $3
             )
+            ON CONFLICT DO NOTHING
             RETURNING
                 source_id,
                 target_id,
@@ -324,29 +325,13 @@ impl<'a> MemoryRelationsStorage<'a> {
         .bind(value.source_id)
         .bind(value.target_id)
         .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
-    }
+        .fetch_optional(self.pool)
+        .await?;
 
-    #[tracing::instrument(skip(self))]
-    pub async fn update(&self, value: types::MemoryRelationRow) -> Result<types::MemoryRelationRow, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            UPDATE memories_relations
-            SET
-                created_at = $3
-            WHERE source_id = $1 AND target_id = $2
-            RETURNING
-                source_id,
-                target_id,
-                created_at
-            "#,
-        )
-        .bind(value.source_id)
-        .bind(value.target_id)
-        .bind(value.created_at)
-        .fetch_one(self.pool)
-        .await
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.source_id, value.target_id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

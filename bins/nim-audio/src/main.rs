@@ -29,11 +29,36 @@ async fn main() -> Result<(), Error> {
     let span = tracing::Span::current();
     let config = Config::load()?;
     let ctx = Context::connect(span, config).await?;
-    let mut artifacts = ctx.signals().subscribe("nim.audio.artifact.>").await?;
 
     start().await?;
 
-    while let Some(req) = artifacts.next().await {
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+    let mut worker = tokio::spawn(artifacts(ctx, receiver));
+
+    tokio::select! {
+        result = &mut worker => result?,
+        result = stop() => {
+            let _ = shutdown.send(true);
+            worker.await??;
+            result
+        }
+    }
+}
+
+#[tracing::instrument(skip(ctx, shutdown))]
+async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
+    let mut artifacts = ctx.signals().subscribe("nim.audio.artifact.>").await?;
+
+    loop {
+        let req = tokio::select! {
+            biased;
+            _ = shutdown.changed() => break,
+            req = artifacts.next() => req,
+        };
+        let Some(req) = req else {
+            break;
+        };
+
         let (message, signal) = req?;
         let subject = message.subject.to_string();
         let ctx = ctx.clone().into_signal(signal.id, message);
@@ -63,7 +88,7 @@ async fn main() -> Result<(), Error> {
         };
     }
 
-    stop().await
+    Ok(())
 }
 
 #[tracing::instrument]

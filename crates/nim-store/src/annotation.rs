@@ -145,13 +145,12 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             UPDATE annotations
             SET
-                artifact_id = $2,
-                label = $3,
-                text = $4,
-                spans = $5,
-                confidence = $6,
-                embedding = $7,
-                updated_at = $8
+                label = $2,
+                text = $3,
+                spans = $4,
+                confidence = GREATEST(confidence, $5),
+                embedding = $6,
+                updated_at = $7
             WHERE id = $1
             RETURNING
                 id,
@@ -166,7 +165,6 @@ impl<'a> AnnotationStorage<'a> {
             "#,
         )
         .bind(value.id)
-        .bind(value.artifact_id)
         .bind(value.label)
         .bind(value.text)
         .bind(value.spans)

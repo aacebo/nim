@@ -3,10 +3,8 @@ mod delete;
 mod find_by_id;
 mod link;
 mod unlink;
-mod update;
 
 pub use create::*;
-pub use update::*;
 
 use nim_store::{PgPool, Storage};
 

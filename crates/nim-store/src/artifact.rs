@@ -20,6 +20,9 @@ impl<'a> ArtifactStorage<'a> {
                 content,
                 summary,
                 embedding,
+                confidence,
+                salience,
+                strength,
                 created_at,
                 updated_at
             FROM artifacts
@@ -41,6 +44,9 @@ impl<'a> ArtifactStorage<'a> {
                 artifacts.content,
                 artifacts.summary,
                 artifacts.embedding,
+                artifacts.confidence,
+                artifacts.salience,
+                artifacts.strength,
                 artifacts.created_at,
                 artifacts.updated_at
             FROM artifacts
@@ -65,6 +71,9 @@ impl<'a> ArtifactStorage<'a> {
                 content,
                 summary,
                 embedding,
+                confidence,
+                salience,
+                strength,
                 created_at,
                 updated_at
             )
@@ -76,7 +85,10 @@ impl<'a> ArtifactStorage<'a> {
                 $4,
                 $5,
                 $6,
-                $7
+                $7,
+                $8,
+                $9,
+                $10
             )
             RETURNING
                 id,
@@ -84,6 +96,9 @@ impl<'a> ArtifactStorage<'a> {
                 content,
                 summary,
                 embedding,
+                confidence,
+                salience,
+                strength,
                 created_at,
                 updated_at
             "#,
@@ -93,6 +108,9 @@ impl<'a> ArtifactStorage<'a> {
         .bind(value.content)
         .bind(value.summary)
         .bind(value.embedding)
+        .bind(value.confidence)
+        .bind(value.salience)
+        .bind(value.strength)
         .bind(value.created_at)
         .bind(value.updated_at)
         .fetch_one(self.pool)
@@ -110,7 +128,10 @@ impl<'a> ArtifactStorage<'a> {
                 content = $3,
                 summary = $4,
                 embedding = $5,
-                updated_at = $6
+                confidence = $6,
+                salience = $7,
+                strength = GREATEST(strength, $8),
+                updated_at = $9
             WHERE id = $1
             RETURNING
                 id,
@@ -118,6 +139,9 @@ impl<'a> ArtifactStorage<'a> {
                 content,
                 summary,
                 embedding,
+                confidence,
+                salience,
+                strength,
                 created_at,
                 updated_at
             "#,
@@ -127,6 +151,9 @@ impl<'a> ArtifactStorage<'a> {
         .bind(value.content)
         .bind(value.summary)
         .bind(value.embedding)
+        .bind(value.confidence)
+        .bind(value.salience)
+        .bind(value.strength)
         .bind(chrono::Utc::now())
         .fetch_one(self.pool)
         .await

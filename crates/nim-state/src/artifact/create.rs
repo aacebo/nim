@@ -8,6 +8,9 @@ pub struct ArtifactCreate {
     pub content: ArtifactContent,
     pub summary: Option<String>,
     pub embedding: Option<Embedding>,
+    pub confidence: Option<f32>,
+    pub salience: Option<f32>,
+    pub strength: Option<f32>,
 }
 
 impl<'a> ArtifactService<'a> {
@@ -23,6 +26,9 @@ impl<'a> ArtifactService<'a> {
                 content: nim_store::Json(value.content),
                 summary: value.summary,
                 embedding: value.embedding.map(Into::into),
+                confidence: value.confidence.unwrap_or_default(),
+                salience: value.salience.unwrap_or_default(),
+                strength: value.strength.unwrap_or_default(),
                 created_at: now,
                 updated_at: now,
             })

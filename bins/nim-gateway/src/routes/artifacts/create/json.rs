@@ -17,6 +17,9 @@ pub async fn route(ctx: HttpContext, body: axum::Json<Body>) -> axum::response::
             content: nim::state::ArtifactContent::Text { text: body.text.clone() },
             summary: None,
             embedding: None,
+            confidence: None,
+            salience: None,
+            strength: None,
         })
         .await
         .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;

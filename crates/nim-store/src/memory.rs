@@ -36,6 +36,62 @@ impl<'a> MemoryStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_artifact_id(&self, artifact_id: uuid::Uuid) -> Result<Vec<types::MemoryRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                memories.id,
+                memories.version,
+                memories.type,
+                memories.sources,
+                memories.contexts,
+                memories.salience,
+                memories.strength,
+                memories.confidence,
+                memories.recalls,
+                memories.recalled_at,
+                memories.created_at,
+                memories.updated_at
+            FROM memories
+            JOIN memories_artifacts ON memories_artifacts.memory_id = memories.id
+            WHERE memories_artifacts.artifact_id = $1
+            ORDER BY memories.id
+            "#,
+        )
+        .bind(artifact_id)
+        .fetch_all(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_relation_id(&self, relation_id: uuid::Uuid) -> Result<Vec<types::MemoryRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                memories.id,
+                memories.version,
+                memories.type,
+                memories.sources,
+                memories.contexts,
+                memories.salience,
+                memories.strength,
+                memories.confidence,
+                memories.recalls,
+                memories.recalled_at,
+                memories.created_at,
+                memories.updated_at
+            FROM memories
+            JOIN memories_relations ON memories_relations.source_id = memories.id
+            WHERE memories_relations.target_id = $1
+            ORDER BY memories.id
+            "#,
+        )
+        .bind(relation_id)
+        .fetch_all(self.pool)
+        .await
+    }
+
     #[tracing::instrument(skip_all)]
     pub async fn search(
         &self,
@@ -162,7 +218,7 @@ impl<'a> MemoryStorage<'a> {
                 sources = $3,
                 contexts = $4,
                 salience = $5,
-                strength = $6,
+                strength = GREATEST(strength, $6),
                 confidence = $7,
                 recalls = $8,
                 recalled_at = $9,

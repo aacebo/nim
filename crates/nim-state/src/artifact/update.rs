@@ -6,6 +6,9 @@ pub struct ArtifactUpdate {
     pub content: Option<ArtifactContent>,
     pub summary: Option<String>,
     pub embedding: Option<Embedding>,
+    pub confidence: Option<f32>,
+    pub salience: Option<f32>,
+    pub strength: Option<f32>,
 }
 
 impl<'a> ArtifactService<'a> {
@@ -27,6 +30,18 @@ impl<'a> ArtifactService<'a> {
 
         if let Some(value) = value.embedding {
             row.embedding = Some(value.into());
+        }
+
+        if let Some(value) = value.confidence {
+            row.confidence = value;
+        }
+
+        if let Some(value) = value.salience {
+            row.salience = value;
+        }
+
+        if let Some(value) = value.strength {
+            row.strength = value;
         }
 
         Ok(self.storage.artifacts().update(row).await?.into())

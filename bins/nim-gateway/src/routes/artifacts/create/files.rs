@@ -87,6 +87,9 @@ pub async fn route(
                 },
                 summary: None,
                 embedding: None,
+                confidence: None,
+                salience: None,
+                strength: None,
             })
             .await
             .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;

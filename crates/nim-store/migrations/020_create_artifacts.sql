@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS artifacts (
     content         JSONB           NOT NULL,
     summary         TEXT,
     embedding       VECTOR(384),
+    confidence      REAL            NOT NULL DEFAULT 0.0,
+    salience        REAL            NOT NULL DEFAULT 0.0,
+    strength        REAL            NOT NULL DEFAULT 0.0,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );

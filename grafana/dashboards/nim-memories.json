@@ -204,7 +204,7 @@
           "editorMode": "code",
           "rawQuery": true,
           "format": "table",
-          "rawSql": "SELECT\n    a.id::text AS artifact_id,\n    a.type,\n    a.name,\n    a.summary,\n    (SELECT COUNT(*) FROM annotations an WHERE an.artifact_id = a.id) AS annotations,\n    a.created_at,\n    a.updated_at\nFROM memories_artifacts ma\nJOIN artifacts a ON a.id = ma.artifact_id\nWHERE ma.memory_id::text = ${memory:sqlstring}\n  AND (${artifact:sqlstring} = 'all' OR a.id::text = ${artifact:sqlstring})\nORDER BY a.updated_at DESC\nLIMIT 500"
+          "rawSql": "SELECT\n    a.id::text AS artifact_id,\n    a.type,\n    a.name,\n    a.summary,\n    a.confidence,\n    a.salience,\n    a.strength,\n    (SELECT COUNT(*) FROM annotations an WHERE an.artifact_id = a.id) AS annotations,\n    a.created_at,\n    a.updated_at\nFROM memories_artifacts ma\nJOIN artifacts a ON a.id = ma.artifact_id\nWHERE ma.memory_id::text = ${memory:sqlstring}\n  AND (${artifact:sqlstring} = 'all' OR a.id::text = ${artifact:sqlstring})\nORDER BY a.updated_at DESC\nLIMIT 500"
         }
       ],
       "fieldConfig": {
@@ -270,7 +270,7 @@
           "editorMode": "code",
           "rawQuery": true,
           "format": "table",
-          "rawSql": "SELECT\n    a.id::text AS artifact_id,\n    a.name,\n    a.type,\n    a.summary,\n    a.content::text AS content\nFROM artifacts a\nJOIN memories_artifacts ma ON ma.artifact_id = a.id\nWHERE ma.memory_id::text = ${memory:sqlstring}\n  AND a.id::text = ${artifact:sqlstring}"
+          "rawSql": "SELECT\n    a.id::text AS artifact_id,\n    a.name,\n    a.type,\n    a.summary,\n    a.confidence,\n    a.salience,\n    a.strength,\n    a.content::text AS content\nFROM artifacts a\nJOIN memories_artifacts ma ON ma.artifact_id = a.id\nWHERE ma.memory_id::text = ${memory:sqlstring}\n  AND a.id::text = ${artifact:sqlstring}"
         }
       ],
       "fieldConfig": {

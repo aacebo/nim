@@ -3,31 +3,23 @@ use opentelemetry::propagation::TextMapPropagator;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::{Error, Signal, headers::NatsExtractor};
+use crate::{Error, RawSignal, headers::NatsExtractor};
 
-pub struct Stream<T> {
+pub struct Stream {
     inner: jetstream::consumer::pull::Stream,
     propagator: TraceContextPropagator,
-    __data__: std::marker::PhantomData<T>,
 }
 
-impl<T> Stream<T> {
+impl Stream {
     pub(crate) fn new(inner: jetstream::consumer::pull::Stream, propagator: TraceContextPropagator) -> Self {
-        Self {
-            inner,
-            propagator,
-            __data__: std::marker::PhantomData,
-        }
+        Self { inner, propagator }
     }
 }
 
-impl<T> Unpin for Stream<T> {}
+impl Unpin for Stream {}
 
-impl<T> futures_util::Stream for Stream<T>
-where
-    T: for<'a> serde::Deserialize<'a>,
-{
-    type Item = Result<(jetstream::Message, Signal<T>), Error>;
+impl futures_util::Stream for Stream {
+    type Item = Result<(jetstream::Message, RawSignal), Error>;
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, ctx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
         let pin = std::pin::pin!(&mut self.inner);
@@ -41,7 +33,7 @@ where
                 Ok(v) => v,
             };
 
-            let signal: Signal<T> = match serde_json::from_slice(&message.payload) {
+            let signal: RawSignal = match serde_json::from_slice(&message.payload) {
                 Err(err) => return Some(Err(err.into())),
                 Ok(v) => v,
             };

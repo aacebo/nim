@@ -8,6 +8,7 @@ pub use context::*;
 pub use error::*;
 
 use futures_util::StreamExt;
+use nim::signals::ToSignal;
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -41,7 +42,7 @@ async fn main() -> Result<(), Error> {
 
         let res = match subject.as_str() {
             "nim.audio.artifact.create" => {
-                Some(tokio::spawn(routes::artifacts::create::run(ctx.clone(), signal).in_current_span()).await?)
+                Some(tokio::spawn(routes::artifacts::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
             }
             _ => None,
         };

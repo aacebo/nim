@@ -1,14 +1,14 @@
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct SearchItem<T> {
-    pub similarity: f32,
+    pub score: f32,
 
     #[serde(rename = "data")]
     inner: T,
 }
 
 impl<T> SearchItem<T> {
-    pub fn new(similarity: f32, inner: T) -> Self {
-        Self { similarity, inner }
+    pub fn new(score: f32, inner: T) -> Self {
+        Self { score, inner }
     }
 
     pub fn into_inner(self) -> T {
@@ -24,7 +24,7 @@ where
         use sqlx::Row;
 
         Ok(Self {
-            similarity: row.try_get("similarity")?,
+            score: row.try_get("similarity")?,
             inner: T::from_row(row)?,
         })
     }
@@ -50,7 +50,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            similarity: self.similarity,
+            score: self.score,
             inner: self.inner.clone(),
         }
     }

@@ -1,3 +1,5 @@
+use crate::Error;
+
 pub trait ToSignal<T> {
     type Error;
 
@@ -31,5 +33,31 @@ impl<T> From<T> for Signal<T> {
             content,
             sent_at: chrono::Utc::now(),
         }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RawSignal {
+    pub id: uuid::Uuid,
+    pub source_id: Option<uuid::Uuid>,
+    pub content: Box<serde_json::value::RawValue>,
+    pub sent_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl<T> ToSignal<T> for RawSignal
+where
+    T: for<'a> serde::Deserialize<'a>,
+{
+    type Error = Error;
+
+    fn to_signal(&self) -> Result<Signal<T>, Self::Error> {
+        let content: T = serde_json::from_str(self.content.get())?;
+
+        Ok(Signal {
+            id: self.id,
+            source_id: self.source_id,
+            content,
+            sent_at: self.sent_at,
+        })
     }
 }

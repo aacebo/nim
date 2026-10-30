@@ -11,7 +11,7 @@ impl<'a> MemoryService<'a> {
             .into_iter()
             .map(|row| {
                 SearchItem::new(
-                    row.similarity,
+                    row.score,
                     Memory {
                         id: row.id.into(),
                         version: row.version.into(),

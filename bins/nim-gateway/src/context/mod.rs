@@ -57,6 +57,7 @@ impl Context {
                             "nim.memory.create".into(),
                             "nim.memory.update".into(),
                             "nim.memory.delete".into(),
+                            "nim.memory.recall".into(),
                         ],
                         ..Default::default()
                     },
@@ -78,12 +79,6 @@ impl Context {
                             "nim.annotation.update".into(),
                             "nim.annotation.delete".into(),
                         ],
-                        ..Default::default()
-                    },
-                    nim::signals::StreamConfig {
-                        name: "RECALLS".into(),
-                        max_messages: 10_000,
-                        subjects: vec!["nim.recall.create".into(), "nim.recall.update".into()],
                         ..Default::default()
                     },
                 ],

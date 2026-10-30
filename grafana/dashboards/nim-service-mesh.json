@@ -23,7 +23,7 @@
     {
       "id": 1,
       "title": "Service traffic flow",
-      "description": "Nodes identify service roles: HTTP gateway or NATS worker. Edge hover shows HTTP/NATS and request rate. HTTP clients is an aggregate ingress node derived from actual gateway HTTP server spans. Click an edge for details. Individual requests are listed below.",
+      "description": "Edge hover shows HTTP/NATS and request rate. HTTP clients is an aggregate ingress node derived from actual gateway HTTP server spans. Click an edge for details. Individual requests are listed below.",
       "type": "nodeGraph",
       "datasource": {
         "type": "prometheus",
@@ -53,7 +53,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace((sum by (id) (label_replace(sum by (client) (traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}), \"id\", \"$1\", \"client\", \"(.+)\") or label_replace(sum by (server) (traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}), \"id\", \"$1\", \"server\", \"(.+)\")) or label_replace(sum(rate(traces_spanmetrics_calls_total{service_name=\"nim-gateway\",span_kind=\"SPAN_KIND_SERVER\",span_name=\"http.request\"}[$__range])), \"id\", \"nim-gateway\", \"__name__\", \".*\") or label_replace(sum(rate(traces_spanmetrics_calls_total{service_name=\"nim-gateway\",span_kind=\"SPAN_KIND_SERVER\",span_name=\"http.request\"}[$__range])), \"id\", \"http-clients\", \"__name__\", \".*\")), \"title\", \"$1\", \"id\", \"(.+)\"), \"subtitle\", \"NATS worker\", \"__name__\", \".*\"), \"subtitle\", \"HTTP gateway\", \"id\", \"nim-gateway\"), \"subtitle\", \"HTTP clients\", \"id\", \"http-clients\"), \"detail__role\", \"$1\", \"subtitle\", \"(.+)\")",
+          "expr": "label_replace((sum by (id) (label_replace(sum by (client) (traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}), \"id\", \"$1\", \"client\", \"(.+)\") or label_replace(sum by (server) (traces_service_graph_request_total{client=~\"nim-.*\",server=~\"nim-.*\"}), \"id\", \"$1\", \"server\", \"(.+)\")) or label_replace(sum(rate(traces_spanmetrics_calls_total{service_name=\"nim-gateway\",span_kind=\"SPAN_KIND_SERVER\",span_name=\"http.request\"}[$__range])), \"id\", \"nim-gateway\", \"__name__\", \".*\") or label_replace(sum(rate(traces_spanmetrics_calls_total{service_name=\"nim-gateway\",span_kind=\"SPAN_KIND_SERVER\",span_name=\"http.request\"}[$__range])), \"id\", \"http-clients\", \"__name__\", \".*\")), \"title\", \"$1\", \"id\", \"(.+)\")",
           "format": "table",
           "instant": true,
           "range": false
@@ -258,7 +258,7 @@
       },
       "options": {
         "mode": "html",
-        "content": "<p><span style=\"color: #5794F2\">\u25cf NATS</span> &nbsp; <span style=\"color: #FF9830\">\u25cf HTTP</span> &nbsp; <span style=\"color: #8E8E8E\">\u25cf Unknown / other</span> &nbsp; Nodes show service roles. Edge hover shows transport. HTTP clients aggregates inbound gateway requests; open a request trace below to inspect its publications.</p>"
+        "content": "<p><span style=\"color: #5794F2\">\u25cf NATS</span> &nbsp; <span style=\"color: #FF9830\">\u25cf HTTP</span> &nbsp; <span style=\"color: #8E8E8E\">\u25cf Unknown / other</span> &nbsp; Edge hover shows transport. HTTP clients aggregates inbound gateway requests; open a request trace below to inspect its publications.</p>"
       }
     },
     {

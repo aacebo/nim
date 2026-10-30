@@ -59,7 +59,7 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn subscribe<S, T>(&self, subject: S) -> Result<Stream<T>, Error>
+    pub async fn subscribe<S>(&self, subject: S) -> Result<Stream, Error>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
     {

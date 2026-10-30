@@ -8,6 +8,7 @@ pub use context::*;
 pub use error::*;
 
 use futures_util::StreamExt;
+use nim::signals::ToSignal;
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -40,8 +41,15 @@ async fn main() -> Result<(), Error> {
         tracing::info!("[{subject}] -> processing...");
 
         let res = match subject.as_str() {
-            "nim.memory.create" => Some(tokio::spawn(routes::memory::create::run(ctx.clone(), signal).in_current_span()).await?),
-            "nim.memory.update" => Some(tokio::spawn(routes::memory::update::run(ctx.clone(), signal).in_current_span()).await?),
+            "nim.memory.create" => {
+                Some(tokio::spawn(routes::memory::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            "nim.memory.update" => {
+                Some(tokio::spawn(routes::memory::update::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            "nim.memory.recall" => {
+                Some(tokio::spawn(routes::memory::recall::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
             _ => None,
         };
 

@@ -91,7 +91,7 @@
           "editorMode": "code",
           "rawQuery": true,
           "format": "table",
-          "rawSql": "SELECT\n    m.id::text AS memory_id,\n    m.type,\n    m.salience,\n    m.strength,\n    m.confidence,\n    m.recalls,\n    (SELECT COUNT(*) FROM memories_artifacts ma WHERE ma.memory_id = m.id) AS artifacts,\n    (SELECT COUNT(*) FROM annotations an WHERE EXISTS (\n        SELECT 1 FROM memories_artifacts ma\n        WHERE ma.memory_id = m.id AND ma.artifact_id = an.artifact_id\n    )) AS annotations,\n    m.created_at,\n    m.updated_at\nFROM memories m\nWHERE (${memory:sqlstring} = 'all' OR m.id::text = ${memory:sqlstring})\nORDER BY m.updated_at DESC\nLIMIT 200"
+          "rawSql": "SELECT\n    m.id::text AS memory_id,\n    m.type,\n    m.salience,\n    m.strength,\n    m.confidence,\n    (SELECT COUNT(*) FROM memories_recalls mr WHERE mr.memory_id = m.id) AS recalls,\n    (SELECT COUNT(*) FROM memories_artifacts ma WHERE ma.memory_id = m.id) AS artifacts,\n    (SELECT COUNT(*) FROM annotations an WHERE EXISTS (\n        SELECT 1 FROM memories_artifacts ma\n        WHERE ma.memory_id = m.id AND ma.artifact_id = an.artifact_id\n    )) AS annotations,\n    m.created_at,\n    m.updated_at\nFROM memories m\nWHERE (${memory:sqlstring} = 'all' OR m.id::text = ${memory:sqlstring})\nORDER BY m.updated_at DESC\nLIMIT 200"
         }
       ],
       "fieldConfig": {
@@ -157,7 +157,7 @@
           "editorMode": "code",
           "rawQuery": true,
           "format": "table",
-          "rawSql": "SELECT\n    m.id::text AS memory_id,\n    m.type,\n    m.sources::text AS sources,\n    m.contexts::text AS contexts,\n    m.version,\n    m.salience,\n    m.strength,\n    m.confidence,\n    m.recalls,\n    m.recalled_at,\n    m.created_at,\n    m.updated_at\nFROM memories m\nWHERE m.id::text = ${memory:sqlstring}"
+          "rawSql": "SELECT\n    m.id::text AS memory_id,\n    m.type,\n    m.sources::text AS sources,\n    m.contexts::text AS contexts,\n    m.version,\n    m.salience,\n    m.strength,\n    m.confidence,\n    (SELECT COUNT(*) FROM memories_recalls mr WHERE mr.memory_id = m.id) AS recalls,\n    (SELECT MAX(mr.created_at) FROM memories_recalls mr WHERE mr.memory_id = m.id) AS recalled_at,\n    m.created_at,\n    m.updated_at\nFROM memories m\nWHERE m.id::text = ${memory:sqlstring}"
         }
       ],
       "fieldConfig": {

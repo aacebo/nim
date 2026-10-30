@@ -29,45 +29,20 @@ async fn main() -> Result<(), Error> {
     let span = tracing::Span::current();
     let config = Config::load()?;
     let ctx = Context::connect(span, config).await?;
-    let mut memories = ctx.signals().subscribe("nim.memory.>").await?;
 
     start().await?;
 
-    while let Some(req) = memories.next().await {
-        let (message, signal) = req?;
-        let subject = message.subject.to_string();
-        let ctx = ctx.clone().into_signal(signal.id, message);
+    let memories = tokio::spawn(memories(ctx.clone()));
+    let artifacts = tokio::spawn(artifacts(ctx.clone()));
+    let Ok((memories, artifacts)) = tokio::try_join!(memories, artifacts) else {
+        return Err(Error::custom("an error occured"));
+    };
 
-        tracing::info!("[{subject}] -> processing...");
-
-        let res = match subject.as_str() {
-            "nim.memory.create" => {
-                Some(tokio::spawn(routes::memory::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
-            }
-            "nim.memory.update" => {
-                Some(tokio::spawn(routes::memory::update::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
-            }
-            "nim.memory.recall" => {
-                Some(tokio::spawn(routes::memory::recall::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
-            }
-            _ => None,
-        };
-
-        match res {
-            Some(Ok(_)) => {
-                tracing::info!("[{subject}.success] -> complete");
-                ctx.ack().await?
-            }
-            Some(Err(err)) => {
-                tracing::error!("[{subject}.error] -> {err}");
-                ctx.nack().await?
-            }
-            None => {
-                tracing::info!("[{subject}.success] -> ignored");
-                ctx.ack().await?
-            }
-        };
-    }
+    match (memories, artifacts) {
+        (Ok(_), Ok(_)) => {}
+        (Err(err), _) => return Err(err),
+        (_, Err(err)) => return Err(err),
+    };
 
     stop().await
 }
@@ -105,5 +80,88 @@ async fn stop() -> Result<(), Error> {
     }
 
     tracing::info!("shutdown signal received");
+    Ok(())
+}
+
+#[tracing::instrument(skip(ctx))]
+async fn memories(ctx: Context) -> Result<(), Error> {
+    let mut memories = ctx.signals().subscribe("nim.memory.>").await?;
+
+    while let Some(req) = memories.next().await {
+        let (message, signal) = req?;
+        let subject = message.subject.to_string();
+        let ctx = ctx.clone().into_signal(signal.id, message);
+
+        tracing::info!("[{subject}] -> processing...");
+
+        let res = match subject.as_str() {
+            "nim.memory.create" => {
+                Some(tokio::spawn(routes::memory::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            "nim.memory.update" => {
+                Some(tokio::spawn(routes::memory::update::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            "nim.memory.recall" => {
+                Some(tokio::spawn(routes::memory::recall::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            _ => None,
+        };
+
+        match res {
+            Some(Ok(_)) => {
+                tracing::info!("[{subject}.success] -> complete");
+                ctx.ack().await?
+            }
+            Some(Err(err)) => {
+                tracing::error!("[{subject}.error] -> {err}");
+                ctx.nack().await?
+            }
+            None => {
+                tracing::info!("[{subject}.success] -> ignored");
+                ctx.ack().await?
+            }
+        };
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument(skip(ctx))]
+async fn artifacts(ctx: Context) -> Result<(), Error> {
+    let mut artifacts = ctx.signals().subscribe("nim.artifact.>").await?;
+
+    while let Some(req) = artifacts.next().await {
+        let (message, signal) = req?;
+        let subject = message.subject.to_string();
+        let ctx = ctx.clone().into_signal(signal.id, message);
+
+        tracing::info!("[{subject}] -> processing...");
+
+        let res = match subject.as_str() {
+            "nim.artifact.create" => {
+                Some(tokio::spawn(routes::artifact::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            "nim.artifact.update" => {
+                Some(tokio::spawn(routes::artifact::update::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            _ => None,
+        };
+
+        match res {
+            Some(Ok(_)) => {
+                tracing::info!("[{subject}.success] -> complete");
+                ctx.ack().await?
+            }
+            Some(Err(err)) => {
+                tracing::error!("[{subject}.error] -> {err}");
+                ctx.nack().await?
+            }
+            None => {
+                tracing::info!("[{subject}.success] -> ignored");
+                ctx.ack().await?
+            }
+        };
+    }
+
     Ok(())
 }

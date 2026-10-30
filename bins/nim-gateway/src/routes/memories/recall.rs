@@ -58,5 +58,5 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
             .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
     }
 
-    Ok(axum::Json(results).into_response())
+    Ok((axum::http::StatusCode::CREATED, axum::Json(results)).into_response())
 }

@@ -202,6 +202,44 @@ impl Label {
             Self::Unknown => "unknown",
         }
     }
+
+    pub fn intensity(&self) -> f32 {
+        match self {
+            Self::Salience => 1.0,
+            Self::Threat => 1.0,
+            Self::SelfRelevance => 0.9,
+            Self::Novelty => 0.8,
+            Self::Emotion => 0.7,
+            Self::Reward => 0.6,
+            Self::SocialRelevance => 0.5,
+            Self::Entity => 0.3,
+            Self::Temporal => 0.2,
+            Self::Spatial => 0.2,
+            Self::Valence => 0.2,
+            Self::Familiarity => 0.0,
+            Self::Confidence => 0.0,
+            Self::Unknown => 0.0,
+        }
+    }
+
+    pub fn label_multiplier(&self) -> f32 {
+        match self {
+            Self::Entity => 0.3,
+            Self::Valence => 0.2,
+            Self::Emotion => 0.7,
+            Self::Salience => 1.0,
+            Self::Threat => 1.0,
+            Self::Reward => 0.6,
+            Self::Novelty => 0.8,
+            Self::Familiarity => 0.0,
+            Self::Confidence => 0.0,
+            Self::SelfRelevance => 0.9,
+            Self::SocialRelevance => 0.5,
+            Self::Temporal => 0.2,
+            Self::Spatial => 0.2,
+            Self::Unknown => 0.0,
+        }
+    }
 }
 
 impl std::fmt::Display for Label {

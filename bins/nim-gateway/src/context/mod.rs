@@ -39,14 +39,11 @@ impl Context {
                         name: "ARTIFACTS".into(),
                         max_messages: 10_000,
                         subjects: vec![
+                            "nim.artifact.create".into(),
                             "nim.vision.artifact.create".into(),
                             "nim.audio.artifact.create".into(),
                             "nim.text.artifact.create".into(),
                             "nim.unknown.artifact.create".into(),
-                            "nim.vision.artifact.update".into(),
-                            "nim.audio.artifact.update".into(),
-                            "nim.text.artifact.update".into(),
-                            "nim.unknown.artifact.update".into(),
                         ],
                         ..Default::default()
                     },
@@ -68,16 +65,6 @@ impl Context {
                             "nim.entity.create".into(),
                             "nim.entity.update".into(),
                             "nim.entity.delete".into(),
-                        ],
-                        ..Default::default()
-                    },
-                    nim::signals::StreamConfig {
-                        name: "ANNOTATIONS".into(),
-                        max_messages: 10_000,
-                        subjects: vec![
-                            "nim.annotation.create".into(),
-                            "nim.annotation.update".into(),
-                            "nim.annotation.delete".into(),
                         ],
                         ..Default::default()
                     },

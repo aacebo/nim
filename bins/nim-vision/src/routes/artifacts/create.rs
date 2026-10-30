@@ -39,8 +39,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         )
         .await?;
 
-    ctx.signals().publish("nim.vision.artifact.update", artifact).await?;
-
     let memory = if let Some(embedding) = caption.vector.as_deref() {
         ctx.services()
             .memories()
@@ -60,7 +58,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         None
     };
 
-    let memory = if let Some(v) = memory {
+    let (memory, subject) = if let Some(v) = memory {
         tracing::debug!("updating existing memory...");
         let mut sources = v.sources;
 
@@ -80,8 +78,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             )
             .await?;
 
-        ctx.signals().publish("nim.memory.update", memory.clone()).await?;
-        memory
+        (memory, "update")
     } else {
         tracing::debug!("creating new memory...");
         let memory = ctx
@@ -95,8 +92,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             })
             .await?;
 
-        ctx.signals().publish("nim.memory.create", memory.clone()).await?;
-        memory
+        (memory, "create")
     };
 
     ctx.ack_progress().await?;
@@ -194,7 +190,9 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .find_by_artifact_label(signal.content.id, label, labels[i])
             .await?;
 
-        if existing.is_some() {
+        if let Some(existing) = &existing
+            && existing.confidence as f64 >= annotation.score
+        {
             continue;
         }
 
@@ -211,7 +209,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             })
             .collect::<Vec<_>>();
 
-        let annotation = ctx
+        let _ = ctx
             .services()
             .annotations()
             .create(nim::state::AnnotationCreate {
@@ -224,7 +222,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             })
             .await?;
 
-        ctx.signals().publish("nim.annotation.create", annotation).await?;
         ctx.ack_progress().await?;
     }
 
@@ -249,6 +246,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         )
         .await?;
 
-    ctx.signals().publish("nim.memory.update", memory).await?;
+    ctx.signals().publish("nim.artifact.create", artifact).await?;
+    ctx.signals().publish(format!("nim.memory.{subject}"), memory).await?;
     Ok(())
 }

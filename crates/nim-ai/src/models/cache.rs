@@ -18,6 +18,7 @@ impl Key {
 
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         let mut model = model.clone();
+
         match &mut model {
             ModelRef::Remote(remote) => remote.api_key.take().hash(&mut hasher),
             ModelRef::Local(_) => None::<String>.hash(&mut hasher),
@@ -93,7 +94,6 @@ mod tests {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
         let key = Key::new(&model("sentence-transformers/all-MiniLM-L12-v2"));
-
         let build = || {
             builds.fetch_add(1, Ordering::SeqCst);
             Ok(Arc::new(7))
@@ -110,7 +110,6 @@ mod tests {
     fn a_different_model_is_a_different_entry() {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
-
         let build = || {
             builds.fetch_add(1, Ordering::SeqCst);
             Ok(Arc::new(7))
@@ -132,7 +131,6 @@ mod tests {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
         let model = crate::models::RemoteModel::new(crate::models::Provider::OpenAI, "test".parse().unwrap());
-
         let build = || {
             builds.fetch_add(1, Ordering::SeqCst);
             Ok(Arc::new(7))

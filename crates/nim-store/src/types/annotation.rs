@@ -3,6 +3,7 @@ use crate::Span;
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct AnnotationRow {
     pub id: uuid::Uuid,
+    pub version: i32,
     pub artifact_id: uuid::Uuid,
     pub label: Label,
     pub text: String,

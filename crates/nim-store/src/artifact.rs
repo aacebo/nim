@@ -16,6 +16,7 @@ impl<'a> ArtifactStorage<'a> {
             r#"
             SELECT
                 id,
+                version,
                 name,
                 content,
                 summary,
@@ -40,6 +41,7 @@ impl<'a> ArtifactStorage<'a> {
             r#"
             SELECT
                 artifacts.id,
+                artifacts.version,
                 artifacts.name,
                 artifacts.content,
                 artifacts.summary,
@@ -75,7 +77,8 @@ impl<'a> ArtifactStorage<'a> {
                 salience,
                 strength,
                 created_at,
-                updated_at
+                updated_at,
+                version
             )
             VALUES (
                 $1,
@@ -88,10 +91,12 @@ impl<'a> ArtifactStorage<'a> {
                 $7,
                 $8,
                 $9,
-                $10
+                $10,
+                $11
             )
             RETURNING
                 id,
+                version,
                 name,
                 content,
                 summary,
@@ -113,16 +118,18 @@ impl<'a> ArtifactStorage<'a> {
         .bind(value.strength)
         .bind(value.created_at)
         .bind(value.updated_at)
+        .bind(value.version)
         .fetch_one(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self, value))]
     pub async fn update(&self, value: types::ArtifactRow) -> Result<types::ArtifactRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             UPDATE artifacts
             SET
+                version = version + 1,
                 type = $3::jsonb ->> 'type',
                 name = $2,
                 content = $3,
@@ -132,9 +139,10 @@ impl<'a> ArtifactStorage<'a> {
                 salience = GREATEST(salience, $7),
                 strength = GREATEST(strength, $8),
                 updated_at = $9
-            WHERE id = $1
+            WHERE id = $1 AND version = $10
             RETURNING
                 id,
+                version,
                 name,
                 content,
                 summary,
@@ -155,8 +163,14 @@ impl<'a> ArtifactStorage<'a> {
         .bind(value.salience)
         .bind(value.strength)
         .bind(chrono::Utc::now())
-        .fetch_one(self.pool)
-        .await
+        .bind(value.version)
+        .fetch_optional(self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

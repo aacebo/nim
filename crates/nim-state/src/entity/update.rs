@@ -44,7 +44,6 @@ impl<'a> EntityService<'a> {
             row.recalled_at = Some(value);
         }
 
-        row.version += 1;
         Ok(self.storage.entities().update(row).await?.into())
     }
 }

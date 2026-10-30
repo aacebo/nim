@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS artifacts (
     id              UUID            PRIMARY KEY,
+    version         INT             NOT NULL DEFAULT 0,
     type            TEXT            NOT NULL,
     name            TEXT            NOT NULL,
     content         JSONB           NOT NULL,

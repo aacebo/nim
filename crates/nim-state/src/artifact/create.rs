@@ -22,6 +22,7 @@ impl<'a> ArtifactService<'a> {
             .artifacts()
             .create(ArtifactRow {
                 id: uuid::Uuid::now_v7(),
+                version: 0,
                 name: value.name,
                 content: nim_store::Json(value.content),
                 summary: value.summary,

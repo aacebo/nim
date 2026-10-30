@@ -209,7 +209,7 @@ impl<'a> MemoryStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::MemoryRow) -> Result<types::MemoryRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             UPDATE memories
             SET
@@ -223,7 +223,7 @@ impl<'a> MemoryStorage<'a> {
                 recalls = $8,
                 recalled_at = $9,
                 updated_at = $10
-            WHERE id = $1
+            WHERE id = $1 AND version = $11
             RETURNING
                 id,
                 version,
@@ -249,8 +249,14 @@ impl<'a> MemoryStorage<'a> {
         .bind(value.recalls)
         .bind(value.recalled_at)
         .bind(chrono::Utc::now())
-        .fetch_one(self.pool)
-        .await
+        .bind(value.version)
+        .fetch_optional(self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

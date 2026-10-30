@@ -1,10 +1,11 @@
 pub use nim_store::ArtifactContent;
 
-use crate::{AnnotationPartial, Embedding, MemoryId};
+use crate::{AnnotationPartial, Embedding, MemoryId, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Artifact {
     pub id: ArtifactId,
+    pub version: Version,
     pub name: String,
     #[serde(flatten)]
     pub content: ArtifactContent,
@@ -22,6 +23,7 @@ impl From<nim_store::ArtifactRow> for Artifact {
     fn from(value: nim_store::ArtifactRow) -> Self {
         Self {
             id: value.id.into(),
+            version: value.version.into(),
             name: value.name,
             content: value.content.into_inner(),
             summary: value.summary,

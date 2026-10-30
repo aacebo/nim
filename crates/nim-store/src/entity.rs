@@ -96,7 +96,7 @@ impl<'a> EntityStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::EntityRow) -> Result<types::EntityRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             UPDATE entities
             SET
@@ -109,7 +109,7 @@ impl<'a> EntityStorage<'a> {
                 recalls = $7,
                 recalled_at = $8,
                 updated_at = $9
-            WHERE id = $1
+            WHERE id = $1 AND version = $10
             RETURNING
                 id,
                 type,
@@ -133,8 +133,14 @@ impl<'a> EntityStorage<'a> {
         .bind(value.recalls)
         .bind(value.recalled_at)
         .bind(chrono::Utc::now())
-        .fetch_one(self.pool)
-        .await
+        .bind(value.version)
+        .fetch_optional(self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

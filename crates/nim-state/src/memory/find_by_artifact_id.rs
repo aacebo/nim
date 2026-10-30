@@ -11,7 +11,7 @@ impl<'a> MemoryService<'a> {
 
             memories.push(Memory {
                 id: row.id.into(),
-                version: Default::default(),
+                version: row.version.into(),
                 ty: row.ty.into(),
                 contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
                 sources: row.sources.iter().map(|v| (*v).into()).collect(),

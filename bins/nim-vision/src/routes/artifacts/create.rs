@@ -87,7 +87,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .create(nim::state::MemoryCreate {
                 ty: nim::state::MemoryType::Working,
                 sources: &[nim::state::Source::Region(nim::state::Region::Vision)],
-                confidence: 1.0,
                 ..Default::default()
             })
             .await?;

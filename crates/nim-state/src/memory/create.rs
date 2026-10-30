@@ -48,7 +48,7 @@ impl<'a> MemoryService<'a> {
 
         Ok(Memory {
             id: row.id.into(),
-            version: Default::default(),
+            version: row.version.into(),
             ty: row.ty.into(),
             sources: row.sources.iter().map(|v| (*v).into()).collect(),
             artifacts: Default::default(),

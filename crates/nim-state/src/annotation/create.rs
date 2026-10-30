@@ -20,6 +20,7 @@ impl<'a> AnnotationService<'a> {
             .store
             .create(AnnotationRow {
                 id: uuid::Uuid::now_v7(),
+                version: 0,
                 artifact_id: value.artifact_id.into(),
                 label: value.label.into(),
                 text: value.text,

@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS annotations (
     id              UUID            PRIMARY KEY,
+    version         INT             NOT NULL DEFAULT 0,
     artifact_id     UUID            NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
     label           TEXT            NOT NULL,
     text            TEXT            NOT NULL,

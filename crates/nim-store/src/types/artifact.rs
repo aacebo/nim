@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ArtifactRow {
     pub id: uuid::Uuid,
+    pub version: i32,
     pub name: String,
     pub summary: Option<String>,
     pub embedding: Option<pgvector::Vector>,

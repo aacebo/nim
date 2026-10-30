@@ -16,6 +16,7 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             SELECT
                 id,
+                version,
                 artifact_id,
                 label,
                 text,
@@ -39,6 +40,7 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             SELECT
                 id,
+                version,
                 artifact_id,
                 label,
                 text,
@@ -67,6 +69,7 @@ impl<'a> AnnotationStorage<'a> {
             r#"
             SELECT
                 id,
+                version,
                 artifact_id,
                 label,
                 text,
@@ -101,7 +104,8 @@ impl<'a> AnnotationStorage<'a> {
                 confidence,
                 embedding,
                 created_at,
-                updated_at
+                updated_at,
+                version
             )
             VALUES (
                 $1,
@@ -112,10 +116,12 @@ impl<'a> AnnotationStorage<'a> {
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10
             )
             RETURNING
                 id,
+                version,
                 artifact_id,
                 label,
                 text,
@@ -135,25 +141,28 @@ impl<'a> AnnotationStorage<'a> {
         .bind(value.embedding)
         .bind(value.created_at)
         .bind(value.updated_at)
+        .bind(value.version)
         .fetch_one(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::AnnotationRow) -> Result<types::AnnotationRow, sqlx::Error> {
-        sqlx::query_as(
+        let row = sqlx::query_as(
             r#"
             UPDATE annotations
             SET
+                version = version + 1,
                 label = $2,
                 text = $3,
                 spans = $4,
                 confidence = GREATEST(confidence, $5),
                 embedding = $6,
                 updated_at = $7
-            WHERE id = $1
+            WHERE id = $1 AND version = $8
             RETURNING
                 id,
+                version,
                 artifact_id,
                 label,
                 text,
@@ -171,8 +180,14 @@ impl<'a> AnnotationStorage<'a> {
         .bind(value.confidence)
         .bind(value.embedding)
         .bind(chrono::Utc::now())
-        .fetch_one(self.pool)
-        .await
+        .bind(value.version)
+        .fetch_optional(self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.id).await,
+        }
     }
 
     #[tracing::instrument(skip(self))]

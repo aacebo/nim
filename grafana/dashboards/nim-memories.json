@@ -11,7 +11,7 @@
   "version": 1,
   "editable": true,
   "timezone": "browser",
-  "refresh": "10s",
+  "refresh": "5s",
   "time": {
     "from": "now-24h",
     "to": "now"

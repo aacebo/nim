@@ -39,7 +39,6 @@ impl<'a> MemoryService<'a> {
             row.recalled_at = Some(v);
         }
 
-        row.version += 1;
         let row = self.storage.memories().update(row).await?;
         let artifacts = self.storage.artifacts().find_by_memory_id(id.into()).await?;
 

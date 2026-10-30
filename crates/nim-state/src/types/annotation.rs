@@ -1,10 +1,11 @@
 pub use nim_store::Span;
 
-use crate::{Embedding, Error, MemoryId};
+use crate::{Embedding, Error, MemoryId, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Annotation {
     pub id: AnnotationId,
+    pub version: Version,
     pub artifact_id: MemoryId,
     pub label: Label,
     pub text: String,
@@ -20,6 +21,7 @@ impl From<nim_store::AnnotationRow> for Annotation {
     fn from(value: nim_store::AnnotationRow) -> Self {
         Self {
             id: value.id.into(),
+            version: value.version.into(),
             artifact_id: value.artifact_id.into(),
             label: value.label.into(),
             text: value.text,

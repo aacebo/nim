@@ -16,8 +16,7 @@ pub fn run(input: &[&[u8]]) -> Result<Vec<Artifact>, Error> {
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Error> {
     let text = decode_text(input)?;
-    let api_key = options.model.api_key.clone();
-    let model = load(&options.model.resolve(super::defaults::embed())?, &api_key)?;
+    let model = load(&options.model.resolve(super::defaults::embed())?)?;
     let capable = model.as_embed().ok_or_else(|| model.cannot("embed"))?;
     let out = tasks::embed(capable, &model.context(), input)?;
     let artifacts: Vec<Artifact> = out

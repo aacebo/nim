@@ -13,14 +13,18 @@ pub struct Key {
 }
 
 impl Key {
-    pub fn new(model: &ModelRef, api_key: &Option<String>) -> Self {
+    pub fn new(model: &ModelRef) -> Self {
         use std::hash::{Hash, Hasher};
 
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        api_key.hash(&mut hasher);
+        let mut model = model.clone();
+        match &mut model {
+            ModelRef::Remote(remote) => remote.api_key.take().hash(&mut hasher),
+            ModelRef::Local(_) => None::<String>.hash(&mut hasher),
+        };
 
         Self {
-            model: model.clone(),
+            model,
             credential: hasher.finish(),
         }
     }
@@ -88,7 +92,7 @@ mod tests {
     fn one_key_builds_once() {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
-        let key = Key::new(&model("sentence-transformers/all-MiniLM-L12-v2"), &None);
+        let key = Key::new(&model("sentence-transformers/all-MiniLM-L12-v2"));
 
         let build = || {
             builds.fetch_add(1, Ordering::SeqCst);
@@ -113,10 +117,10 @@ mod tests {
         };
 
         cache
-            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L12-v2"), &None), build)
+            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L12-v2")), build)
             .unwrap();
         cache
-            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L6-v2"), &None), build)
+            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L6-v2")), build)
             .unwrap();
 
         assert_eq!(builds.load(Ordering::SeqCst), 2);
@@ -127,15 +131,19 @@ mod tests {
     fn a_different_api_key_is_a_different_entry() {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
-        let model = model("sentence-transformers/all-MiniLM-L12-v2");
+        let model = crate::models::RemoteModel::new(crate::models::Provider::OpenAI, "test".parse().unwrap());
 
         let build = || {
             builds.fetch_add(1, Ordering::SeqCst);
             Ok(Arc::new(7))
         };
 
-        cache.get_or_build(Key::new(&model, &Some("one".into())), build).unwrap();
-        cache.get_or_build(Key::new(&model, &Some("two".into())), build).unwrap();
+        cache
+            .get_or_build(Key::new(&ModelRef::Remote(model.clone().api_key(Some("one".into())))), build)
+            .unwrap();
+        cache
+            .get_or_build(Key::new(&ModelRef::Remote(model.clone().api_key(Some("two".into())))), build)
+            .unwrap();
 
         assert_eq!(builds.load(Ordering::SeqCst), 2);
     }

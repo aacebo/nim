@@ -22,8 +22,7 @@ pub fn run(input: &[&[u8]]) -> Result<Vec<Artifact>, Error> {
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Error> {
-    let api_key = options.model.api_key.clone();
-    let model = load(&options.model.resolve(super::defaults::generate())?, &api_key)?;
+    let model = load(&options.model.resolve(super::defaults::generate())?)?;
     let capable = model.as_generate().ok_or_else(|| model.cannot("generate"))?;
     let generation_options = GenerateOptions {
         beams: options.beams,

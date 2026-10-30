@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use candle_transformers::models::distilbert;
 
-use crate::{Error, models::Architecture};
+use crate::{Error, models::ModelType};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
@@ -16,7 +16,7 @@ pub struct Config {
     pub initializer_range: f64,
     pub pad_token_id: usize,
     #[serde(default)]
-    pub model_type: Architecture,
+    pub model_type: ModelType,
     #[serde(default)]
     pub id2label: HashMap<String, String>,
 }
@@ -94,7 +94,7 @@ impl Default for Config {
             max_position_embeddings: 512,
             initializer_range: 0.02,
             pad_token_id: 0,
-            model_type: Architecture::DistilBert,
+            model_type: ModelType::DistilBert,
             id2label: HashMap::new(),
         }
     }

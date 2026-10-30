@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use candle_transformers::models::bert;
 
-use crate::{Error, ParseError, models::Architecture};
+use crate::{Error, ParseError, models::ModelType};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
@@ -21,7 +21,7 @@ pub struct Config {
     #[serde(default)]
     pub classifier_dropout: Option<f64>,
     #[serde(default)]
-    pub model_type: Architecture,
+    pub model_type: ModelType,
     #[serde(default)]
     pub id2label: HashMap<String, String>,
 }
@@ -100,7 +100,7 @@ impl Default for Config {
             layer_norm_eps: 1e-12,
             pad_token_id: 0,
             classifier_dropout: None,
-            model_type: Architecture::Bert,
+            model_type: ModelType::Bert,
             id2label: HashMap::new(),
         }
     }

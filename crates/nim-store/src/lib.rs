@@ -2,6 +2,7 @@ mod annotation;
 mod artifact;
 mod entity;
 mod memory;
+mod model;
 mod recall;
 mod search;
 mod types;
@@ -10,6 +11,7 @@ pub use annotation::*;
 pub use artifact::*;
 pub use entity::*;
 pub use memory::*;
+pub use model::*;
 pub use recall::*;
 pub use search::*;
 pub use types::*;
@@ -29,6 +31,7 @@ pub struct Storage<'a> {
     _entity_relations: EntityRelationsStorage<'a>,
     _entity_memories: EntityMemoriesStorage<'a>,
     _memories: MemoryStorage<'a>,
+    _models: ModelStorage<'a>,
     _memory_relations: MemoryRelationsStorage<'a>,
     _recalls: RecallStorage<'a>,
     _memory_recalls: MemoryRecallsStorage<'a>,
@@ -44,6 +47,7 @@ impl<'a> Storage<'a> {
             _entity_relations: EntityRelationsStorage::new(pool),
             _entity_memories: EntityMemoriesStorage::new(pool),
             _memories: MemoryStorage::new(pool),
+            _models: ModelStorage::new(pool),
             _memory_relations: MemoryRelationsStorage::new(pool),
             _recalls: RecallStorage::new(pool),
             _memory_recalls: MemoryRecallsStorage::new(pool),
@@ -88,5 +92,9 @@ impl<'a> Storage<'a> {
 
     pub fn memory_recalls(&self) -> MemoryRecallsStorage<'a> {
         self._memory_recalls
+    }
+
+    pub fn models(&self) -> ModelStorage<'a> {
+        self._models
     }
 }

@@ -15,24 +15,31 @@ pub mod mobilenet;
 #[cfg(feature = "audio")]
 pub mod whisper;
 
+mod architecture;
 mod cache;
 mod capability;
 mod loader;
+mod model_args;
+mod model_config;
 mod model_id;
 mod model_ref;
+mod model_type;
 mod provider;
 mod remote;
 mod tokenizer;
 
+pub use architecture::*;
 use cache::*;
 pub use capability::*;
 pub use loader::*;
+pub use model_args::*;
+pub use model_config::*;
 pub use model_id::*;
 pub use model_ref::*;
+pub use model_type::*;
 pub use provider::*;
 
 use candle_core::{DType, Device};
-use std::str::FromStr;
 
 use crate::Error;
 use crate::resources::Repository;
@@ -47,6 +54,21 @@ pub fn refer(value: impl AsRef<str>) -> Result<ModelRef, Error> {
     value.as_ref().parse::<ModelRef>()
 }
 
+/// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
+/// for two routines now loads its weights once.
+#[tracing::instrument]
+pub fn load(model: &ModelRef) -> Result<std::sync::Arc<crate::models::Model>, Error> {
+    use candle_core::{DType, Device};
+
+    MODELS.get_or_build(Key::new(model), || {
+        Ok(std::sync::Arc::new(crate::models::Model::new(
+            model,
+            Device::Cpu,
+            DType::F32,
+        )?))
+    })
+}
+
 pub trait Forward: Send + Sync {
     type Input;
     type Output;
@@ -54,121 +76,10 @@ pub trait Forward: Send + Sync {
     fn forward(&self, input: Self::Input) -> Result<Self::Output, Error>;
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ModelArgs {
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub base_url: Option<String>,
-    pub api_key: Option<String>,
-}
-
-impl ModelArgs {
-    pub fn resolve(self, default: ModelRef) -> Result<ModelRef, Error> {
-        let Some(provider) = self.provider else {
-            let Some(model) = self.model else {
-                return Ok(default);
-            };
-
-            return model.parse();
-        };
-
-        let provider: Provider = provider.parse()?;
-        let id: ModelId = self
-            .model
-            .ok_or(Error::custom("ai::config", "model is required when provider is set"))?
-            .parse()?;
-
-        Ok(ModelRef::remote(provider, id).base_url(self.base_url))
-    }
-}
-
-/// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
-/// for two routines now loads its weights once.
-#[tracing::instrument]
-pub fn load(model: &ModelRef, api_key: &Option<String>) -> Result<std::sync::Arc<crate::models::Model>, Error> {
-    use candle_core::{DType, Device};
-
-    MODELS.get_or_build(Key::new(model, api_key), || {
-        Ok(std::sync::Arc::new(crate::models::Model::new(
-            model,
-            api_key,
-            Device::Cpu,
-            DType::F32,
-        )?))
-    })
-}
-
-#[non_exhaustive]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Architecture {
-    Bart,
-    Bert,
-    DistilBert,
-    Roberta,
-    Deberta,
-    Gpt2,
-    Llama,
-    Mistral,
-    T5,
-    #[serde(rename = "mobilenet_v2")]
-    MobileNetV2,
-    Detr,
-    Git,
-    Whisper,
-    #[default]
-    #[serde(other)]
-    Unknown,
-}
-
-impl Architecture {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Bart => "bart",
-            Self::Bert => "bert",
-            Self::DistilBert => "distilbert",
-            Self::Roberta => "roberta",
-            Self::Deberta => "deberta",
-            Self::Gpt2 => "gpt2",
-            Self::Llama => "llama",
-            Self::Mistral => "mistral",
-            Self::T5 => "t5",
-            Self::MobileNetV2 => "mobilenet_v2",
-            Self::Detr => "detr",
-            Self::Git => "git",
-            Self::Whisper => "whisper",
-            Self::Unknown => "??",
-        }
-    }
-}
-
-impl FromStr for Architecture {
-    type Err = Error;
-
-    fn from_str(value: &str) -> Result<Self, Error> {
-        Ok(match value.to_lowercase().as_str() {
-            "bart" => Self::Bart,
-            "bert" => Self::Bert,
-            "distilbert" => Self::DistilBert,
-            "roberta" => Self::Roberta,
-            "deberta" => Self::Deberta,
-            "gpt2" => Self::Gpt2,
-            "llama" => Self::Llama,
-            "mistral" => Self::Mistral,
-            "t5" => Self::T5,
-            "mobilenet_v2" => Self::MobileNetV2,
-            "detr" => Self::Detr,
-            "git" => Self::Git,
-            "whisper" => Self::Whisper,
-            _ => Self::Unknown,
-        })
-    }
-}
-
-impl std::fmt::Display for Architecture {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
+pub trait Observer: Send + Sync {
+    fn on_load(&self, _model: &ModelRef) {}
+    fn on_load_success(&self, _model: &ModelRef, _config: &ModelConfig) {}
+    fn on_load_error(&self, _model: &ModelRef, _error: &dyn std::error::Error) {}
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -219,13 +130,13 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(model: &ModelRef, api_key: &Option<String>, device: Device, dtype: DType) -> Result<Self, Error> {
+    pub fn new(model: &ModelRef, device: Device, dtype: DType) -> Result<Self, Error> {
         let name = model.to_string();
 
         match model {
             ModelRef::Remote(remote) => Ok(Self {
                 name,
-                model: AnyModel::Remote(remote.clone().api_key(api_key.clone())),
+                model: AnyModel::Remote(remote.clone()),
                 device,
                 tokenizer: None,
             }),
@@ -236,8 +147,8 @@ impl Model {
     pub fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> Result<Self, Error> {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
-        let architecture: Probe = repo.config()?;
-        let model = if architecture.is_cnn8rnn_audio_classification() {
+        let model_config: ModelConfig = repo.config()?;
+        let model = if model_config.is_cnn8rnn_audio_classification() {
             #[cfg(feature = "audio")]
             {
                 let config: cnn8rnn::Config = repo.config()?;
@@ -246,7 +157,7 @@ impl Model {
             }
             #[cfg(not(feature = "audio"))]
             return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
-        } else if architecture.is_cnn14_audio_captioning() {
+        } else if model_config.is_cnn14_audio_captioning() {
             #[cfg(feature = "audio")]
             {
                 let config: audiocap::Config = repo.config()?;
@@ -255,21 +166,21 @@ impl Model {
             #[cfg(not(feature = "audio"))]
             return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
         } else {
-            match architecture.architecture {
+            match model_config.model_type {
                 #[cfg(not(feature = "vision"))]
-                Architecture::MobileNetV2 | Architecture::Git | Architecture::Detr => {
+                ModelType::MobileNetV2 | ModelType::Git | ModelType::Detr => {
                     return Err(Error::custom("ai::config", format!("{name} requires the `vision` feature")));
                 }
                 #[cfg(not(feature = "audio"))]
-                Architecture::Whisper => {
+                ModelType::Whisper => {
                     return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
                 }
-                Architecture::Bart => {
+                ModelType::Bart => {
                     let config: bart::Config = repo.config()?;
 
                     match (
-                        architecture.is_sequence_classification(),
-                        architecture.is_token_classification(),
+                        model_config.is_sequence_classification(),
+                        model_config.is_token_classification(),
                         config.id2label.is_empty(),
                     ) {
                         (true, _, false) if bart::ZeroShotClassifier::supports(&config) => {
@@ -284,12 +195,12 @@ impl Model {
                         _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
                     }
                 }
-                Architecture::DistilBert => {
+                ModelType::DistilBert => {
                     let config: distilbert::Config = repo.config()?;
 
                     match (
-                        architecture.is_sequence_classification(),
-                        architecture.is_token_classification(),
+                        model_config.is_sequence_classification(),
+                        model_config.is_token_classification(),
                         !config.id2label.is_empty(),
                     ) {
                         (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(
@@ -311,41 +222,41 @@ impl Model {
                     }
                 }
                 #[cfg(feature = "vision")]
-                Architecture::MobileNetV2 => {
+                ModelType::MobileNetV2 => {
                     let config: mobilenet::Config = repo.config()?;
                     let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
                     AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
                 }
                 #[cfg(feature = "vision")]
-                Architecture::Detr => {
+                ModelType::Detr => {
                     let config: detr::Config = repo.config()?;
                     config.validate()?;
                     let processor: detr::Processor = repo.json("preprocessor_config.json")?;
                     AnyModel::ObjectDetector(detr::Detector::new(repo.vars()?, config, processor)?)
                 }
                 #[cfg(feature = "vision")]
-                Architecture::Git => {
+                ModelType::Git => {
                     let config: git::Config = repo.config()?;
                     let processor: git::Processor = repo.json("preprocessor_config.json")?;
                     AnyModel::ImageCaptioner(git::Captioner::new(config, processor, repo.vars()?)?)
                 }
                 #[cfg(feature = "audio")]
-                Architecture::Whisper => {
+                ModelType::Whisper => {
                     let config: whisper::Config = repo.config()?;
                     let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
 
-                    if architecture.is_audio_captioning() {
+                    if model_config.is_audio_captioning() {
                         AnyModel::WhisperCaptioner(whisper::Captioner::new(config, processor, repo.vars()?)?)
                     } else {
                         AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
                     }
                 }
-                Architecture::Bert | Architecture::Unknown => {
+                ModelType::Bert | ModelType::Unknown => {
                     let config: bert::Config = repo.config()?;
 
                     match (
-                        architecture.is_sequence_classification(),
-                        architecture.is_token_classification(),
+                        model_config.is_sequence_classification(),
+                        model_config.is_token_classification(),
                         !config.id2label.is_empty(),
                     ) {
                         (true, _, true) => {
@@ -369,14 +280,14 @@ impl Model {
         Ok(Self {
             model,
             tokenizer: match (
-                architecture.is_cnn8rnn_audio_classification(),
-                architecture.is_cnn14_audio_captioning(),
+                model_config.is_cnn8rnn_audio_classification(),
+                model_config.is_cnn14_audio_captioning(),
             ) {
                 (true, _) => None,
                 #[cfg(feature = "audio")]
                 (_, true) => Some(audiocap::tokenizer()?),
-                _ => match architecture.architecture {
-                    Architecture::MobileNetV2 | Architecture::Detr => None,
+                _ => match model_config.model_type {
+                    ModelType::MobileNetV2 | ModelType::Detr => None,
                     _ => Some(repo.tokenizer()?),
                 },
             },
@@ -460,72 +371,26 @@ impl Model {
     }
 }
 
-/// Reads just the architecture out of `config.json`, before committing to a concrete config type.
-#[derive(serde::Deserialize)]
-struct Probe {
-    #[serde(default, rename = "model_type")]
-    architecture: Architecture,
-
-    #[serde(default)]
-    architectures: Vec<String>,
-}
-
-impl Probe {
-    fn is_token_classification(&self) -> bool {
-        self.architectures
-            .iter()
-            .any(|architecture| architecture.ends_with("ForTokenClassification"))
-    }
-
-    fn is_sequence_classification(&self) -> bool {
-        self.architectures
-            .iter()
-            .any(|architecture| architecture.ends_with("ForSequenceClassification"))
-    }
-
-    #[cfg(feature = "audio")]
-    fn is_audio_captioning(&self) -> bool {
-        self.architectures
-            .iter()
-            .any(|architecture| architecture == "WhisperForAudioCaptioning")
-    }
-
-    fn is_cnn14_audio_captioning(&self) -> bool {
-        self.architectures
-            .iter()
-            .any(|architecture| architecture == "Cnn14RnnTempAttnGruModel")
-    }
-
-    fn is_cnn8rnn_audio_classification(&self) -> bool {
-        self.architectures
-            .iter()
-            .any(|architecture| architecture == "Cnn8RnnSoundEventDetection")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn parses_a_config_json_model_type() {
-        assert_eq!("bert".parse::<Architecture>().unwrap(), Architecture::Bert);
-        assert_eq!("distilbert".parse::<Architecture>().unwrap(), Architecture::DistilBert);
+        assert_eq!("bert".parse::<ModelType>().unwrap(), ModelType::Bert);
+        assert_eq!("distilbert".parse::<ModelType>().unwrap(), ModelType::DistilBert);
     }
 
     /// An unrecognised architecture must not be an error -- config.json may name anything.
     #[test]
     fn an_unknown_architecture_is_not_an_error() {
-        assert_eq!("mamba".parse::<Architecture>().unwrap(), Architecture::Unknown);
-        assert_eq!(
-            serde_json::from_str::<Architecture>("\"mamba\"").unwrap(),
-            Architecture::Unknown
-        );
+        assert_eq!("mamba".parse::<ModelType>().unwrap(), ModelType::Unknown);
+        assert_eq!(serde_json::from_str::<ModelType>("\"mamba\"").unwrap(), ModelType::Unknown);
     }
 
     #[test]
     fn serde_round_trips() {
-        assert_eq!(serde_json::to_string(&Architecture::Bert).unwrap(), "\"bert\"");
-        assert_eq!(serde_json::from_str::<Architecture>("\"bart\"").unwrap(), Architecture::Bart);
+        assert_eq!(serde_json::to_string(&ModelType::Bert).unwrap(), "\"bert\"");
+        assert_eq!(serde_json::from_str::<ModelType>("\"bart\"").unwrap(), ModelType::Bart);
     }
 }

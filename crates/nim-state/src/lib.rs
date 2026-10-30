@@ -3,6 +3,7 @@ mod artifact;
 mod entity;
 mod error;
 mod memory;
+mod model;
 mod recall;
 mod types;
 
@@ -11,6 +12,7 @@ pub use artifact::*;
 pub use entity::*;
 pub use error::*;
 pub use memory::*;
+pub use model::*;
 pub use recall::*;
 pub use types::*;
 
@@ -20,6 +22,7 @@ pub struct Services<'a> {
     _artifacts: ArtifactService<'a>,
     _entities: EntityService<'a>,
     _memories: MemoryService<'a>,
+    _models: ModelService<'a>,
     _recalls: RecallService<'a>,
 }
 
@@ -30,6 +33,7 @@ impl<'a> Services<'a> {
             _artifacts: ArtifactService::new(pool),
             _entities: EntityService::new(pool),
             _memories: MemoryService::new(pool),
+            _models: ModelService::new(pool),
             _recalls: RecallService::new(pool),
         }
     }
@@ -52,5 +56,9 @@ impl<'a> Services<'a> {
 
     pub fn recalls(&self) -> RecallService<'a> {
         self._recalls
+    }
+
+    pub fn models(&self) -> ModelService<'a> {
+        self._models
     }
 }

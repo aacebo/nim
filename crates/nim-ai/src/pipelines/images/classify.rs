@@ -55,9 +55,8 @@ pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Vec<Annotation>
         return Ok(Vec::new());
     }
 
-    let api_key = options.model.api_key.clone();
     let default = super::defaults::classify();
-    let model = load(&options.model.resolve(default)?, &api_key)?;
+    let model = load(&options.model.resolve(default)?)?;
     classify_options.mode = model.classify_mode(ClassifyMedia::Image)?;
     let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
     let out = tasks::classify(capable, &model.context(), input, classify_options)?;

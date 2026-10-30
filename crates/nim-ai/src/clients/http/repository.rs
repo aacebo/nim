@@ -4,34 +4,34 @@ use std::path::{Path, PathBuf};
 use crate::{
     Error,
     clients::download::Download,
-    resources::{Asset, AssetData, Repository, Uri, cache},
+    resources::{Asset, AssetData, Repository, Resource, Uri, cache},
 };
 
-pub struct Http {
+pub struct HttpRepository {
     base: Uri,
 }
 
-impl Http {
+impl HttpRepository {
     pub fn new(base: Uri) -> Self {
         Self { base }
     }
 }
 
-impl Repository for Http {
+impl Repository for HttpRepository {
     fn exists(&self, path: &Path) -> bool {
         self.resolve(path).is_ok()
     }
 
     fn get(&self, path: &Path) -> Result<Asset, Error> {
-        Ok(Asset::file(self.resolve(path)?))
+        Ok(Asset::file(self.resolve(path)?.local_path()?))
     }
 
     fn read(&self, path: &Path) -> Result<AssetData, Error> {
         let path = self.resolve(path)?;
-        Ok(AssetData::File(std::fs::read(path)?))
+        Ok(AssetData::File(std::fs::read(path.local_path()?)?))
     }
 
-    fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
+    fn resolve(&self, path: &Path) -> Result<Resource, Error> {
         let filename = path
             .to_str()
             .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
@@ -43,11 +43,12 @@ impl Repository for Http {
             .join("urls")
             .join(slug(&self.base.to_string()))
             .join(key);
+        let uri = self.base.join(filename)?;
         let mut progress = Download::new(&self.base.to_string(), filename);
 
         if cached.exists() {
             progress.cached();
-            return Ok(cached);
+            return Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()));
         }
 
         progress.start();
@@ -81,7 +82,7 @@ impl Repository for Http {
         match result {
             Ok(cached) => {
                 progress.complete();
-                Ok(cached)
+                Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()))
             }
             Err(error) => {
                 progress.failed();

@@ -1,4 +1,4 @@
-pub use nim_store::{LocalModelSource, ModelSource, ModelWeights};
+pub use nim_store::{LocalModelSource, ModelResource, ModelSource, ModelWeights};
 
 use crate::Version;
 

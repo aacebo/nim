@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 use crate::Error;
+use crate::clients::hf::HuggingFace;
+use crate::resources::Resource;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ModelId {
@@ -9,6 +11,10 @@ pub struct ModelId {
 }
 
 impl ModelId {
+    pub fn cached_resource(&self) -> Result<Option<Resource>, Error> {
+        HuggingFace.cached_resource(self)
+    }
+
     pub fn group(&self) -> Option<&str> {
         self.group.as_deref()
     }

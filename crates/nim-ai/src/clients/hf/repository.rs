@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use hf_hub::api::Progress;
 use hf_hub::api::sync::{ApiBuilder, ApiRepo};
@@ -7,15 +7,15 @@ use hf_hub::{Cache, CacheRepo, Repo};
 use crate::Error;
 use crate::clients::download::Download;
 use crate::models::ModelId;
-use crate::resources::{Asset, AssetData, Repository, cache};
+use crate::resources::{Asset, AssetData, Repository, Resource, Uri, cache};
 
-pub struct HuggingFace {
+pub struct HuggingFaceRepository {
     repo: Box<ApiRepo>,
     cache: CacheRepo,
     id: String,
 }
 
-impl HuggingFace {
+impl HuggingFaceRepository {
     pub fn new(id: &ModelId) -> Result<Self, Error> {
         let cache = cache::dir().map(Cache::new).unwrap_or_default();
         let api = ApiBuilder::from_cache(cache.clone())
@@ -32,29 +32,30 @@ impl HuggingFace {
     }
 }
 
-impl Repository for HuggingFace {
+impl Repository for HuggingFaceRepository {
     fn exists(&self, path: &Path) -> bool {
         self.resolve(path).is_ok()
     }
 
     fn get(&self, path: &Path) -> Result<Asset, Error> {
-        Ok(Asset::file(self.resolve(path)?))
+        Ok(Asset::file(self.resolve(path)?.local_path()?))
     }
 
     fn read(&self, path: &Path) -> Result<AssetData, Error> {
         let path = self.resolve(path)?;
-        Ok(AssetData::File(std::fs::read(path)?))
+        Ok(AssetData::File(std::fs::read(path.local_path()?)?))
     }
 
-    fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
+    fn resolve(&self, path: &Path) -> Result<Resource, Error> {
         let path = path
             .to_str()
             .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
+        let uri = Uri::parse(&self.repo.url(path))?;
         let mut progress = Download::new(&self.id, path);
 
         if let Some(cached) = self.cache.get(path) {
             progress.cached();
-            return Ok(cached);
+            return Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()));
         }
 
         progress.start();
@@ -62,7 +63,7 @@ impl Repository for HuggingFace {
         match self.repo.download_with_progress(path, &mut progress) {
             Ok(cached) => {
                 progress.complete();
-                Ok(cached)
+                Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()))
             }
             Err(error) => {
                 progress.failed();

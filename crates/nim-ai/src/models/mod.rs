@@ -68,6 +68,7 @@ pub fn load(model: &ModelRef) -> Result<std::sync::Arc<crate::models::Model>, Er
         }
 
         let observers = OBSERVERS.read()?.clone();
+
         for observer in &observers {
             observer.on_load(model);
         }

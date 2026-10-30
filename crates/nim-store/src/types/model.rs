@@ -29,6 +29,8 @@ pub enum ModelSource {
 pub enum LocalModelSource {
     Hub {
         id: String,
+        #[serde(default)]
+        resource: Option<ModelResource>,
     },
     Path {
         uri: String,
@@ -36,6 +38,14 @@ pub enum LocalModelSource {
         path: Option<std::path::PathBuf>,
         size: u64,
     },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModelResource {
+    pub uri: String,
+    pub format: String,
+    pub path: Option<std::path::PathBuf>,
+    pub size: u64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

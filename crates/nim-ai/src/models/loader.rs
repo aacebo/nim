@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use candle_core::{DType, Device};
@@ -29,37 +29,41 @@ impl Loader {
     }
 
     pub fn tokenizer(&self) -> Result<Tokenizer, Error> {
-        if let Ok(path) = self.repo.resolve(Path::new("tokenizer.json")) {
+        if let Ok(path) = self.resolve(Path::new("tokenizer.json")) {
             return tokenizer::from_file(path);
         }
 
         if self.repo.exists(Path::new("vocab.json")) {
-            let vocab = self.repo.resolve(Path::new("vocab.json"))?;
-            let merges = self.repo.resolve(Path::new("merges.txt"))?;
-            let added = self.repo.resolve(Path::new("added_tokens.json"))?;
+            let vocab = self.resolve(Path::new("vocab.json"))?;
+            let merges = self.resolve(Path::new("merges.txt"))?;
+            let added = self.resolve(Path::new("added_tokens.json"))?;
 
             return tokenizer::from_bpe(vocab, merges, added);
         }
 
-        let path = self.repo.resolve(Path::new("vocab.txt"))?;
+        let path = self.resolve(Path::new("vocab.txt"))?;
         tokenizer::from_vocab(path, self.lowercase()?)
     }
 
     pub fn vars(&self) -> Result<VarBuilder<'static>, Error> {
-        let path = self.repo.resolve(Path::new("model.safetensors"))?;
+        let path = self.resolve(Path::new("model.safetensors"))?;
 
         Ok(unsafe { VarBuilder::from_mmaped_safetensors(&[path], self.dtype, &self.device) }?)
     }
 
     pub fn json<T: serde::de::DeserializeOwned>(&self, file: &str) -> Result<T, Error> {
-        let path = self.repo.resolve(Path::new(file))?;
+        let path = self.resolve(Path::new(file))?;
         let bytes = std::fs::read(path)?;
 
         Ok(serde_json::from_slice(&bytes)?)
     }
 
     pub fn string(&self, file: &str) -> Result<String, Error> {
-        Ok(std::fs::read_to_string(self.repo.resolve(Path::new(file))?)?)
+        Ok(std::fs::read_to_string(self.resolve(Path::new(file))?)?)
+    }
+
+    fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
+        Ok(self.repo.resolve(path)?.local_path()?.to_path_buf())
     }
 
     /// ModelRef-specific: SST-2 is uncased, CoNLL-03 is cased. Lowercasing a cased model wrecks it.

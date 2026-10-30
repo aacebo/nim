@@ -5,11 +5,11 @@ use candle_core::{DType, Device};
 
 use crate::Error;
 use crate::models::{Loader, ModelId, Provider};
-use crate::resources::{Repository, Resource, Uri};
+use crate::resources::{DataSource, Repository, Resource, Uri};
 
-use crate::clients::fs::FileSystem;
+use crate::clients::fs::FileSystemRepository;
 use crate::clients::hf::HuggingFace;
-use crate::clients::http::Http;
+use crate::clients::http::HttpRepository;
 use crate::clients::openai::OpenAI;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -103,10 +103,10 @@ impl LocalModel {
 
     pub fn repository(&self) -> Result<Arc<dyn Repository>, Error> {
         match self {
-            Self::Hub(id) => Ok(Arc::new(HuggingFace::new(id)?)),
+            Self::Hub(id) => Ok(Arc::new(HuggingFace.load(id)?)),
             Self::Path(resource) => match &resource.uri {
-                Uri::Local(path) => Ok(Arc::new(FileSystem::new(path))),
-                Uri::Http(_) => Ok(Arc::new(Http::new(resource.uri.clone()))),
+                Uri::Local(path) => Ok(Arc::new(FileSystemRepository::new(path))),
+                Uri::Http(_) => Ok(Arc::new(HttpRepository::new(resource.uri.clone()))),
             },
         }
     }

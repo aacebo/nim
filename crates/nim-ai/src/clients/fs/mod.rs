@@ -1,3 +1,5 @@
+mod data_source;
 mod repository;
 
-pub use repository::FileSystem;
+pub use data_source::FileSystem;
+pub use repository::FileSystemRepository;

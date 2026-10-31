@@ -6,7 +6,7 @@ use crate::{ChatId, Error, Message, MessageContent, MessageService, Role};
 pub struct MessageCreate {
     pub chat_id: ChatId,
     pub role: Role,
-    pub content: Vec<MessageContent>,
+    pub content: MessageContent,
 }
 
 impl<'a> MessageService<'a> {
@@ -21,7 +21,7 @@ impl<'a> MessageService<'a> {
                 chat_id: value.chat_id.into(),
                 version: 0,
                 role: value.role,
-                content: nim_store::Json(value.content),
+                content: serde_json::to_value(value.content)?,
                 summary: None,
                 confidence: 0.0,
                 embedding: None,
@@ -30,6 +30,6 @@ impl<'a> MessageService<'a> {
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

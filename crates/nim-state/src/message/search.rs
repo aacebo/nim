@@ -7,9 +7,8 @@ impl<'a> MessageService<'a> {
     pub async fn search(&self, embedding: &[f32], filter: MessageFilter) -> Result<Vec<SearchItem<Message>>, Error> {
         let rows = self.storage.messages().search(embedding, filter).await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| SearchItem::new(row.score, row.into_inner().into()))
-            .collect())
+        rows.into_iter()
+            .map(|row| Ok(SearchItem::new(row.score, row.into_inner().try_into()?)))
+            .collect()
     }
 }

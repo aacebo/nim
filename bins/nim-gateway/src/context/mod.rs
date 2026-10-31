@@ -76,6 +76,22 @@ impl Context {
                         subjects: vec!["nim.task.create".into(), "nim.task.update".into()],
                         ..Default::default()
                     },
+                    nim::signals::StreamConfig {
+                        name: "CHATS".into(),
+                        max_messages: 10_000,
+                        subjects: vec!["nim.chat.create".into(), "nim.chat.update".into(), "nim.chat.delete".into()],
+                        ..Default::default()
+                    },
+                    nim::signals::StreamConfig {
+                        name: "MESSAGES".into(),
+                        max_messages: 10_000,
+                        subjects: vec![
+                            "nim.message.create".into(),
+                            "nim.message.update".into(),
+                            "nim.message.delete".into(),
+                        ],
+                        ..Default::default()
+                    },
                 ],
                 ..Default::default()
             },
@@ -84,6 +100,7 @@ impl Context {
 
         let signals = std::sync::Arc::new(signals);
         let models = std::sync::Arc::new(nim::runtime::models::persist(pool.as_ref().clone()).map_err(nim::Error::from)?);
+
         Ok(Self {
             config,
             pool,

@@ -1,6 +1,6 @@
-pub use nim_store::{FileContent, MessageContent, Role, TextContent};
+pub use nim_store::Role;
 
-use crate::{ChatId, Embedding, Version};
+use crate::{ArtifactId, ChatId, Embedding, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Message {
@@ -8,7 +8,7 @@ pub struct Message {
     pub chat_id: ChatId,
     pub version: Version,
     pub role: Role,
-    pub content: Vec<MessageContent>,
+    pub content: MessageContent,
     pub summary: Option<String>,
     pub confidence: f32,
     pub embedding: Option<Embedding>,
@@ -67,19 +67,56 @@ impl<'de> serde::Deserialize<'de> for MessageId {
     }
 }
 
-impl From<nim_store::MessageRow> for Message {
-    fn from(value: nim_store::MessageRow) -> Self {
-        Self {
+impl TryFrom<nim_store::MessageRow> for Message {
+    type Error = crate::Error;
+
+    fn try_from(value: nim_store::MessageRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
             chat_id: value.chat_id.into(),
             version: value.version.into(),
             role: value.role,
-            content: value.content.into_inner(),
+            content: serde_json::from_value(value.content)?,
             summary: value.summary,
             confidence: value.confidence,
             embedding: value.embedding.map(Into::into),
             created_at: value.created_at,
             updated_at: value.updated_at,
-        }
+        })
+    }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
+#[serde(untagged, rename_all = "snake_case")]
+pub enum MessageContent {
+    Text {
+        #[validate(min_length = 1)]
+        text: String,
+    },
+    Url {
+        #[validate(custom = validate::url)]
+        url: String,
+    },
+    Base64 {
+        #[validate(min_length = 1)]
+        base64: String,
+    },
+    Artifact {
+        artifact_id: ArtifactId,
+    },
+    #[validate(min_items = 1)]
+    Array(#[validate] Vec<MessageContent>),
+    #[validate]
+    String(#[validate(min_length = 1)] String),
+}
+
+mod validate {
+    use serde_valid::validation::Error;
+
+    pub fn url(value: &str) -> Result<(), Error> {
+        url::Url::parse(value)
+            .map(|_| ())
+            .map_err(|_| Error::Custom("invalid url".into()))
     }
 }

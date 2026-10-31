@@ -1,6 +1,7 @@
 mod config;
 mod context;
 mod error;
+mod extract;
 mod routes;
 
 pub use config::*;

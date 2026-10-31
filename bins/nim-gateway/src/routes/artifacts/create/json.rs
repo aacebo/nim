@@ -1,14 +1,14 @@
 use axum::response::IntoResponse;
 
-use crate::http::HttpContext;
+use crate::{extract, http::HttpContext};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 pub struct Body {
     pub name: String,
     pub text: String,
 }
 
-pub async fn route(ctx: HttpContext, body: axum::Json<Body>) -> axum::response::Result<axum::response::Response> {
+pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> axum::response::Result<axum::response::Response> {
     let artifact = ctx
         .services()
         .artifacts()

@@ -1,3 +1,5 @@
+use axum::response::IntoResponse;
+
 #[derive(Debug)]
 pub enum Error {
     Core(nim::Error),
@@ -10,6 +12,7 @@ pub enum Error {
     Join(tokio::task::JoinError),
     Multipart(axum::extract::multipart::MultipartError),
     Infallible(std::convert::Infallible),
+    Valid(serde_valid::validation::Errors<serde_valid::validation::Error>),
 }
 
 impl From<nim::Error> for Error {
@@ -78,6 +81,24 @@ impl From<axum::extract::multipart::MultipartError> for Error {
     }
 }
 
+impl From<serde_valid::validation::Errors> for Error {
+    fn from(value: serde_valid::validation::Errors) -> Self {
+        Self::Valid(value)
+    }
+}
+
+impl From<axum::extract::rejection::JsonRejection> for Error {
+    fn from(value: axum::extract::rejection::JsonRejection) -> Self {
+        match value {
+            axum::extract::rejection::JsonRejection::BytesRejection(err) => Self::Http(err.into_response()),
+            axum::extract::rejection::JsonRejection::JsonDataError(err) => Self::Http(err.into_response()),
+            axum::extract::rejection::JsonRejection::JsonSyntaxError(err) => Self::Http(err.into_response()),
+            axum::extract::rejection::JsonRejection::MissingJsonContentType(err) => Self::Http(err.into_response()),
+            err => Self::Http(err.into_response()),
+        }
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -96,6 +117,7 @@ impl std::fmt::Display for Error {
             Self::Join(err) => write!(f, "[error::json] -> {err}"),
             Self::Multipart(err) => write!(f, "[error::http::multipart] -> {err}"),
             Self::Infallible(err) => write!(f, "[error::convert] -> {err}"),
+            Self::Valid(err) => write!(f, "[error::valid] -> {err}"),
         }
     }
 }
@@ -112,6 +134,7 @@ impl std::error::Error for Error {
             Self::Multipart(err) => Some(err),
             Self::Join(err) => Some(err),
             Self::Infallible(err) => Some(err),
+            Self::Valid(err) => Some(err),
             _ => None,
         }
     }
@@ -122,6 +145,7 @@ impl axum::response::IntoResponse for Error {
         match self {
             Self::Http(err) => err,
             Self::Multipart(err) => err.into_response(),
+            Self::Valid(err) => (axum::http::StatusCode::BAD_REQUEST, axum::Json(err)).into_response(),
             err => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
         }
     }

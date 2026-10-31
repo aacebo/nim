@@ -2,7 +2,7 @@ use crate::{Error, Message, MessageContent, MessageId, MessageService};
 
 #[derive(Debug, Default)]
 pub struct MessageUpdate {
-    pub content: Option<Vec<MessageContent>>,
+    pub content: Option<MessageContent>,
     pub summary: Option<String>,
     pub confidence: Option<f32>,
     pub embedding: Option<Vec<f32>>,
@@ -14,7 +14,7 @@ impl<'a> MessageService<'a> {
         let mut row = self.storage.messages().find_by_id(id.into()).await?;
 
         if let Some(value) = value.content {
-            row.content = nim_store::Json(value);
+            row.content = serde_json::to_value(value)?;
         }
 
         if let Some(value) = value.summary {
@@ -29,6 +29,6 @@ impl<'a> MessageService<'a> {
             row.embedding = Some(value.into());
         }
 
-        Ok(self.storage.messages().update(row).await?.into())
+        self.storage.messages().update(row).await?.try_into()
     }
 }

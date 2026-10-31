@@ -1,0 +1,11 @@
+POST http://localhost:9999/chats/messages
+Content-Type: application/json
+
+{
+    "content": [
+        "testing123",
+        {
+            "url": "https://google.com/my-file.png"
+        }
+    ]
+}

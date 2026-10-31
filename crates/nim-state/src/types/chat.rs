@@ -4,7 +4,6 @@ use crate::{ArtifactId, Embedding, EntityId, Version};
 pub struct Chat {
     pub id: ChatId,
     pub version: Version,
-    pub name: String,
     pub summary: Option<String>,
     pub confidence: f32,
     pub embedding: Option<Embedding>,
@@ -68,7 +67,6 @@ impl From<nim_store::ChatRow> for Chat {
         Self {
             id: value.id.into(),
             version: value.version.into(),
-            name: value.name,
             summary: value.summary,
             confidence: value.confidence,
             embedding: value.embedding.map(Into::into),

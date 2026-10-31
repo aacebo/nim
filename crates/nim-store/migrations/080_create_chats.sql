@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS chats (
     id              UUID            PRIMARY KEY,
     version         INT             NOT NULL,
-    name            TEXT            NOT NULL,
     summary         TEXT,
     confidence      REAL            NOT NULL,
     embedding       VECTOR(384),

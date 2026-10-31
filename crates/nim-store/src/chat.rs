@@ -17,7 +17,6 @@ impl<'a> ChatStorage<'a> {
             SELECT
                 id,
                 version,
-                name,
                 summary,
                 confidence,
                 embedding,
@@ -90,7 +89,6 @@ impl<'a> ChatStorage<'a> {
             INSERT INTO chats (
                 id,
                 version,
-                name,
                 summary,
                 confidence,
                 embedding,
@@ -104,13 +102,11 @@ impl<'a> ChatStorage<'a> {
                 $4,
                 $5,
                 $6,
-                $7,
-                $8
+                $7
             )
             RETURNING
                 id,
                 version,
-                name,
                 summary,
                 confidence,
                 embedding,
@@ -120,7 +116,6 @@ impl<'a> ChatStorage<'a> {
         )
         .bind(value.id)
         .bind(value.version)
-        .bind(value.name)
         .bind(value.summary)
         .bind(value.confidence)
         .bind(value.embedding)
@@ -137,16 +132,14 @@ impl<'a> ChatStorage<'a> {
             UPDATE chats
             SET
                 version = version + 1,
-                name = $2,
-                summary = $3,
-                confidence = $4,
-                embedding = $5,
-                updated_at = $6
-            WHERE id = $1 AND version = $7
+                summary = $2,
+                confidence = $3,
+                embedding = $4,
+                updated_at = $5
+            WHERE id = $1 AND version = $6
             RETURNING
                 id,
                 version,
-                name,
                 summary,
                 confidence,
                 embedding,
@@ -155,7 +148,6 @@ impl<'a> ChatStorage<'a> {
             "#,
         )
         .bind(value.id)
-        .bind(value.name)
         .bind(value.summary)
         .bind(value.confidence)
         .bind(value.embedding)

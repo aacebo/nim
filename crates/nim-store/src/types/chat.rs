@@ -2,7 +2,6 @@
 pub struct ChatRow {
     pub id: uuid::Uuid,
     pub version: i32,
-    pub name: String,
     pub summary: Option<String>,
     pub confidence: f32,
     pub embedding: Option<pgvector::Vector>,

@@ -8,6 +8,7 @@ mod recall;
 mod region;
 mod source;
 mod span;
+mod task;
 
 pub use annotation::*;
 pub use artifact::*;
@@ -19,3 +20,4 @@ pub use recall::*;
 pub use region::*;
 pub use source::*;
 pub use span::*;
+pub use task::*;

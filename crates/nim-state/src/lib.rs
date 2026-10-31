@@ -5,6 +5,7 @@ mod error;
 mod memory;
 mod model;
 mod recall;
+mod task;
 mod types;
 
 pub use annotation::*;
@@ -14,6 +15,7 @@ pub use error::*;
 pub use memory::*;
 pub use model::*;
 pub use recall::*;
+pub use task::*;
 pub use types::*;
 
 #[derive(Copy, Clone)]
@@ -24,6 +26,7 @@ pub struct Services<'a> {
     _memories: MemoryService<'a>,
     _models: ModelService<'a>,
     _recalls: RecallService<'a>,
+    _tasks: TaskService<'a>,
 }
 
 impl<'a> Services<'a> {
@@ -35,6 +38,7 @@ impl<'a> Services<'a> {
             _memories: MemoryService::new(pool),
             _models: ModelService::new(pool),
             _recalls: RecallService::new(pool),
+            _tasks: TaskService::new(pool),
         }
     }
 
@@ -60,5 +64,9 @@ impl<'a> Services<'a> {
 
     pub fn models(&self) -> ModelService<'a> {
         self._models
+    }
+
+    pub fn tasks(&self) -> TaskService<'a> {
+        self._tasks
     }
 }

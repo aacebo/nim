@@ -1,5 +1,9 @@
 # Backlog
 
+## Memory Recall
+
+Memory recall hardens memory.
+
 ## Model Observer
 
 Find a better cleaner pattern for model observation.

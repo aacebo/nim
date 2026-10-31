@@ -5,6 +5,7 @@ mod memory;
 mod model;
 mod recall;
 mod search;
+mod task;
 mod types;
 
 pub use annotation::*;
@@ -14,6 +15,7 @@ pub use memory::*;
 pub use model::*;
 pub use recall::*;
 pub use search::*;
+pub use task::*;
 pub use types::*;
 
 pub use pgvector::Vector;
@@ -34,6 +36,9 @@ pub struct Storage<'a> {
     _models: ModelStorage<'a>,
     _memory_relations: MemoryRelationsStorage<'a>,
     _recalls: RecallStorage<'a>,
+    _artifact_tasks: ArtifactTasksStorage<'a>,
+    _model_tasks: ModelTasksStorage<'a>,
+    _tasks: TaskStorage<'a>,
     _memory_recalls: MemoryRecallsStorage<'a>,
 }
 
@@ -50,6 +55,9 @@ impl<'a> Storage<'a> {
             _models: ModelStorage::new(pool),
             _memory_relations: MemoryRelationsStorage::new(pool),
             _recalls: RecallStorage::new(pool),
+            _artifact_tasks: ArtifactTasksStorage::new(pool),
+            _model_tasks: ModelTasksStorage::new(pool),
+            _tasks: TaskStorage::new(pool),
             _memory_recalls: MemoryRecallsStorage::new(pool),
         }
     }
@@ -96,5 +104,17 @@ impl<'a> Storage<'a> {
 
     pub fn models(&self) -> ModelStorage<'a> {
         self._models
+    }
+
+    pub fn tasks(&self) -> TaskStorage<'a> {
+        self._tasks
+    }
+
+    pub fn model_tasks(&self) -> ModelTasksStorage<'a> {
+        self._model_tasks
+    }
+
+    pub fn artifact_tasks(&self) -> ArtifactTasksStorage<'a> {
+        self._artifact_tasks
     }
 }

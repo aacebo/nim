@@ -8,6 +8,7 @@ mod model;
 mod recall;
 mod region;
 mod source;
+mod task;
 mod version;
 
 pub use annotation::*;
@@ -20,4 +21,5 @@ pub use model::*;
 pub use recall::*;
 pub use region::*;
 pub use source::*;
+pub use task::*;
 pub use version::*;

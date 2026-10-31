@@ -135,9 +135,9 @@ impl<'a> ArtifactStorage<'a> {
                 content = $3,
                 summary = $4,
                 embedding = $5,
-                confidence = GREATEST(confidence, $6),
+                confidence = $6,
                 salience = GREATEST(salience, $7),
-                strength = GREATEST(strength, $8),
+                strength = $8,
                 updated_at = $9
             WHERE id = $1 AND version = $10
             RETURNING

@@ -9,6 +9,7 @@ pub struct Task {
     pub version: Version,
     pub name: String,
     pub source: String,
+    #[serde(flatten)]
     pub status: TaskStatus,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,

@@ -18,6 +18,10 @@ impl SignalContext {
         }
     }
 
+    pub fn strength_half_life(&self) -> chrono::TimeDelta {
+        self.inner.strength_half_life
+    }
+
     pub fn span(&self) -> &tracing::Span {
         &self.inner.span
     }

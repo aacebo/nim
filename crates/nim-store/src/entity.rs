@@ -104,7 +104,7 @@ impl<'a> EntityStorage<'a> {
                 version = version + 1,
                 name = $3,
                 summary = $4,
-                confidence = GREATEST(confidence, $5),
+                confidence = $5,
                 embedding = $6,
                 recalls = $7,
                 recalled_at = $8,

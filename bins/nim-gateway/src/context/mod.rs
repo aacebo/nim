@@ -70,6 +70,12 @@ impl Context {
                         ],
                         ..Default::default()
                     },
+                    nim::signals::StreamConfig {
+                        name: "TASKS".into(),
+                        max_messages: 10_000,
+                        subjects: vec!["nim.task.create".into(), "nim.task.update".into()],
+                        ..Default::default()
+                    },
                 ],
                 ..Default::default()
             },

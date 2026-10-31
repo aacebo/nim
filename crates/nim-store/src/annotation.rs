@@ -156,7 +156,7 @@ impl<'a> AnnotationStorage<'a> {
                 label = $2,
                 text = $3,
                 spans = $4,
-                confidence = GREATEST(confidence, $5),
+                confidence = $5,
                 embedding = $6,
                 updated_at = $7
             WHERE id = $1 AND version = $8

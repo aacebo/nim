@@ -218,8 +218,8 @@ impl<'a> MemoryStorage<'a> {
                 sources = $3,
                 contexts = $4,
                 salience = GREATEST(salience, $5),
-                strength = GREATEST(strength, $6),
-                confidence = GREATEST(confidence, $7),
+                strength = $6,
+                confidence = $7,
                 recalls = $8,
                 recalled_at = $9,
                 updated_at = $10

@@ -66,6 +66,7 @@ pub fn persist(pool: nim_store::PgPool) -> Result<nim_ai::Subscription, crate::E
                     Ok(_) => return,
                     Err(error) => {
                         tracing::error!(target: "nim_state", %name, %error, "failed to register loaded model");
+
                         if attempt < 2 {
                             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                         }

@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS messages (
     id              UUID            PRIMARY KEY,
     chat_id         UUID            NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    parent_id       UUID            REFERENCES messages(id) ON DELETE CASCADE,
     version         INT             NOT NULL,
     role            TEXT            NOT NULL,
     content         JSONB           NOT NULL,

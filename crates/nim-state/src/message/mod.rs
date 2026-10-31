@@ -2,6 +2,7 @@ mod create;
 mod delete;
 mod find_by_chat_id;
 mod find_by_id;
+mod find_by_parent_id;
 mod search;
 mod update;
 

@@ -2,6 +2,7 @@
 pub struct MessageRow {
     pub id: uuid::Uuid,
     pub chat_id: uuid::Uuid,
+    pub parent_id: Option<uuid::Uuid>,
     pub version: i32,
     pub role: Role,
     pub content: sqlx::types::JsonValue,

@@ -31,6 +31,7 @@ pub async fn route(
         .messages()
         .create(nim::state::MessageCreate {
             chat_id: chat.id,
+            parent_id: None,
             role: nim::state::Role::User,
             content: body.content.clone(),
         })

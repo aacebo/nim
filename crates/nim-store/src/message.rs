@@ -17,6 +17,7 @@ impl<'a> MessageStorage<'a> {
             SELECT
                 id,
                 chat_id,
+                parent_id,
                 version,
                 role,
                 content,
@@ -41,6 +42,7 @@ impl<'a> MessageStorage<'a> {
             SELECT
                 id,
                 chat_id,
+                parent_id,
                 version,
                 role,
                 content,
@@ -55,6 +57,32 @@ impl<'a> MessageStorage<'a> {
             "#,
         )
         .bind(chat_id)
+        .fetch_all(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_parent_id(&self, parent_id: uuid::Uuid) -> Result<Vec<types::MessageRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                chat_id,
+                parent_id,
+                version,
+                role,
+                content,
+                summary,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            FROM messages
+            WHERE parent_id = $1
+            ORDER BY created_at, id
+            "#,
+        )
+        .bind(parent_id)
         .fetch_all(self.pool)
         .await
     }
@@ -95,6 +123,7 @@ impl<'a> MessageStorage<'a> {
             INSERT INTO messages (
                 id,
                 chat_id,
+                parent_id,
                 version,
                 role,
                 content,
@@ -114,11 +143,13 @@ impl<'a> MessageStorage<'a> {
                 $7,
                 $8,
                 $9,
-                $10
+                $10,
+                $11
             )
             RETURNING
                 id,
                 chat_id,
+                parent_id,
                 version,
                 role,
                 content,
@@ -131,6 +162,7 @@ impl<'a> MessageStorage<'a> {
         )
         .bind(value.id)
         .bind(value.chat_id)
+        .bind(value.parent_id)
         .bind(value.version)
         .bind(value.role)
         .bind(value.content)
@@ -159,6 +191,7 @@ impl<'a> MessageStorage<'a> {
             RETURNING
                 id,
                 chat_id,
+                parent_id,
                 version,
                 role,
                 content,

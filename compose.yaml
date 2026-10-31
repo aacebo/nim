@@ -58,6 +58,42 @@ services:
       nats:
         condition: service_started
 
+  exec:
+    container_name: nim-exec
+    build:
+      context: .
+      dockerfile: bins/nim-exec/Dockerfile
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      RUST_LOG: info
+      NIM_CACHE: /.cache
+    volumes:
+      - .:/app
+      - /app/target
+      - ./.cache:/.cache
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+  encode:
+    container_name: nim-encode
+    build:
+      context: .
+      dockerfile: bins/nim-encode/Dockerfile
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://admin:admin@postgres:5432/main
+      RUST_LOG: info
+      NIM_CACHE: /.cache
+    volumes:
+      - .:/app
+      - /app/target
+      - ./.cache:/.cache
+    depends_on:
+      gateway:
+        condition: service_healthy
+
   text:
     container_name: nim-text
     build:
@@ -101,25 +137,6 @@ services:
     build:
       context: .
       dockerfile: bins/nim-vision/Dockerfile
-    environment:
-      NATS_URL: nats://nats:4222
-      DATABASE_URL: postgres://admin:admin@postgres:5432/main
-      RUST_LOG: info
-      NIM_CACHE: /.cache
-    volumes:
-      - .:/app
-      - /app/target
-      - staging:/.staging
-      - ./.cache:/.cache
-    depends_on:
-      gateway:
-        condition: service_healthy
-
-  encode:
-    container_name: nim-encode
-    build:
-      context: .
-      dockerfile: bins/nim-encode/Dockerfile
     environment:
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgres://admin:admin@postgres:5432/main

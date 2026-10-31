@@ -1,0 +1,125 @@
+#[derive(Debug)]
+pub enum Error {
+    Custom(String),
+    Core(nim::Error),
+    IO(std::io::Error),
+    Env(&'static str, std::env::VarError),
+    Sql(sqlx::Error),
+    Nats(nim::signals::NatsError),
+    ParseInt(std::num::ParseIntError),
+    Migrate(sqlx::migrate::MigrateError),
+    Join(tokio::task::JoinError),
+    Infallible(std::convert::Infallible),
+}
+
+impl Error {
+    pub fn custom(message: impl std::fmt::Display) -> Self {
+        Self::Custom(message.to_string())
+    }
+}
+
+impl From<nim::Error> for Error {
+    fn from(value: nim::Error) -> Self {
+        Self::Core(value)
+    }
+}
+
+impl From<nim::signals::Error> for Error {
+    fn from(value: nim::signals::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
+impl From<nim::ai::Error> for Error {
+    fn from(value: nim::ai::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
+impl From<nim::state::Error> for Error {
+    fn from(value: nim::state::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::IO(value)
+    }
+}
+
+impl From<std::convert::Infallible> for Error {
+    fn from(value: std::convert::Infallible) -> Self {
+        Self::Infallible(value)
+    }
+}
+
+impl From<(&'static str, std::env::VarError)> for Error {
+    fn from((key, err): (&'static str, std::env::VarError)) -> Self {
+        Self::Env(key, err)
+    }
+}
+
+impl From<std::num::ParseIntError> for Error {
+    fn from(value: std::num::ParseIntError) -> Self {
+        Self::ParseInt(value)
+    }
+}
+
+impl From<sqlx::Error> for Error {
+    fn from(value: sqlx::Error) -> Self {
+        Self::Sql(value)
+    }
+}
+
+impl From<nim::signals::NatsError> for Error {
+    fn from(value: nim::signals::NatsError) -> Self {
+        Self::Nats(value)
+    }
+}
+
+impl From<sqlx::migrate::MigrateError> for Error {
+    fn from(value: sqlx::migrate::MigrateError) -> Self {
+        Self::Migrate(value)
+    }
+}
+
+impl From<tokio::task::JoinError> for Error {
+    fn from(value: tokio::task::JoinError) -> Self {
+        Self::Join(value)
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Custom(err) => write!(f, "[error::custom] -> {err}"),
+            Self::Core(err) => write!(f, "[error::nim] -> {err}"),
+            Self::Env(key, err) => write!(f, "[error::env::{key}] -> {err}"),
+            Self::ParseInt(err) => write!(f, "[error::int::parse] -> {err}"),
+            Self::Migrate(err) => write!(f, "[error::migrate] -> {err}"),
+            Self::IO(err) => write!(f, "[error::io] -> {err}"),
+            Self::Sql(err) => write!(f, "[error::sql] -> {err}"),
+            Self::Nats(err) => write!(f, "[error::nats] -> {err}"),
+            Self::Join(err) => write!(f, "[error::json] -> {err}"),
+            Self::Infallible(err) => write!(f, "[error::convert] -> {err}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Custom(_) => None,
+            Self::Core(err) => Some(err),
+            Self::Env(_, err) => Some(err),
+            Self::ParseInt(err) => Some(err),
+            Self::Migrate(err) => Some(err),
+            Self::IO(err) => Some(err),
+            Self::Sql(err) => Some(err),
+            Self::Nats(err) => Some(err.as_ref()),
+            Self::Join(err) => Some(err),
+            Self::Infallible(err) => Some(err),
+        }
+    }
+}

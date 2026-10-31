@@ -55,6 +55,7 @@ async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool
             _ = shutdown.changed() => break,
             req = artifacts.next() => req,
         };
+
         let Some(req) = req else {
             break;
         };

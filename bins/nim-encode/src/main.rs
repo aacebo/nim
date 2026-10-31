@@ -103,6 +103,7 @@ async fn memories(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>
             _ = shutdown.changed() => break,
             req = memories.next() => req,
         };
+
         let Some(req) = req else {
             break;
         };

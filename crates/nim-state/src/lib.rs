@@ -1,8 +1,10 @@
 mod annotation;
 mod artifact;
+mod chat;
 mod entity;
 mod error;
 mod memory;
+mod message;
 mod model;
 mod recall;
 mod task;
@@ -10,9 +12,11 @@ mod types;
 
 pub use annotation::*;
 pub use artifact::*;
+pub use chat::*;
 pub use entity::*;
 pub use error::*;
 pub use memory::*;
+pub use message::*;
 pub use model::*;
 pub use recall::*;
 pub use task::*;
@@ -20,6 +24,8 @@ pub use types::*;
 
 #[derive(Copy, Clone)]
 pub struct Services<'a> {
+    _chats: ChatService<'a>,
+    _messages: MessageService<'a>,
     _annotations: AnnotationService<'a>,
     _artifacts: ArtifactService<'a>,
     _entities: EntityService<'a>,
@@ -32,6 +38,8 @@ pub struct Services<'a> {
 impl<'a> Services<'a> {
     pub fn new(pool: &'a nim_store::PgPool) -> Self {
         Self {
+            _chats: ChatService::new(pool),
+            _messages: MessageService::new(pool),
             _annotations: AnnotationService::new(pool),
             _artifacts: ArtifactService::new(pool),
             _entities: EntityService::new(pool),
@@ -40,6 +48,14 @@ impl<'a> Services<'a> {
             _recalls: RecallService::new(pool),
             _tasks: TaskService::new(pool),
         }
+    }
+
+    pub fn chats(&self) -> ChatService<'a> {
+        self._chats
+    }
+
+    pub fn messages(&self) -> MessageService<'a> {
+        self._messages
     }
 
     pub fn annotations(&self) -> AnnotationService<'a> {

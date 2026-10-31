@@ -1,7 +1,9 @@
 mod annotation;
 mod artifact;
+mod chat;
 mod entity;
 mod memory;
+mod message;
 mod model;
 mod recall;
 mod search;
@@ -10,8 +12,10 @@ mod types;
 
 pub use annotation::*;
 pub use artifact::*;
+pub use chat::*;
 pub use entity::*;
 pub use memory::*;
+pub use message::*;
 pub use model::*;
 pub use recall::*;
 pub use search::*;
@@ -26,6 +30,10 @@ pub use sqlx::types::Json;
 
 #[derive(Copy, Clone)]
 pub struct Storage<'a> {
+    _chats: ChatStorage<'a>,
+    _messages: MessageStorage<'a>,
+    _chat_entities: ChatEntitiesStorage<'a>,
+    _chat_artifacts: ChatArtifactsStorage<'a>,
     _annotations: AnnotationStorage<'a>,
     _artifacts: ArtifactStorage<'a>,
     _memory_artifacts: MemoryArtifactsStorage<'a>,
@@ -45,6 +53,10 @@ pub struct Storage<'a> {
 impl<'a> Storage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self {
+            _chats: ChatStorage::new(pool),
+            _messages: MessageStorage::new(pool),
+            _chat_entities: ChatEntitiesStorage::new(pool),
+            _chat_artifacts: ChatArtifactsStorage::new(pool),
             _annotations: AnnotationStorage::new(pool),
             _artifacts: ArtifactStorage::new(pool),
             _memory_artifacts: MemoryArtifactsStorage::new(pool),
@@ -60,6 +72,22 @@ impl<'a> Storage<'a> {
             _tasks: TaskStorage::new(pool),
             _memory_recalls: MemoryRecallsStorage::new(pool),
         }
+    }
+
+    pub fn chats(&self) -> ChatStorage<'a> {
+        self._chats
+    }
+
+    pub fn messages(&self) -> MessageStorage<'a> {
+        self._messages
+    }
+
+    pub fn chat_entities(&self) -> ChatEntitiesStorage<'a> {
+        self._chat_entities
+    }
+
+    pub fn chat_artifacts(&self) -> ChatArtifactsStorage<'a> {
+        self._chat_artifacts
     }
 
     pub fn annotations(&self) -> AnnotationStorage<'a> {

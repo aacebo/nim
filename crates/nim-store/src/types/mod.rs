@@ -1,8 +1,10 @@
 mod annotation;
 mod artifact;
+mod chat;
 mod context;
 mod entity;
 mod memory;
+mod message;
 mod model;
 mod recall;
 mod region;
@@ -12,9 +14,11 @@ mod task;
 
 pub use annotation::*;
 pub use artifact::*;
+pub use chat::*;
 pub use context::*;
 pub use entity::*;
 pub use memory::*;
+pub use message::*;
 pub use model::*;
 pub use recall::*;
 pub use region::*;

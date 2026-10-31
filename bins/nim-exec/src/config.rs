@@ -10,10 +10,6 @@ pub struct Config {
 impl Config {
     #[tracing::instrument]
     pub fn load() -> Result<Self, Error> {
-        use std::str::FromStr;
-
-        let staging_dir = std::env::var("STAGING_DIR").unwrap_or("/.staging".into());
-
         Ok(Self {
             port: std::env::var("PORT").unwrap_or("8080".into()).parse()?,
             database_url: std::env::var("DATABASE_URL").map_err(|err| ("DATABASE_URL", err))?,

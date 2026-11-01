@@ -113,6 +113,25 @@ pub enum MessageContent {
     String(#[validate(min_length = 1)] String),
 }
 
+impl std::fmt::Display for MessageContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Text { text } => write!(f, "{text}"),
+            Self::Url { url } => write!(f, "{url}"),
+            Self::Base64 { base64 } => write!(f, "{base64}"),
+            Self::Artifact { artifact_id } => write!(f, "{artifact_id}"),
+            Self::Array(items) => {
+                for item in items {
+                    write!(f, "{item}")?;
+                }
+
+                Ok(())
+            }
+            _ => Err(std::fmt::Error),
+        }
+    }
+}
+
 mod validate {
     use serde_valid::validation::Error;
 

@@ -115,7 +115,7 @@ impl<'a> MemoryStorage<'a> {
                 ) AS artifacts ON artifacts.memory_id = memories.id
                 LEFT JOIN (
                     SELECT memories_artifacts.memory_id, MIN(annotations.embedding <=> $1::vector) AS distance
-                    FROM annotations
+                    FROM artifact_annotations AS annotations
                     JOIN memories_artifacts ON memories_artifacts.artifact_id = annotations.artifact_id
                     WHERE annotations.embedding IS NOT NULL
                     GROUP BY memories_artifacts.memory_id

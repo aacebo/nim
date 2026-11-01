@@ -4,7 +4,7 @@ use crate::{Error, SignalContext};
 
 #[tracing::instrument(skip(ctx, signal))]
 pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Error> {
-    let annotations = ctx.services().annotations().find_by_artifact_id(signal.content.id).await?;
+    let annotations = ctx.services().artifacts().find_annotations(signal.content.id).await?;
     let confidence = annotations
         .iter()
         .map(|a| {

@@ -12,5 +12,21 @@ CREATE TABLE IF NOT EXISTS messages (
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS message_annotations (
+    id              UUID            PRIMARY KEY,
+    version         INT             NOT NULL DEFAULT 0,
+    message_id      UUID            NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    label           TEXT            NOT NULL,
+    text            TEXT            NOT NULL,
+    spans           JSONB           NOT NULL,
+    confidence      REAL            NOT NULL,
+    embedding       VECTOR(384),
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS message_annotations_embedding_idx
+ON message_annotations USING hnsw (embedding vector_cosine_ops);
+
 CREATE INDEX IF NOT EXISTS messages_embedding_idx
 ON messages USING hnsw (embedding vector_cosine_ops);

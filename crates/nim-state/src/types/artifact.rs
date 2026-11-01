@@ -1,6 +1,6 @@
 pub use nim_store::ArtifactContent;
 
-use crate::{AnnotationPartial, Embedding, MemoryId, Version};
+use crate::{AnnotationId, AnnotationPartial, Embedding, Label, MemoryId, Span, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Artifact {
@@ -103,5 +103,37 @@ impl<'de> serde::Deserialize<'de> for ArtifactId {
 
         let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
         Ok(Self(v))
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ArtifactAnnotation {
+    pub id: AnnotationId,
+    pub version: Version,
+    pub artifact_id: ArtifactId,
+    pub label: Label,
+    pub text: String,
+    pub spans: Vec<Span>,
+    pub confidence: f32,
+    #[serde(skip)]
+    pub embedding: Option<Embedding>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::ArtifactAnnotationRow> for ArtifactAnnotation {
+    fn from(value: nim_store::ArtifactAnnotationRow) -> Self {
+        Self {
+            id: value.id.into(),
+            version: value.version.into(),
+            artifact_id: value.artifact_id.into(),
+            label: value.label.into(),
+            text: value.text,
+            spans: value.spans.into_inner(),
+            confidence: value.confidence,
+            embedding: value.embedding.map(Into::into),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
     }
 }

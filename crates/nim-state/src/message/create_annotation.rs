@@ -1,10 +1,9 @@
-use nim_store::AnnotationRow;
+use nim_store::MessageAnnotationRow;
 
-use crate::{Annotation, AnnotationService, ArtifactId, Error, Label, Span};
+use crate::{Error, Label, MessageAnnotation, MessageId, MessageService, Span};
 
 #[derive(Debug)]
-pub struct AnnotationCreate<'a> {
-    pub artifact_id: ArtifactId,
+pub struct MessageAnnotationCreate<'a> {
     pub label: Label,
     pub text: String,
     pub spans: &'a [Span],
@@ -12,16 +11,21 @@ pub struct AnnotationCreate<'a> {
     pub embedding: Option<&'a [f32]>,
 }
 
-impl<'a> AnnotationService<'a> {
+impl<'a> MessageService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create<'b>(&self, value: AnnotationCreate<'b>) -> Result<Annotation, Error> {
+    pub async fn create_annotation<'b>(
+        &self,
+        message_id: MessageId,
+        value: MessageAnnotationCreate<'b>,
+    ) -> Result<MessageAnnotation, Error> {
         let now = chrono::Utc::now();
         let row = self
-            .store
-            .create(AnnotationRow {
+            .storage
+            .message_annotations()
+            .create(MessageAnnotationRow {
                 id: uuid::Uuid::now_v7(),
                 version: 0,
-                artifact_id: value.artifact_id.into(),
+                message_id: message_id.into(),
                 label: value.label.into(),
                 text: value.text,
                 spans: nim_store::Json(value.spans.to_vec()),

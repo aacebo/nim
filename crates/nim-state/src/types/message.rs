@@ -1,6 +1,6 @@
 pub use nim_store::Role;
 
-use crate::{ArtifactId, ChatId, Embedding, Version};
+use crate::{AnnotationId, ArtifactId, ChatId, Embedding, Label, Span, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Message {
@@ -116,18 +116,54 @@ pub enum MessageContent {
 impl std::fmt::Display for MessageContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::String(v) => write!(f, "{v}"),
             Self::Text { text } => write!(f, "{text}"),
             Self::Url { url } => write!(f, "{url}"),
             Self::Base64 { base64 } => write!(f, "{base64}"),
             Self::Artifact { artifact_id } => write!(f, "{artifact_id}"),
             Self::Array(items) => {
-                for item in items {
-                    write!(f, "{item}")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i < items.len() - 1 {
+                        writeln!(f, "{item}")?;
+                    } else {
+                        write!(f, "{item}")?;
+                    }
                 }
 
                 Ok(())
             }
-            _ => Err(std::fmt::Error),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MessageAnnotation {
+    pub id: AnnotationId,
+    pub version: Version,
+    pub message_id: MessageId,
+    pub label: Label,
+    pub text: String,
+    pub spans: Vec<Span>,
+    pub confidence: f32,
+    #[serde(skip)]
+    pub embedding: Option<Embedding>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::MessageAnnotationRow> for MessageAnnotation {
+    fn from(value: nim_store::MessageAnnotationRow) -> Self {
+        Self {
+            id: value.id.into(),
+            version: value.version.into(),
+            message_id: value.message_id.into(),
+            label: value.label.into(),
+            text: value.text,
+            spans: value.spans.into_inner(),
+            confidence: value.confidence,
+            embedding: value.embedding.map(Into::into),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
         }
     }
 }

@@ -232,3 +232,216 @@ impl<'a> MessageStorage<'a> {
         Ok(())
     }
 }
+
+#[derive(Copy, Clone)]
+pub struct MessageAnnotationStorage<'a> {
+    pool: &'a sqlx::PgPool,
+}
+
+impl<'a> MessageAnnotationStorage<'a> {
+    pub fn new(pool: &'a sqlx::PgPool) -> Self {
+        Self { pool }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_id(&self, message_id: uuid::Uuid, id: uuid::Uuid) -> Result<types::MessageAnnotationRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                version,
+                message_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            FROM message_annotations
+            WHERE id = $1 AND message_id = $2
+            "#,
+        )
+        .bind(id)
+        .bind(message_id)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_message_id(&self, message_id: uuid::Uuid) -> Result<Vec<types::MessageAnnotationRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                version,
+                message_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            FROM message_annotations
+            WHERE message_id = $1
+            "#,
+        )
+        .bind(message_id)
+        .fetch_all(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_message_label(
+        &self,
+        message_id: uuid::Uuid,
+        label: types::Label,
+        text: &str,
+    ) -> Result<Option<types::MessageAnnotationRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                version,
+                message_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            FROM message_annotations
+            WHERE message_id = $1
+            AND label = $2
+            AND text = $3
+            "#,
+        )
+        .bind(message_id)
+        .bind(label)
+        .bind(text)
+        .fetch_optional(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn create(&self, value: types::MessageAnnotationRow) -> Result<types::MessageAnnotationRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            INSERT INTO message_annotations (
+                id,
+                message_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at,
+                version
+            )
+            VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                $9,
+                $10
+            )
+            RETURNING
+                id,
+                version,
+                message_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(value.id)
+        .bind(value.message_id)
+        .bind(value.label)
+        .bind(value.text)
+        .bind(value.spans)
+        .bind(value.confidence)
+        .bind(value.embedding)
+        .bind(value.created_at)
+        .bind(value.updated_at)
+        .bind(value.version)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn update(&self, value: types::MessageAnnotationRow) -> Result<types::MessageAnnotationRow, sqlx::Error> {
+        let row = sqlx::query_as(
+            r#"
+            UPDATE message_annotations
+            SET
+                version = version + 1,
+                label = $2,
+                text = $3,
+                spans = $4,
+                confidence = $5,
+                embedding = $6,
+                updated_at = $7
+            WHERE id = $1 AND version = $8 AND message_id = $9
+            RETURNING
+                id,
+                version,
+                message_id,
+                label,
+                text,
+                spans,
+                confidence,
+                embedding,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(value.id)
+        .bind(value.label)
+        .bind(value.text)
+        .bind(value.spans)
+        .bind(value.confidence)
+        .bind(value.embedding)
+        .bind(chrono::Utc::now())
+        .bind(value.version)
+        .bind(value.message_id)
+        .fetch_optional(self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.message_id, value.id).await,
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn delete(&self, message_id: uuid::Uuid, id: uuid::Uuid) -> Result<(), sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+            DELETE FROM message_annotations
+            WHERE id = $1 AND message_id = $2
+            "#,
+        )
+        .bind(id)
+        .bind(message_id)
+        .execute(self.pool)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        Ok(())
+    }
+}

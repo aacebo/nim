@@ -1,4 +1,3 @@
-mod annotation;
 mod artifact;
 mod chat;
 mod entity;
@@ -10,7 +9,6 @@ mod search;
 mod task;
 mod types;
 
-pub use annotation::*;
 pub use artifact::*;
 pub use chat::*;
 pub use entity::*;
@@ -34,7 +32,8 @@ pub struct Storage<'a> {
     _messages: MessageStorage<'a>,
     _chat_entities: ChatEntitiesStorage<'a>,
     _chat_artifacts: ChatArtifactsStorage<'a>,
-    _annotations: AnnotationStorage<'a>,
+    _artifact_annotations: ArtifactAnnotationStorage<'a>,
+    _message_annotations: MessageAnnotationStorage<'a>,
     _artifacts: ArtifactStorage<'a>,
     _memory_artifacts: MemoryArtifactsStorage<'a>,
     _entities: EntityStorage<'a>,
@@ -57,7 +56,8 @@ impl<'a> Storage<'a> {
             _messages: MessageStorage::new(pool),
             _chat_entities: ChatEntitiesStorage::new(pool),
             _chat_artifacts: ChatArtifactsStorage::new(pool),
-            _annotations: AnnotationStorage::new(pool),
+            _artifact_annotations: ArtifactAnnotationStorage::new(pool),
+            _message_annotations: MessageAnnotationStorage::new(pool),
             _artifacts: ArtifactStorage::new(pool),
             _memory_artifacts: MemoryArtifactsStorage::new(pool),
             _entities: EntityStorage::new(pool),
@@ -90,8 +90,12 @@ impl<'a> Storage<'a> {
         self._chat_artifacts
     }
 
-    pub fn annotations(&self) -> AnnotationStorage<'a> {
-        self._annotations
+    pub fn artifact_annotations(&self) -> ArtifactAnnotationStorage<'a> {
+        self._artifact_annotations
+    }
+
+    pub fn message_annotations(&self) -> MessageAnnotationStorage<'a> {
+        self._message_annotations
     }
 
     pub fn artifacts(&self) -> ArtifactStorage<'a> {

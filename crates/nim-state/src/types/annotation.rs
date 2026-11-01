@@ -1,38 +1,6 @@
 pub use nim_store::Span;
 
-use crate::{Embedding, Error, MemoryId, Version};
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Annotation {
-    pub id: AnnotationId,
-    pub version: Version,
-    pub artifact_id: MemoryId,
-    pub label: Label,
-    pub text: String,
-    pub spans: Vec<Span>,
-    pub confidence: f32,
-    #[serde(skip)]
-    pub embedding: Option<Embedding>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
-impl From<nim_store::AnnotationRow> for Annotation {
-    fn from(value: nim_store::AnnotationRow) -> Self {
-        Self {
-            id: value.id.into(),
-            version: value.version.into(),
-            artifact_id: value.artifact_id.into(),
-            label: value.label.into(),
-            text: value.text,
-            spans: value.spans.into_inner(),
-            confidence: value.confidence,
-            embedding: value.embedding.map(Into::into),
-            created_at: value.created_at,
-            updated_at: value.updated_at,
-        }
-    }
-}
+use crate::{ArtifactAnnotation, Error, MessageAnnotation};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AnnotationPartial {
@@ -43,8 +11,8 @@ pub struct AnnotationPartial {
     pub confidence: f32,
 }
 
-impl From<nim_store::AnnotationRow> for AnnotationPartial {
-    fn from(value: nim_store::AnnotationRow) -> Self {
+impl From<nim_store::ArtifactAnnotationRow> for AnnotationPartial {
+    fn from(value: nim_store::ArtifactAnnotationRow) -> Self {
         Self {
             id: value.id.into(),
             label: value.label.into(),
@@ -55,8 +23,32 @@ impl From<nim_store::AnnotationRow> for AnnotationPartial {
     }
 }
 
-impl From<Annotation> for AnnotationPartial {
-    fn from(value: Annotation) -> Self {
+impl From<ArtifactAnnotation> for AnnotationPartial {
+    fn from(value: ArtifactAnnotation) -> Self {
+        Self {
+            id: value.id,
+            label: value.label,
+            text: value.text,
+            spans: value.spans,
+            confidence: value.confidence,
+        }
+    }
+}
+
+impl From<nim_store::MessageAnnotationRow> for AnnotationPartial {
+    fn from(value: nim_store::MessageAnnotationRow) -> Self {
+        Self {
+            id: value.id.into(),
+            label: value.label.into(),
+            text: value.text,
+            spans: value.spans.into_inner(),
+            confidence: value.confidence,
+        }
+    }
+}
+
+impl From<MessageAnnotation> for AnnotationPartial {
+    fn from(value: MessageAnnotation) -> Self {
         Self {
             id: value.id,
             label: value.label,

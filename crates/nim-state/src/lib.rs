@@ -1,4 +1,3 @@
-mod annotation;
 mod artifact;
 mod chat;
 mod entity;
@@ -10,7 +9,6 @@ mod recall;
 mod task;
 mod types;
 
-pub use annotation::*;
 pub use artifact::*;
 pub use chat::*;
 pub use entity::*;
@@ -26,7 +24,6 @@ pub use types::*;
 pub struct Services<'a> {
     _chats: ChatService<'a>,
     _messages: MessageService<'a>,
-    _annotations: AnnotationService<'a>,
     _artifacts: ArtifactService<'a>,
     _entities: EntityService<'a>,
     _memories: MemoryService<'a>,
@@ -40,7 +37,6 @@ impl<'a> Services<'a> {
         Self {
             _chats: ChatService::new(pool),
             _messages: MessageService::new(pool),
-            _annotations: AnnotationService::new(pool),
             _artifacts: ArtifactService::new(pool),
             _entities: EntityService::new(pool),
             _memories: MemoryService::new(pool),
@@ -56,10 +52,6 @@ impl<'a> Services<'a> {
 
     pub fn messages(&self) -> MessageService<'a> {
         self._messages
-    }
-
-    pub fn annotations(&self) -> AnnotationService<'a> {
-        self._annotations
     }
 
     pub fn artifacts(&self) -> ArtifactService<'a> {

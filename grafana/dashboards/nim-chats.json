@@ -1,0 +1,412 @@
+{
+  "uid": "nim-chats",
+  "title": "NIM Chats",
+  "description": "Browse the 200 most recently updated chats. Click a chat_id to load messages and annotations; click a message_id to view content and narrow annotations. Select All messages to return to all annotations for the chat. Dropdowns list up to 500 recent chats or messages. Browsing is independent of the dashboard time range. The latest 500 messages are shown chronologically; annotation details are limited to 1000 rows.",
+  "tags": [
+    "nim",
+    "postgres",
+    "chats"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "links": [
+    {
+      "title": "All chats",
+      "type": "link",
+      "url": "/d/nim-chats?var-chat=all&var-message=all",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "chat",
+        "label": "Chat",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "query": "SELECT __text, __value FROM (\n    SELECT 'All chats' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT COALESCE(NULLIF(LEFT(summary, 80), ''), 'Chat') || ' \u00b7 ' || id::text, id::text, 1, updated_at\n    FROM chats\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "definition": "SELECT __text, __value FROM (\n    SELECT 'All chats' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT COALESCE(NULLIF(LEFT(summary, 80), ''), 'Chat') || ' \u00b7 ' || id::text, id::text, 1, updated_at\n    FROM chats\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "All chats",
+          "value": "all"
+        },
+        "options": []
+      },
+      {
+        "name": "message",
+        "label": "Message",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "query": "SELECT __text, __value FROM (\n    SELECT 'All messages' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT m.role || ' \u00b7 ' || m.id::text, m.id::text, 1, m.updated_at\n    FROM messages m\n    WHERE m.chat_id::text = ${chat:sqlstring}\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "definition": "SELECT __text, __value FROM (\n    SELECT 'All messages' AS __text, 'all' AS __value, 0 AS priority, NULL::timestamptz AS updated_at\n    UNION ALL\n    SELECT m.role || ' \u00b7 ' || m.id::text, m.id::text, 1, m.updated_at\n    FROM messages m\n    WHERE m.chat_id::text = ${chat:sqlstring}\n) options\nORDER BY priority, updated_at DESC NULLS FIRST\nLIMIT 501",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "All messages",
+          "value": "all"
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Chats \u2014 click chat_id to drill down",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    c.id::text AS chat_id,\n    c.summary,\n    c.confidence,\n    (SELECT COUNT(*) FROM messages m WHERE m.chat_id = c.id) AS messages,\n    (SELECT COUNT(*) FROM message_annotations an\n        JOIN messages m ON m.id = an.message_id WHERE m.chat_id = c.id) AS annotations,\n    c.created_at,\n    c.updated_at\nFROM chats c\nWHERE (${chat:sqlstring} = 'all' OR c.id::text = ${chat:sqlstring})\nORDER BY c.updated_at DESC\nLIMIT 200"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "chat_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View chat messages and annotations",
+                    "url": "/d/nim-chats?var-chat=${__value.raw}&var-message=all",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Selected chat",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    c.id::text AS chat_id,\n    c.version,\n    c.summary,\n    c.confidence,\n    (SELECT COUNT(*) FROM messages m WHERE m.chat_id = c.id) AS messages,\n    (SELECT COUNT(*) FROM message_annotations an\n        JOIN messages m ON m.id = an.message_id WHERE m.chat_id = c.id) AS annotations,\n    c.created_at,\n    c.updated_at\nFROM chats c\nWHERE c.id::text = ${chat:sqlstring}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Messages \u2014 click message_id to drill down",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT *\nFROM (\n    SELECT\n        m.id::text AS message_id,\n        m.parent_id::text AS parent_id,\n        m.role,\n        m.summary,\n        m.content::text AS content,\n        m.confidence,\n        (SELECT COUNT(*) FROM message_annotations an WHERE an.message_id = m.id) AS annotations,\n        m.created_at,\n        m.updated_at\n    FROM messages m\n    WHERE m.chat_id::text = ${chat:sqlstring}\n      AND (${message:sqlstring} = 'all' OR m.id::text = ${message:sqlstring})\n    ORDER BY m.created_at DESC, m.id DESC\n    LIMIT 500\n) recent_messages\nORDER BY created_at, message_id"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "message_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View message content and annotations",
+                    "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "parent_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View parent message",
+                    "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Selected message content",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    m.id::text AS message_id,\n    m.chat_id::text AS chat_id,\n    m.parent_id::text AS parent_id,\n    m.version,\n    m.role,\n    m.summary,\n    m.content::text AS content,\n    m.confidence,\n    m.created_at,\n    m.updated_at\nFROM messages m\nWHERE m.chat_id::text = ${chat:sqlstring}\n  AND m.id::text = ${message:sqlstring}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "parent_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View parent message",
+                    "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Message annotations",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT\n    an.id::text AS annotation_id,\n    m.id::text AS message_id,\n    m.role,\n    an.label,\n    an.text,\n    an.confidence,\n    an.spans::text AS spans,\n    an.created_at,\n    an.updated_at\nFROM messages m\nJOIN message_annotations an ON an.message_id = m.id\nWHERE m.chat_id::text = ${chat:sqlstring}\n  AND (${message:sqlstring} = 'all' OR m.id::text = ${message:sqlstring})\nORDER BY an.created_at DESC, an.id DESC\nLIMIT 1000"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "message_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View message content and annotations",
+                    "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    }
+  ],
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  }
+}

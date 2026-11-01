@@ -159,8 +159,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
             let existing = ctx
                 .services()
-                .annotations()
-                .find_by_artifact_label(signal.content.id, label, labels[i])
+                .artifacts()
+                .find_annotation_by_label(signal.content.id, label, labels[i])
                 .await?;
 
             if let Some(existing) = &existing
@@ -182,10 +182,11 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
             if let Some(existing) = &existing {
                 ctx.services()
-                    .annotations()
-                    .update(
+                    .artifacts()
+                    .update_annotation(
+                        signal.content.id,
                         existing.id,
-                        nim::state::AnnotationUpdate {
+                        nim::state::ArtifactAnnotationUpdate {
                             label: Some(label),
                             text: Some(labels[i].to_string()),
                             spans: Some(spans.clone()),
@@ -196,22 +197,24 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                     .await?;
             } else {
                 ctx.services()
-                    .annotations()
-                    .create(nim::state::AnnotationCreate {
-                        artifact_id: signal.content.id,
-                        label,
-                        text: labels[i].to_string(),
-                        spans: &spans,
-                        embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
-                        confidence: annotation.score as f32,
-                    })
+                    .artifacts()
+                    .create_annotation(
+                        signal.content.id,
+                        nim::state::ArtifactAnnotationCreate {
+                            label,
+                            text: labels[i].to_string(),
+                            spans: &spans,
+                            embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
+                            confidence: annotation.score as f32,
+                        },
+                    )
                     .await?;
             }
 
             ctx.ack_progress().await?;
         }
 
-        let annotations = ctx.services().annotations().find_by_artifact_id(signal.content.id).await?;
+        let annotations = ctx.services().artifacts().find_annotations(signal.content.id).await?;
         let confidence = annotations.iter().map(|a| a.confidence).max_by(f32::total_cmp);
 
         memory = ctx

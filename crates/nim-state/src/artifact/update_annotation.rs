@@ -1,7 +1,7 @@
-use crate::{Annotation, AnnotationId, AnnotationService, Error, Label, Span};
+use crate::{AnnotationId, ArtifactAnnotation, ArtifactId, ArtifactService, Error, Label, Span};
 
 #[derive(Debug, Default)]
-pub struct AnnotationUpdate {
+pub struct ArtifactAnnotationUpdate {
     pub label: Option<Label>,
     pub text: Option<String>,
     pub spans: Option<Vec<Span>>,
@@ -9,10 +9,19 @@ pub struct AnnotationUpdate {
     pub embedding: Option<Vec<f32>>,
 }
 
-impl<'a> AnnotationService<'a> {
+impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, id: AnnotationId, value: AnnotationUpdate) -> Result<Annotation, Error> {
-        let mut row = self.store.find_by_id(id.into()).await?;
+    pub async fn update_annotation(
+        &self,
+        artifact_id: ArtifactId,
+        id: AnnotationId,
+        value: ArtifactAnnotationUpdate,
+    ) -> Result<ArtifactAnnotation, Error> {
+        let mut row = self
+            .storage
+            .artifact_annotations()
+            .find_by_id(artifact_id.into(), id.into())
+            .await?;
 
         if let Some(value) = value.label {
             row.label = value.into();
@@ -34,6 +43,6 @@ impl<'a> AnnotationService<'a> {
             row.embedding = Some(value.into());
         }
 
-        Ok(self.store.update(row).await?.into())
+        Ok(self.storage.artifact_annotations().update(row).await?.into())
     }
 }

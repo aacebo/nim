@@ -2657,6 +2657,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "futures-util",
+ "heck",
  "nim",
  "sqlx",
  "tokio",

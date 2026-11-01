@@ -4,7 +4,7 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, Generate, GenerateOptions};
+use crate::models::{Context, Generate, GenerateOptions, Generation};
 use crate::pipelines::common::decode_text;
 use crate::pipelines::text::generate;
 
@@ -39,7 +39,7 @@ impl Summarizer {
 }
 
 impl Generate for Summarizer {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
@@ -64,7 +64,7 @@ impl Generate for Summarizer {
 }
 
 impl Summarizer {
-    fn one(&self, ctx: &Context, text: &str, generation: &generate::Config) -> Result<String, Error> {
+    fn one(&self, ctx: &Context, text: &str, generation: &generate::Config) -> Result<Generation, Error> {
         let encoding = ctx.encode_one(text)?;
         let ids = encoding.get_ids();
 
@@ -76,11 +76,14 @@ impl Summarizer {
             .lock()
             .map_err(|_| Error::custom("ai", "summarization model lock poisoned"))?;
 
-        let tokens = generate::run(&mut model, generation, &input, ctx.device())?;
+        let (tokens, confidence) = generate::run(&mut model, generation, &input, ctx.device())?;
 
         ctx.tokenizer()?
             .decode(&tokens, true)
-            .map(|summary| summary.trim().to_string())
+            .map(|summary| Generation {
+                text: summary.trim().to_string(),
+                confidence,
+            })
             .map_err(|err| Error::custom("ai::decoding", err))
     }
 }

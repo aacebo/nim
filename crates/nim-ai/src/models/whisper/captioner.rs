@@ -4,7 +4,7 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, Generate, GenerateOptions};
+use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
 use super::model::Model;
@@ -14,11 +14,11 @@ pub struct Captioner {
     model: Mutex<Model>,
     processor: Processor,
     model_config: Config,
-    config: Generation,
+    config: GenerationConfig,
 }
 
 #[derive(Clone)]
-struct Generation {
+struct GenerationConfig {
     eos: u32,
     max_len: usize,
     prefix: Vec<u32>,
@@ -33,7 +33,7 @@ impl Captioner {
         let prefix = std::iter::once(config.decoder_start_token_id)
             .chain(forced.into_iter().map(|(_, token)| token))
             .collect();
-        let generation = Generation {
+        let generation = GenerationConfig {
             eos: config.eos_token_id,
             max_len: config.model().max_target_positions,
             prefix,
@@ -143,7 +143,7 @@ fn repeats(tokens: &[u32], token: u32) -> bool {
 }
 
 impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
@@ -158,6 +158,7 @@ impl Generate for Captioner {
         input
             .iter()
             .map(|bytes| self.one(ctx, bytes, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
+            .map(|result| result.map(|text| Generation { text, confidence: None }))
             .collect()
     }
 }

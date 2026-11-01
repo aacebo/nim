@@ -9,7 +9,7 @@ mod scorer;
 mod stopwords;
 
 use crate::Error;
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Word};
+use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Generation, Word};
 use crate::types::{Annotation, Keyword, Offset, Polarity, Span};
 
 /// The user-facing routines, each a presentation over one model capability.
@@ -126,7 +126,7 @@ pub fn generate<G: Generate + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: GenerateOptions<'_>,
-) -> Result<Vec<String>, Error> {
+) -> Result<Vec<Generation>, Error> {
     options.validate()?;
     let out = model.generate(ctx, input, options)?;
 
@@ -142,7 +142,7 @@ pub fn summarize<G: Generate + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: GenerateOptions<'_>,
-) -> Result<Vec<String>, Error> {
+) -> Result<Vec<Generation>, Error> {
     generate(model, ctx, input, options)
 }
 

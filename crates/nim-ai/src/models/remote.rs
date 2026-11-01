@@ -4,7 +4,7 @@ use crate::tasks::{anchor, zero_shot};
 use crate::types::{Annotation, Offset, Span};
 
 use super::RemoteModel;
-use super::capability::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions};
+use super::capability::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Generation};
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
                         schema: `label` is your chosen class and `score` is your confidence from \
@@ -253,7 +253,7 @@ impl RemoteModel {
 /// Generation is a plain completion, not a schema-constrained one: the output is prose, and
 /// wrapping it in a JSON envelope buys nothing.
 impl Generate for RemoteModel {
-    fn generate(&self, _ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+    fn generate(&self, _ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
         options.validate()?;
 
         if options.language.is_some() || options.beams.is_some() {
@@ -269,6 +269,7 @@ impl Generate for RemoteModel {
         );
         text.iter()
             .map(|text| self.client().complete(prompt, text, options.max_len))
+            .map(|result| result.map(|text| Generation { text, confidence: None }))
             .collect()
     }
 }

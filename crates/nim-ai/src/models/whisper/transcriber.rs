@@ -4,7 +4,7 @@ use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, Generate, GenerateOptions};
+use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
 use super::model::Model;
@@ -17,11 +17,11 @@ pub struct Transcriber {
     model: Mutex<Model>,
     processor: Processor,
     model_config: Config,
-    config: Generation,
+    config: GenerationConfig,
 }
 
 #[derive(Clone)]
-struct Generation {
+struct GenerationConfig {
     start: u32,
     eos: u32,
     max_len: usize,
@@ -31,7 +31,7 @@ struct Generation {
 
 impl Transcriber {
     pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> Result<Self, Error> {
-        let generation = Generation {
+        let generation = GenerationConfig {
             start: config.decoder_start_token_id,
             eos: config.eos_token_id,
             max_len: config.model().max_target_positions,
@@ -146,7 +146,7 @@ impl Transcriber {
 }
 
 impl Generate for Transcriber {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
         options.validate()?;
 
         if options.prompt.is_some() {
@@ -170,6 +170,7 @@ impl Generate for Transcriber {
                     max_len.unwrap_or(self.config.max_len),
                 )
             })
+            .map(|result| result.map(|text| Generation { text, confidence: None }))
             .collect()
     }
 }

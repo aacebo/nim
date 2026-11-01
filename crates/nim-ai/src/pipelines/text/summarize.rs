@@ -30,14 +30,21 @@ pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Erro
         ..GenerateOptions::default()
     };
 
-    let artifacts = tasks::summarize(capable, &model.context(), input, generation_options)?;
-    let artifacts = text::embeddings::run(&artifacts.iter().map(String::as_bytes).collect::<Vec<_>>())?;
+    let generations = tasks::summarize(capable, &model.context(), input, generation_options)?;
+    let artifacts = text::embeddings::run(
+        &generations
+            .iter()
+            .map(|generation| generation.text.as_bytes())
+            .collect::<Vec<_>>(),
+    )?;
     let artifacts = artifacts
         .into_iter()
-        .map(|artifact| Artifact {
+        .zip(generations)
+        .map(|(artifact, generation)| Artifact {
             name: "summary".to_string(),
             value: artifact.value,
             vector: artifact.vector,
+            confidence: generation.confidence,
         })
         .collect();
 

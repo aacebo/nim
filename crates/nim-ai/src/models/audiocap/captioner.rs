@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, Generate, GenerateOptions};
+use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
 use super::model::Model;
@@ -92,7 +92,7 @@ impl Captioner {
 }
 
 impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
@@ -106,6 +106,10 @@ impl Generate for Captioner {
         let max_len = options.max_len;
         let beams = beams.unwrap_or(3).max(1);
         let max_len = max_len.unwrap_or(MAX_LEN).min(MAX_LEN).clamp(1, MAX_LEN);
-        input.iter().map(|bytes| self.one(ctx, bytes, beams, max_len)).collect()
+        input
+            .iter()
+            .map(|bytes| self.one(ctx, bytes, beams, max_len))
+            .map(|result| result.map(|text| Generation { text, confidence: None }))
+            .collect()
     }
 }

@@ -26,6 +26,7 @@ pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Erro
             name: "embedding".to_string(),
             value: ArtifactContent::text(text),
             vector: Some(vector),
+            confidence: None,
         })
         .collect();
 

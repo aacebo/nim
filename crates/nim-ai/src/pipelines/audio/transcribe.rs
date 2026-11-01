@@ -34,6 +34,20 @@ pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Erro
         ..Default::default()
     };
     let transcripts = tasks::generate(capable, &model.context(), input, generation_options)?;
-    let out = text::embeddings::run(&transcripts.iter().map(String::as_bytes).collect::<Vec<_>>())?;
+    let out = text::embeddings::run(
+        &transcripts
+            .iter()
+            .map(|generation| generation.text.as_bytes())
+            .collect::<Vec<_>>(),
+    )?;
+    let out = out
+        .into_iter()
+        .zip(transcripts)
+        .map(|(mut artifact, generation)| {
+            artifact.confidence = generation.confidence;
+            artifact
+        })
+        .collect();
+
     Ok(out)
 }

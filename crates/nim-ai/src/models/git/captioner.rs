@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use candle_nn::VarBuilder;
 
 use crate::Error;
-use crate::models::{Context, Generate, GenerateOptions};
+use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
 use super::model::Model;
@@ -12,11 +12,11 @@ use super::processor::Processor;
 pub struct Captioner {
     model: Mutex<Model>,
     processor: Processor,
-    config: Generation,
+    config: GenerationConfig,
 }
 
 #[derive(Clone, Copy)]
-struct Generation {
+struct GenerationConfig {
     bos: u32,
     eos: u32,
     max_len: usize,
@@ -24,7 +24,7 @@ struct Generation {
 
 impl Captioner {
     pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> Result<Self, Error> {
-        let generation = Generation {
+        let generation = GenerationConfig {
             bos: config.bos_token_id,
             eos: config.eos_token_id,
             max_len: config.max_position_embeddings,
@@ -94,7 +94,7 @@ impl Captioner {
 }
 
 impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
@@ -109,6 +109,7 @@ impl Generate for Captioner {
         input
             .iter()
             .map(|image| self.one(ctx, image, beams.unwrap_or(1), max_len.unwrap_or(20)))
+            .map(|result| result.map(|text| Generation { text, confidence: None }))
             .collect()
     }
 }

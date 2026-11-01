@@ -5,8 +5,14 @@ use crate::Error;
 use crate::pipelines::common::Batch;
 use crate::types::{Annotation, Span};
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Generation {
+    pub text: String,
+    pub confidence: Option<f64>,
+}
+
 pub trait Generate: Send + Sync {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<String>, Error>;
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error>;
 }
 
 /// A sentence vector per input.

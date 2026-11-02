@@ -8,6 +8,7 @@ pub struct Chat {
     pub embedding: Option<Embedding>,
     pub confidence: f32,
     pub last_analyzed_id: Option<MessageId>,
+    pub last_analyzed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -72,6 +73,7 @@ impl From<nim_store::ChatRow> for Chat {
             embedding: value.embedding.map(Into::into),
             confidence: value.confidence,
             last_analyzed_id: value.last_analyzed_id.map(Into::into),
+            last_analyzed_at: value.last_analyzed_at,
             created_at: value.created_at,
             updated_at: value.updated_at,
         }

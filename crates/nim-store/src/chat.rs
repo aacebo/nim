@@ -21,6 +21,7 @@ impl<'a> ChatStorage<'a> {
                 embedding,
                 confidence,
                 last_analyzed_id,
+                last_analyzed_at,
                 created_at,
                 updated_at
             FROM chats
@@ -94,6 +95,7 @@ impl<'a> ChatStorage<'a> {
                 embedding,
                 confidence,
                 last_analyzed_id,
+                last_analyzed_at,
                 created_at,
                 updated_at
             )
@@ -105,7 +107,8 @@ impl<'a> ChatStorage<'a> {
                 $5,
                 $6,
                 $7,
-                $8
+                $8,
+                $9
             )
             RETURNING
                 id,
@@ -114,6 +117,7 @@ impl<'a> ChatStorage<'a> {
                 embedding,
                 confidence,
                 last_analyzed_id,
+                last_analyzed_at,
                 created_at,
                 updated_at
             "#,
@@ -124,6 +128,7 @@ impl<'a> ChatStorage<'a> {
         .bind(value.embedding)
         .bind(value.confidence)
         .bind(value.last_analyzed_id)
+        .bind(value.last_analyzed_at)
         .bind(value.created_at)
         .bind(value.updated_at)
         .fetch_one(self.pool)
@@ -141,8 +146,9 @@ impl<'a> ChatStorage<'a> {
                 embedding = $3,
                 confidence = $4,
                 last_analyzed_id = $5,
-                updated_at = $6
-            WHERE id = $1 AND version = $7
+                last_analyzed_at = $6,
+                updated_at = $7
+            WHERE id = $1 AND version = $8
             RETURNING
                 id,
                 version,
@@ -150,6 +156,7 @@ impl<'a> ChatStorage<'a> {
                 embedding,
                 confidence,
                 last_analyzed_id,
+                last_analyzed_at,
                 created_at,
                 updated_at
             "#,
@@ -159,6 +166,7 @@ impl<'a> ChatStorage<'a> {
         .bind(value.embedding)
         .bind(value.confidence)
         .bind(value.last_analyzed_id)
+        .bind(value.last_analyzed_at)
         .bind(chrono::Utc::now())
         .bind(value.version)
         .fetch_optional(self.pool)

@@ -16,6 +16,7 @@ impl<'a> ChatService<'a> {
                 embedding: None,
                 confidence: 0.0,
                 last_analyzed_id: None,
+                last_analyzed_at: None,
                 created_at: now,
                 updated_at: now,
             })

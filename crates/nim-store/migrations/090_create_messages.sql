@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS message_annotations (
 );
 
 ALTER TABLE chats
-ADD last_analyzed_id UUID REFERENCES messages(id) ON DELETE SET NULL;
+ADD last_analyzed_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+ADD last_analyzed_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS message_annotations_embedding_idx
 ON message_annotations USING hnsw (embedding vector_cosine_ops);

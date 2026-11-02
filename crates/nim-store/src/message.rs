@@ -1,4 +1,4 @@
-use crate::{MessageFilter, SearchItem, types};
+use crate::{MessageFilter, Page, SearchItem, types};
 
 #[derive(Copy, Clone)]
 pub struct MessageStorage<'a> {
@@ -36,7 +36,9 @@ impl<'a> MessageStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_chat_id(&self, chat_id: uuid::Uuid, limit: usize) -> Result<Vec<types::MessageRow>, sqlx::Error> {
+    pub async fn find_by_chat_id(&self, chat_id: uuid::Uuid, page: Page) -> Result<Vec<types::MessageRow>, sqlx::Error> {
+        let (cursor_id, cursor_at) = page.cursor.unzip();
+
         sqlx::query_as(
             r#"
             SELECT
@@ -53,18 +55,23 @@ impl<'a> MessageStorage<'a> {
                 updated_at
             FROM messages
             WHERE chat_id = $1
+            AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3::uuid))
             ORDER BY created_at, id
-            LIMIT $2
+            LIMIT $4
             "#,
         )
         .bind(chat_id)
-        .bind(i64::try_from(limit).unwrap_or(i64::MAX))
+        .bind(cursor_at)
+        .bind(cursor_id)
+        .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
         .fetch_all(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_parent_id(&self, parent_id: uuid::Uuid, limit: usize) -> Result<Vec<types::MessageRow>, sqlx::Error> {
+    pub async fn find_by_parent_id(&self, parent_id: uuid::Uuid, page: Page) -> Result<Vec<types::MessageRow>, sqlx::Error> {
+        let (cursor_id, cursor_at) = page.cursor.unzip();
+
         sqlx::query_as(
             r#"
             SELECT
@@ -81,12 +88,15 @@ impl<'a> MessageStorage<'a> {
                 updated_at
             FROM messages
             WHERE parent_id = $1
+            AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3::uuid))
             ORDER BY created_at, id
-            LIMIT $2
+            LIMIT $4
             "#,
         )
         .bind(parent_id)
-        .bind(i64::try_from(limit).unwrap_or(i64::MAX))
+        .bind(cursor_at)
+        .bind(cursor_id)
+        .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
         .fetch_all(self.pool)
         .await
     }

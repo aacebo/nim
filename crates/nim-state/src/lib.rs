@@ -20,6 +20,8 @@ pub use recall::*;
 pub use task::*;
 pub use types::*;
 
+pub use nim_store::Page;
+
 #[derive(Copy, Clone)]
 pub struct Services<'a> {
     _chats: ChatService<'a>,

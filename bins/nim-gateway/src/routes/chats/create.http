@@ -3,7 +3,7 @@ Content-Type: application/json
 
 {
     "content": [
-        "testing123",
+        "hi my name is John, how are you?",
         {
             "url": "https://google.com/my-file.png"
         }

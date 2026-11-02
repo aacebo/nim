@@ -46,9 +46,28 @@ impl Loader {
     }
 
     pub fn vars(&self) -> Result<VarBuilder<'static>, Error> {
-        let path = self.resolve(Path::new("model.safetensors"))?;
+        let paths = if self.repo.exists(Path::new("model.safetensors.index.json")) {
+            #[derive(serde::Deserialize)]
+            struct Index {
+                weight_map: std::collections::BTreeMap<String, String>,
+            }
 
-        Ok(unsafe { VarBuilder::from_mmaped_safetensors(&[path], self.dtype, &self.device) }?)
+            let index: Index = self.json("model.safetensors.index.json")?;
+            let files = index.weight_map.into_values().collect::<std::collections::BTreeSet<_>>();
+
+            if files.is_empty() {
+                return Err(Error::custom("ai::config", "safetensors index contains no weights"));
+            }
+
+            files
+                .iter()
+                .map(|file| self.resolve(Path::new(file)))
+                .collect::<Result<Vec<_>, _>>()?
+        } else {
+            vec![self.resolve(Path::new("model.safetensors"))?]
+        };
+
+        Ok(unsafe { VarBuilder::from_mmaped_safetensors(&paths, self.dtype, &self.device) }?)
     }
 
     pub fn json<T: serde::de::DeserializeOwned>(&self, file: &str) -> Result<T, Error> {
@@ -62,7 +81,7 @@ impl Loader {
         Ok(std::fs::read_to_string(self.resolve(Path::new(file))?)?)
     }
 
-    fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
+    pub(crate) fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
         Ok(self.repo.resolve(path)?.local_path()?.to_path_buf())
     }
 

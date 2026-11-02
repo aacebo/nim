@@ -12,6 +12,7 @@ pub mod git;
 pub mod keybert;
 #[cfg(feature = "vision")]
 pub mod mobilenet;
+pub mod qwen2;
 #[cfg(feature = "audio")]
 pub mod whisper;
 
@@ -123,6 +124,7 @@ pub enum AnyModel {
     DistilBertEntityClassifier(distilbert::Classifier),
     DistilBertSequenceClassifier(distilbert::Classifier),
     Summarizer(bart::Summarizer),
+    QwenGenerator(qwen2::Generator),
     #[cfg(feature = "vision")]
     VisionClassifier(mobilenet::Classifier),
     #[cfg(feature = "vision")]
@@ -169,9 +171,29 @@ impl Model {
     pub fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> Result<Self, Error> {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
+
+        if matches!(model, LocalModel::Hub(id) if id.to_string() == qwen2::QUANTIZED_MODEL) {
+            let companion = LocalModel::Hub(qwen2::MODEL.parse()?);
+            let companion = companion.loader(device.clone(), dtype)?;
+            let config: qwen2::Config = companion.config()?;
+            let weights = repo.resolve(std::path::Path::new(qwen2::WEIGHTS))?;
+
+            return Ok(Self {
+                name,
+                model: AnyModel::QwenGenerator(qwen2::Generator::quantized(&config, weights, &device)?),
+                device,
+                tokenizer: Some(companion.tokenizer()?),
+                config: Some(companion.config()?),
+            });
+        }
+
         let model_config: ModelConfig = repo.config()?;
 
         let model = match model_config.model_type {
+            ModelType::Qwen2 => {
+                let config: qwen2::Config = repo.config()?;
+                AnyModel::QwenGenerator(qwen2::Generator::new(&config, repo.vars()?)?)
+            }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn8rnn_audio_classification() => {
                 let config: cnn8rnn::Config = repo.config()?;
@@ -377,6 +399,7 @@ impl Model {
     pub fn as_generate(&self) -> Option<&dyn Generate> {
         match &self.model {
             AnyModel::Summarizer(model) => Some(model),
+            AnyModel::QwenGenerator(model) => Some(model),
             #[cfg(feature = "vision")]
             AnyModel::ImageCaptioner(model) => Some(model),
             #[cfg(feature = "audio")]

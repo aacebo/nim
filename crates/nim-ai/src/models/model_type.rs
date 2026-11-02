@@ -12,6 +12,7 @@ pub enum ModelType {
     Gpt2,
     Llama,
     Mistral,
+    Qwen2,
     T5,
     #[serde(rename = "mobilenet_v2")]
     MobileNetV2,
@@ -34,6 +35,7 @@ impl ModelType {
             Self::Gpt2 => "gpt2",
             Self::Llama => "llama",
             Self::Mistral => "mistral",
+            Self::Qwen2 => "qwen2",
             Self::T5 => "t5",
             Self::MobileNetV2 => "mobilenet_v2",
             Self::Detr => "detr",
@@ -57,6 +59,7 @@ impl std::str::FromStr for ModelType {
             "gpt2" => Self::Gpt2,
             "llama" => Self::Llama,
             "mistral" => Self::Mistral,
+            "qwen2" => Self::Qwen2,
             "t5" => Self::T5,
             "mobilenet_v2" => Self::MobileNetV2,
             "detr" => Self::Detr,

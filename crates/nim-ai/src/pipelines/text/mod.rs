@@ -29,6 +29,6 @@ pub mod defaults {
     }
 
     pub fn generate() -> models::ModelRef {
-        models::refer("facebook/bart-large-cnn").expect("built-in model ids are valid")
+        models::refer(models::qwen2::QUANTIZED_MODEL).expect("built-in model ids are valid")
     }
 }

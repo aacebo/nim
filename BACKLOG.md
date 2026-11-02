@@ -1,20 +1,16 @@
 # Backlog
 
-## Memory Recall
+## Paging
 
-Memory recall hardens memory.
-
-## Model Observer
-
-Find a better cleaner pattern for model observation.
-
-## Model Tasks Table
-
-Create a new table of historic model tasks to track elapse times by model/worker.
+Add paging support for large tables.
 
 ## Worker Healthchecks
 
-Add worker healthchecks so we know when one is up/down.
+Add http endpoints for metrics/health to workers for observability.
+
+## Blackbox
+
+Add blackbox for service up/down status view in grafana.
 
 ## Platt Scaling
 

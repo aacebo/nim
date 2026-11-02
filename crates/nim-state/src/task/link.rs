@@ -1,4 +1,4 @@
-use crate::{ArtifactId, ArtifactTask, Error, ModelId, ModelTask, TaskId, TaskService};
+use crate::{ArtifactId, ArtifactTask, ChatId, ChatTask, Error, MessageId, MessageTask, ModelId, ModelTask, TaskId, TaskService};
 
 impl<'a> TaskService<'a> {
     #[tracing::instrument(skip(self))]
@@ -23,6 +23,36 @@ impl<'a> TaskService<'a> {
             .artifact_tasks()
             .create(nim_store::ArtifactTaskRow {
                 artifact_id: artifact_id.into(),
+                task_id: task_id.into(),
+                created_at: chrono::Utc::now(),
+            })
+            .await?;
+
+        Ok(row.into())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn link_chat(&self, chat_id: ChatId, task_id: TaskId) -> Result<ChatTask, Error> {
+        let row = self
+            .storage
+            .chat_tasks()
+            .create(nim_store::ChatTaskRow {
+                chat_id: chat_id.into(),
+                task_id: task_id.into(),
+                created_at: chrono::Utc::now(),
+            })
+            .await?;
+
+        Ok(row.into())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn link_message(&self, message_id: MessageId, task_id: TaskId) -> Result<MessageTask, Error> {
+        let row = self
+            .storage
+            .message_tasks()
+            .create(nim_store::MessageTaskRow {
+                message_id: message_id.into(),
                 task_id: task_id.into(),
                 created_at: chrono::Utc::now(),
             })

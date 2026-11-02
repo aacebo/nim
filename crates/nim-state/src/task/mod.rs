@@ -1,7 +1,9 @@
 mod create;
 mod delete;
 mod find_by_artifact_id;
+mod find_by_chat_id;
 mod find_by_id;
+mod find_by_message_id;
 mod find_by_model_id;
 mod link;
 mod unlink;

@@ -1,4 +1,4 @@
-use crate::{Error, Model, ModelId, ModelService, ModelSource, ModelWeights};
+use crate::{Error, Model, ModelId, ModelService, ModelSource};
 
 #[derive(Debug, Default)]
 pub struct ModelUpdate {
@@ -7,7 +7,6 @@ pub struct ModelUpdate {
     pub tasks: Option<Vec<String>>,
     pub architectures: Option<Vec<String>>,
     pub source: Option<ModelSource>,
-    pub weights: Option<Vec<ModelWeights>>,
 }
 
 impl<'a> ModelService<'a> {
@@ -33,10 +32,6 @@ impl<'a> ModelService<'a> {
 
         if let Some(value) = value.source {
             row.source = nim_store::Json(value);
-        }
-
-        if let Some(value) = value.weights {
-            row.weights = nim_store::Json(value);
         }
 
         Ok(self.storage.models().update(row).await?.into())

@@ -84,7 +84,7 @@
           "editorMode": "code",
           "rawQuery": true,
           "format": "table",
-          "rawSql": "SELECT\n    m.id::text AS model_id,\n    m.name,\n    m.type,\n    m.version,\n    array_to_string(m.tasks, ', ') AS tasks,\n    array_to_string(m.architectures, ', ') AS architectures,\n    m.source->>'type' AS source_type,\n    m.source->'value'->>'type' AS local_source,\n    m.source->'value'->>'provider' AS provider,\n    jsonb_array_length(m.weights) AS calibrations,\n    m.created_at,\n    m.updated_at\nFROM models m\nWHERE (${model:sqlstring} = 'all' OR m.id::text = ${model:sqlstring})\nORDER BY m.updated_at DESC, m.id\nLIMIT 200"
+          "rawSql": "SELECT\n    m.id::text AS model_id,\n    m.name,\n    m.type,\n    m.version,\n    array_to_string(m.tasks, ', ') AS tasks,\n    array_to_string(m.architectures, ', ') AS architectures,\n    m.source->>'type' AS source_type,\n    m.source->'value'->>'type' AS local_source,\n    m.source->'value'->>'provider' AS provider,\n    (SELECT COUNT(*) FROM model_weights w WHERE w.model_id = m.id) AS calibrations,\n    m.created_at,\n    m.updated_at\nFROM models m\nWHERE (${model:sqlstring} = 'all' OR m.id::text = ${model:sqlstring})\nORDER BY m.updated_at DESC, m.id\nLIMIT 200"
         }
       ],
       "fieldConfig": {
@@ -244,7 +244,7 @@
           "editorMode": "code",
           "rawQuery": true,
           "format": "table",
-          "rawSql": "SELECT\n    m.id::text AS model_id,\n    w.ordinality AS position,\n    w.value->>'type' AS type,\n    (w.value->>'a')::double precision AS a,\n    (w.value->>'b')::double precision AS b,\n    w.value::text AS weights\nFROM models m\nCROSS JOIN LATERAL jsonb_array_elements(m.weights) WITH ORDINALITY AS w(value, ordinality)\nWHERE m.id::text = ${model:sqlstring}\nORDER BY w.ordinality"
+          "rawSql": "SELECT\n    w.id::text AS weight_id,\n    w.model_id::text AS model_id,\n    w.name,\n    w.version,\n    w.content->>'type' AS type,\n    (w.content->>'a')::double precision AS a,\n    (w.content->>'b')::double precision AS b,\n    w.content::text AS content,\n    w.created_at,\n    w.updated_at\nFROM model_weights w\nWHERE w.model_id::text = ${model:sqlstring}\nORDER BY w.created_at, w.id"
         }
       ],
       "fieldConfig": {

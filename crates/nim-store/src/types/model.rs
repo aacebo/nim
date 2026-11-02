@@ -8,7 +8,6 @@ pub struct ModelRow {
     pub tasks: Vec<String>,
     pub architectures: Vec<String>,
     pub source: sqlx::types::Json<ModelSource>,
-    pub weights: sqlx::types::Json<Vec<ModelWeights>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -48,8 +47,13 @@ pub struct ModelResource {
     pub size: u64,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ModelWeights {
-    Platt { a: f32, b: f32 },
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ModelWeightRow {
+    pub id: uuid::Uuid,
+    pub model_id: uuid::Uuid,
+    pub version: i32,
+    pub name: String,
+    pub content: sqlx::types::JsonValue,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }

@@ -6,7 +6,16 @@ CREATE TABLE IF NOT EXISTS models (
     tasks           TEXT[]          NOT NULL,           -- text_summarize, audio_classify, ...
     architectures   TEXT[]          NOT NULL,           -- ForTokenClassification, ForSequenceClassification, ...
     source          JSONB           NOT NULL,
-    weights         JSONB           NOT NULL,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS model_weights (
+    id              UUID            PRIMARY KEY,
+    model_id        UUID            NOT NULL REFERENCES models(id) ON DELETE CASCADE,
+    version         INT             NOT NULL,
+    name            TEXT            NOT NULL,
+    content         JSONB           NOT NULL,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );

@@ -41,3 +41,17 @@ pub struct ArtifactTaskRow {
     pub task_id: uuid::Uuid,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ChatTaskRow {
+    pub chat_id: uuid::Uuid,
+    pub task_id: uuid::Uuid,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct MessageTaskRow {
+    pub message_id: uuid::Uuid,
+    pub task_id: uuid::Uuid,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}

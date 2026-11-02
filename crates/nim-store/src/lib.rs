@@ -46,6 +46,9 @@ pub struct Storage<'a> {
     _memory_relations: MemoryRelationsStorage<'a>,
     _recalls: RecallStorage<'a>,
     _artifact_tasks: ArtifactTasksStorage<'a>,
+    _chat_tasks: ChatTasksStorage<'a>,
+    _message_tasks: MessageTasksStorage<'a>,
+    _model_weights: ModelWeightStorage<'a>,
     _model_tasks: ModelTasksStorage<'a>,
     _tasks: TaskStorage<'a>,
     _memory_recalls: MemoryRecallsStorage<'a>,
@@ -70,6 +73,9 @@ impl<'a> Storage<'a> {
             _memory_relations: MemoryRelationsStorage::new(pool),
             _recalls: RecallStorage::new(pool),
             _artifact_tasks: ArtifactTasksStorage::new(pool),
+            _chat_tasks: ChatTasksStorage::new(pool),
+            _message_tasks: MessageTasksStorage::new(pool),
+            _model_weights: ModelWeightStorage::new(pool),
             _model_tasks: ModelTasksStorage::new(pool),
             _tasks: TaskStorage::new(pool),
             _memory_recalls: MemoryRecallsStorage::new(pool),
@@ -142,6 +148,18 @@ impl<'a> Storage<'a> {
 
     pub fn tasks(&self) -> TaskStorage<'a> {
         self._tasks
+    }
+
+    pub fn chat_tasks(&self) -> ChatTasksStorage<'a> {
+        self._chat_tasks
+    }
+
+    pub fn message_tasks(&self) -> MessageTasksStorage<'a> {
+        self._message_tasks
+    }
+
+    pub fn model_weights(&self) -> ModelWeightStorage<'a> {
+        self._model_weights
     }
 
     pub fn model_tasks(&self) -> ModelTasksStorage<'a> {

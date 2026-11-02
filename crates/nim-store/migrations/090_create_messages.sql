@@ -25,6 +25,14 @@ CREATE TABLE IF NOT EXISTS message_annotations (
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS messages_tasks (
+    message_id      UUID            NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    task_id         UUID            NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+
+    PRIMARY KEY (message_id, task_id)
+);
+
 ALTER TABLE chats
 ADD last_analyzed_id UUID REFERENCES messages(id) ON DELETE SET NULL,
 ADD last_analyzed_at TIMESTAMPTZ;

@@ -1,6 +1,6 @@
 use nim_store::ModelRow;
 
-use crate::{Error, Model, ModelService, ModelSource, ModelWeights};
+use crate::{Error, Model, ModelService, ModelSource};
 
 #[derive(Debug)]
 pub struct ModelCreate {
@@ -9,7 +9,6 @@ pub struct ModelCreate {
     pub tasks: Vec<String>,
     pub architectures: Vec<String>,
     pub source: ModelSource,
-    pub weights: Vec<ModelWeights>,
 }
 
 impl<'a> ModelService<'a> {
@@ -27,7 +26,6 @@ impl<'a> ModelService<'a> {
                 tasks: value.tasks,
                 architectures: value.architectures,
                 source: nim_store::Json(value.source),
-                weights: nim_store::Json(value.weights),
                 created_at: now,
                 updated_at: now,
             })

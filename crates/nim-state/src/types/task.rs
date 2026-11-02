@@ -1,6 +1,6 @@
 pub use nim_store::TaskStatus;
 
-use crate::{ArtifactId, ModelId, Version};
+use crate::{ArtifactId, ChatId, MessageId, ModelId, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {
@@ -109,6 +109,40 @@ impl From<nim_store::ArtifactTaskRow> for ArtifactTask {
     fn from(value: nim_store::ArtifactTaskRow) -> Self {
         Self {
             artifact_id: value.artifact_id.into(),
+            task_id: value.task_id.into(),
+            created_at: value.created_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ChatTask {
+    pub chat_id: ChatId,
+    pub task_id: TaskId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::ChatTaskRow> for ChatTask {
+    fn from(value: nim_store::ChatTaskRow) -> Self {
+        Self {
+            chat_id: value.chat_id.into(),
+            task_id: value.task_id.into(),
+            created_at: value.created_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MessageTask {
+    pub message_id: MessageId,
+    pub task_id: TaskId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl From<nim_store::MessageTaskRow> for MessageTask {
+    fn from(value: nim_store::MessageTaskRow) -> Self {
+        Self {
+            message_id: value.message_id.into(),
             task_id: value.task_id.into(),
             created_at: value.created_at,
         }

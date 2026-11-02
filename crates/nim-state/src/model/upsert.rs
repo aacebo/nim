@@ -17,7 +17,6 @@ impl<'a> ModelService<'a> {
                 tasks: value.tasks,
                 architectures: value.architectures,
                 source: nim_store::Json(value.source),
-                weights: nim_store::Json(value.weights),
                 created_at: now,
                 updated_at: now,
             })

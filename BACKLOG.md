@@ -1,5 +1,9 @@
 # Backlog
 
+## Tasks
+
+Create a task for every inference run linked to its artifact/message/chat.
+
 ## Worker Healthchecks
 
 Add http endpoints for metrics/health to workers for observability.

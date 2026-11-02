@@ -54,7 +54,6 @@ pub fn persist(pool: nim_store::PgPool) -> Result<nim_ai::Subscription, crate::E
                             tasks: Vec::new(),
                             architectures: architectures.clone(),
                             source,
-                            weights: Vec::new(),
                         })
                         .await?;
 

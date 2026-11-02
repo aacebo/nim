@@ -1,9 +1,5 @@
 # Backlog
 
-## Paging
-
-Add paging support for large tables.
-
 ## Worker Healthchecks
 
 Add http endpoints for metrics/health to workers for observability.

@@ -141,7 +141,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                 ]),
                 multi_label: true,
                 min_score: 0.2,
-                limit: None,
                 ..Default::default()
             },
         )?;

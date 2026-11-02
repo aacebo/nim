@@ -106,7 +106,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                 model: Some("dbmdz/bert-large-cased-finetuned-conll03-english".into()),
                 ..Default::default()
             },
-            min_score: 0.7,
+            min_score: 0.2,
             ..Default::default()
         },
     )?;
@@ -123,7 +123,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                 model: Some("sentence-transformers/all-MiniLM-L6-v2".into()),
                 ..Default::default()
             },
-            min_score: 0.7,
+            min_score: 0.2,
             ..Default::default()
         },
     )?;
@@ -167,6 +167,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
                     nim::state::Label::Spatial.as_classify_label().to_string(),
                 ]),
                 multi_label: true,
+                min_score: 0.2,
                 ..Default::default()
             },
         )?;

@@ -18,7 +18,7 @@
   },
   "links": [
     {
-      "title": "All models",
+      "title": "All Models",
       "type": "link",
       "url": "/d/nim-models?var-model=all",
       "targetBlank": false
@@ -62,7 +62,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Models — click model_id to drill down",
+      "title": "Models \u2014 Click model_id To Drill Down",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -108,7 +108,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View model source and calibration weights",
+                    "title": "View Model Source And Calibration Weights",
                     "url": "/d/nim-models?var-model=${__value.raw}",
                     "targetBlank": false
                   }
@@ -128,7 +128,7 @@
     },
     {
       "id": 2,
-      "title": "Selected model",
+      "title": "Selected Model",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -175,7 +175,7 @@
     },
     {
       "id": 3,
-      "title": "Selected model source and resource",
+      "title": "Selected Model Source And Resource",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -222,7 +222,7 @@
     },
     {
       "id": 4,
-      "title": "Selected model calibration weights",
+      "title": "Selected Model Calibration Weights",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",

@@ -568,7 +568,7 @@
       },
       "id": 19,
       "panels": [],
-      "title": "Stream metrics",
+      "title": "Stream Metrics",
       "type": "row",
       "targets": []
     },
@@ -654,7 +654,7 @@
           }
         }
       ],
-      "title": "Stream data size",
+      "title": "Stream Data Size",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -743,7 +743,7 @@
           }
         }
       ],
-      "title": "Stream message count",
+      "title": "Stream Message Count",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -833,7 +833,7 @@
           }
         }
       ],
-      "title": "Message Rate (per second)",
+      "title": "Message Rate (Per Second)",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -951,7 +951,7 @@
           }
         }
       ],
-      "title": "Messages per second (++/--)",
+      "title": "Messages Per Second (++/--)",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1041,7 +1041,7 @@
           }
         }
       ],
-      "title": "Total delivered messages",
+      "title": "Total Delivered Messages",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1132,7 +1132,7 @@
           }
         }
       ],
-      "title": "Pending messages",
+      "title": "Pending Messages",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",

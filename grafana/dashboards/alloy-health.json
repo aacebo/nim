@@ -21,7 +21,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Collector availability",
+      "title": "Collector Availability",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -56,7 +56,7 @@
     },
     {
       "id": 2,
-      "title": "Resident memory",
+      "title": "Resident Memory",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -91,7 +91,7 @@
     },
     {
       "id": 3,
-      "title": "CPU usage",
+      "title": "CPU Usage",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -126,7 +126,7 @@
     },
     {
       "id": 4,
-      "title": "Unhealthy components",
+      "title": "Unhealthy Components",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -161,7 +161,7 @@
     },
     {
       "id": 5,
-      "title": "OTLP spans accepted / refused",
+      "title": "OTLP Spans Accepted / Refused",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -196,7 +196,7 @@
     },
     {
       "id": 6,
-      "title": "OTLP spans sent / failed",
+      "title": "OTLP Spans Sent / Failed",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -231,7 +231,7 @@
     },
     {
       "id": 7,
-      "title": "Log entries sent / dropped",
+      "title": "Log Entries Sent / Dropped",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -266,7 +266,7 @@
     },
     {
       "id": 8,
-      "title": "Remote-write pending samples",
+      "title": "Remote-Write Pending Samples",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",

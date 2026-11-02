@@ -18,7 +18,7 @@
   },
   "links": [
     {
-      "title": "All chats",
+      "title": "All Chats",
       "type": "link",
       "url": "/d/nim-chats?var-chat=all&var-message=all",
       "targetBlank": false
@@ -69,7 +69,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Chats \u2014 click chat_id to drill down",
+      "title": "Chats \u2014 Click chat_id To Drill Down",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -115,7 +115,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View chat messages and annotations",
+                    "title": "View Chat Messages And Annotations",
                     "url": "/d/nim-chats?var-chat=${__value.raw}&var-message=all",
                     "targetBlank": false
                   }
@@ -135,7 +135,7 @@
     },
     {
       "id": 2,
-      "title": "Selected chat",
+      "title": "Selected Chat",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -182,7 +182,7 @@
     },
     {
       "id": 3,
-      "title": "Messages \u2014 click message_id to drill down",
+      "title": "Messages \u2014 Click message_id To Drill Down",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -228,7 +228,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View message content and annotations",
+                    "title": "View Message Content And Annotations",
                     "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
                     "targetBlank": false
                   }
@@ -246,7 +246,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View parent message",
+                    "title": "View Parent Message",
                     "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
                     "targetBlank": false
                   }
@@ -266,7 +266,7 @@
     },
     {
       "id": 4,
-      "title": "Selected message content",
+      "title": "Selected Message Content",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -312,7 +312,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View parent message",
+                    "title": "View Parent Message",
                     "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
                     "targetBlank": false
                   }
@@ -332,7 +332,7 @@
     },
     {
       "id": 5,
-      "title": "Message annotations",
+      "title": "Message Annotations",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -378,7 +378,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View message content and annotations",
+                    "title": "View Message Content And Annotations",
                     "url": "/d/nim-chats?var-chat=${chat:percentencode}&var-message=${__value.raw}",
                     "targetBlank": false
                   }

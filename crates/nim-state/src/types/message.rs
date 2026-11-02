@@ -11,8 +11,8 @@ pub struct Message {
     pub role: Role,
     pub content: MessageContent,
     pub summary: Option<String>,
-    pub confidence: f32,
     pub embedding: Option<Embedding>,
+    pub confidence: f32,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -80,8 +80,8 @@ impl TryFrom<nim_store::MessageRow> for Message {
             role: value.role,
             content: serde_json::from_value(value.content)?,
             summary: value.summary,
-            confidence: value.confidence,
             embedding: value.embedding.map(Into::into),
+            confidence: value.confidence,
             created_at: value.created_at,
             updated_at: value.updated_at,
         })

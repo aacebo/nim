@@ -42,6 +42,7 @@ impl Context {
                         subjects: vec![
                             "nim.artifact.create".into(),
                             "nim.artifact.update".into(),
+                            "nim.artifact.analyze".into(),
                             "nim.vision.artifact.create".into(),
                             "nim.audio.artifact.create".into(),
                             "nim.text.artifact.create".into(),
@@ -55,6 +56,7 @@ impl Context {
                         subjects: vec![
                             "nim.memory.create".into(),
                             "nim.memory.update".into(),
+                            "nim.memory.analyze".into(),
                             "nim.memory.delete".into(),
                             "nim.memory.recall".into(),
                         ],
@@ -88,6 +90,7 @@ impl Context {
                         subjects: vec![
                             "nim.message.create".into(),
                             "nim.message.update".into(),
+                            "nim.message.analyze".into(),
                             "nim.message.delete".into(),
                         ],
                         ..Default::default()

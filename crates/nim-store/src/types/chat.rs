@@ -3,8 +3,9 @@ pub struct ChatRow {
     pub id: uuid::Uuid,
     pub version: i32,
     pub summary: Option<String>,
-    pub confidence: f32,
     pub embedding: Option<pgvector::Vector>,
+    pub confidence: f32,
+    pub last_analyzed_id: Option<uuid::Uuid>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }

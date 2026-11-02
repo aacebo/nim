@@ -18,7 +18,7 @@
   },
   "links": [
     {
-      "title": "All memories",
+      "title": "All Memories",
       "type": "link",
       "url": "/d/nim-memories?var-memory=all&var-artifact=all",
       "targetBlank": false
@@ -69,7 +69,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Memories \u2014 click memory_id to drill down",
+      "title": "Memories \u2014 Click memory_id To Drill Down",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -115,7 +115,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View memory artifacts and annotations",
+                    "title": "View Memory Artifacts And Annotations",
                     "url": "/d/nim-memories?var-memory=${__value.raw}&var-artifact=all",
                     "targetBlank": false
                   }
@@ -135,7 +135,7 @@
     },
     {
       "id": 2,
-      "title": "Selected memory",
+      "title": "Selected Memory",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -182,7 +182,7 @@
     },
     {
       "id": 3,
-      "title": "Linked artifacts \u2014 click artifact_id to drill down",
+      "title": "Linked Artifacts \u2014 Click artifact_id To Drill Down",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -228,7 +228,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View artifact content and annotations",
+                    "title": "View Artifact Content And Annotations",
                     "url": "/d/nim-memories?var-memory=${memory:percentencode}&var-artifact=${__value.raw}",
                     "targetBlank": false
                   }
@@ -248,7 +248,7 @@
     },
     {
       "id": 4,
-      "title": "Selected artifact content",
+      "title": "Selected Artifact Content",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -295,7 +295,7 @@
     },
     {
       "id": 5,
-      "title": "Annotations for linked artifacts",
+      "title": "Annotations For Linked Artifacts",
       "type": "table",
       "datasource": {
         "type": "grafana-postgresql-datasource",
@@ -341,7 +341,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "View artifact",
+                    "title": "View Artifact",
                     "url": "/d/nim-memories?var-memory=${memory:percentencode}&var-artifact=${__value.raw}",
                     "targetBlank": false
                   }

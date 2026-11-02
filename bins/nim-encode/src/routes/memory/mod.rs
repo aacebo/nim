@@ -1,3 +1,2 @@
-pub mod create;
+pub mod analyze;
 pub mod recall;
-pub mod update;

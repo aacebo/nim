@@ -13,8 +13,9 @@ impl<'a> ChatService<'a> {
                 id: uuid::Uuid::now_v7(),
                 version: 0,
                 summary: None,
-                confidence: 0.0,
                 embedding: None,
+                confidence: 0.0,
+                last_analyzed_id: None,
                 created_at: now,
                 updated_at: now,
             })

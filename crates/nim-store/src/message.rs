@@ -22,8 +22,8 @@ impl<'a> MessageStorage<'a> {
                 role,
                 content,
                 summary,
-                confidence,
                 embedding,
+                confidence,
                 created_at,
                 updated_at
             FROM messages
@@ -36,7 +36,7 @@ impl<'a> MessageStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_chat_id(&self, chat_id: uuid::Uuid) -> Result<Vec<types::MessageRow>, sqlx::Error> {
+    pub async fn find_by_chat_id(&self, chat_id: uuid::Uuid, limit: usize) -> Result<Vec<types::MessageRow>, sqlx::Error> {
         sqlx::query_as(
             r#"
             SELECT
@@ -47,22 +47,24 @@ impl<'a> MessageStorage<'a> {
                 role,
                 content,
                 summary,
-                confidence,
                 embedding,
+                confidence,
                 created_at,
                 updated_at
             FROM messages
             WHERE chat_id = $1
             ORDER BY created_at, id
+            LIMIT $2
             "#,
         )
         .bind(chat_id)
+        .bind(i64::try_from(limit).unwrap_or(i64::MAX))
         .fetch_all(self.pool)
         .await
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_parent_id(&self, parent_id: uuid::Uuid) -> Result<Vec<types::MessageRow>, sqlx::Error> {
+    pub async fn find_by_parent_id(&self, parent_id: uuid::Uuid, limit: usize) -> Result<Vec<types::MessageRow>, sqlx::Error> {
         sqlx::query_as(
             r#"
             SELECT
@@ -73,16 +75,18 @@ impl<'a> MessageStorage<'a> {
                 role,
                 content,
                 summary,
-                confidence,
                 embedding,
+                confidence,
                 created_at,
                 updated_at
             FROM messages
             WHERE parent_id = $1
             ORDER BY created_at, id
+            LIMIT $2
             "#,
         )
         .bind(parent_id)
+        .bind(i64::try_from(limit).unwrap_or(i64::MAX))
         .fetch_all(self.pool)
         .await
     }
@@ -128,8 +132,8 @@ impl<'a> MessageStorage<'a> {
                 role,
                 content,
                 summary,
-                confidence,
                 embedding,
+                confidence,
                 created_at,
                 updated_at
             )
@@ -154,8 +158,8 @@ impl<'a> MessageStorage<'a> {
                 role,
                 content,
                 summary,
-                confidence,
                 embedding,
+                confidence,
                 created_at,
                 updated_at
             "#,
@@ -167,8 +171,8 @@ impl<'a> MessageStorage<'a> {
         .bind(value.role)
         .bind(value.content)
         .bind(value.summary)
-        .bind(value.confidence)
         .bind(value.embedding)
+        .bind(value.confidence)
         .bind(value.created_at)
         .bind(value.updated_at)
         .fetch_one(self.pool)
@@ -184,8 +188,8 @@ impl<'a> MessageStorage<'a> {
                 version = version + 1,
                 content = $2,
                 summary = $3,
-                confidence = $4,
-                embedding = $5,
+                embedding = $4,
+                confidence = $5,
                 updated_at = $6
             WHERE id = $1 AND version = $7
             RETURNING
@@ -196,8 +200,8 @@ impl<'a> MessageStorage<'a> {
                 role,
                 content,
                 summary,
-                confidence,
                 embedding,
+                confidence,
                 created_at,
                 updated_at
             "#,
@@ -205,8 +209,8 @@ impl<'a> MessageStorage<'a> {
         .bind(value.id)
         .bind(value.content)
         .bind(value.summary)
-        .bind(value.confidence)
         .bind(value.embedding)
+        .bind(value.confidence)
         .bind(chrono::Utc::now())
         .bind(value.version)
         .fetch_optional(self.pool)

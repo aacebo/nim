@@ -25,8 +25,8 @@ impl<'a> MessageService<'a> {
                 role: value.role,
                 content: serde_json::to_value(value.content)?,
                 summary: None,
-                confidence: 0.0,
                 embedding: None,
+                confidence: 0.0,
                 created_at: now,
                 updated_at: now,
             })

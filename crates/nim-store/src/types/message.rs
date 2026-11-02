@@ -7,8 +7,8 @@ pub struct MessageRow {
     pub role: Role,
     pub content: sqlx::types::JsonValue,
     pub summary: Option<String>,
-    pub confidence: f32,
     pub embedding: Option<pgvector::Vector>,
+    pub confidence: f32,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }

@@ -262,7 +262,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .await?;
     }
 
-    ctx.signals().publish("nim.artifact.create", artifact).await?;
+    ctx.signals().publish("nim.artifact.create", artifact.clone()).await?;
     ctx.signals().publish(format!("nim.memory.{subject}"), memory).await?;
+    ctx.signals().publish("nim.artifact.analyze", artifact).await?;
     Ok(())
 }

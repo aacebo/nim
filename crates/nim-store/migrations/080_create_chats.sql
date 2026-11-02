@@ -1,11 +1,11 @@
 CREATE TABLE IF NOT EXISTS chats (
-    id              UUID            PRIMARY KEY,
-    version         INT             NOT NULL,
-    summary         TEXT,
-    confidence      REAL            NOT NULL,
-    embedding       VECTOR(384),
-    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    id                  UUID            PRIMARY KEY,
+    version             INT             NOT NULL,
+    summary             TEXT,
+    embedding           VECTOR(384),
+    confidence          REAL            NOT NULL DEFAULT 0.0,
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS chats_entities (

@@ -80,7 +80,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "CPU \u00b7 100% = one core",
+      "title": "CPU \u00b7 100% = One Core",
       "description": "",
       "type": "stat",
       "datasource": {
@@ -135,7 +135,7 @@
     },
     {
       "id": 2,
-      "title": "Memory usage",
+      "title": "Memory Usage",
       "description": "",
       "type": "stat",
       "datasource": {
@@ -190,7 +190,7 @@
     },
     {
       "id": 3,
-      "title": "Network receive",
+      "title": "Network Receive",
       "description": "",
       "type": "stat",
       "datasource": {
@@ -245,7 +245,7 @@
     },
     {
       "id": 4,
-      "title": "Network transmit",
+      "title": "Network Transmit",
       "description": "",
       "type": "stat",
       "datasource": {
@@ -300,7 +300,7 @@
     },
     {
       "id": 5,
-      "title": "Resource collector",
+      "title": "Resource Collector",
       "description": "",
       "type": "stat",
       "datasource": {
@@ -371,7 +371,7 @@
     },
     {
       "id": 6,
-      "title": "Containers reporting",
+      "title": "Containers Reporting",
       "description": "",
       "type": "stat",
       "datasource": {
@@ -426,7 +426,7 @@
     },
     {
       "id": 7,
-      "title": "CPU by service",
+      "title": "CPU By Service",
       "description": "Whole-container CPU usage; 100% equals one CPU core and values may exceed 100%.",
       "type": "timeseries",
       "datasource": {
@@ -481,7 +481,7 @@
     },
     {
       "id": 8,
-      "title": "Memory by service",
+      "title": "Memory By Service",
       "description": "Includes filesystem cache. Docker stats may subtract reclaimable cache.",
       "type": "timeseries",
       "datasource": {
@@ -536,7 +536,7 @@
     },
     {
       "id": 9,
-      "title": "Network receive by service",
+      "title": "Network Receive By Service",
       "description": "",
       "type": "timeseries",
       "datasource": {
@@ -591,7 +591,7 @@
     },
     {
       "id": 10,
-      "title": "Network transmit by service",
+      "title": "Network Transmit By Service",
       "description": "",
       "type": "timeseries",
       "datasource": {
@@ -646,7 +646,7 @@
     },
     {
       "id": 11,
-      "title": "Block-device reads by service",
+      "title": "Block-Device Reads By Service",
       "description": "Unavailable metrics remain No data; this is block-device I/O, not filesystem capacity.",
       "type": "timeseries",
       "datasource": {
@@ -701,7 +701,7 @@
     },
     {
       "id": 12,
-      "title": "Block-device writes by service",
+      "title": "Block-Device Writes By Service",
       "description": "Unavailable metrics remain No data; this is block-device I/O, not filesystem capacity.",
       "type": "timeseries",
       "datasource": {
@@ -756,7 +756,7 @@
     },
     {
       "id": 13,
-      "title": "Current container resources",
+      "title": "Current Container Resources",
       "description": "Current samples only; disappeared containers are removed after exporter expiration and the next scrape. Effective memory limits may reflect the Docker VM capacity when no explicit application limit is set.",
       "type": "table",
       "datasource": {
@@ -891,7 +891,7 @@
     },
     {
       "id": 14,
-      "title": "Reading these metrics",
+      "title": "Reading These Metrics",
       "type": "text",
       "gridPos": {
         "x": 0,

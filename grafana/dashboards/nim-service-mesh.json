@@ -22,7 +22,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Service traffic flow",
+      "title": "Service Traffic Flow",
       "description": "Edge hover shows HTTP/NATS and request rate. HTTP clients is an aggregate ingress node derived from actual gateway HTTP server spans. Click an edge for details. Individual requests are listed below.",
       "type": "nodeGraph",
       "datasource": {
@@ -114,7 +114,7 @@
     },
     {
       "id": 2,
-      "title": "Traffic by connection",
+      "title": "Traffic By Connection",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -158,7 +158,7 @@
     },
     {
       "id": 3,
-      "title": "Error rate by connection",
+      "title": "Error Rate By Connection",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -204,7 +204,7 @@
     },
     {
       "id": 4,
-      "title": "p95 processing latency by connection",
+      "title": "p95 Processing Latency By Connection",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -248,7 +248,7 @@
     },
     {
       "id": 5,
-      "title": "Transport legend",
+      "title": "Transport Legend",
       "type": "text",
       "gridPos": {
         "x": 0,
@@ -263,7 +263,7 @@
     },
     {
       "id": 6,
-      "title": "Inbound HTTP requests \u2014 open a trace to inspect triggered publications",
+      "title": "Inbound HTTP Requests \u2014 Open A Trace To Inspect Triggered Publications",
       "type": "table",
       "datasource": {
         "type": "tempo",
@@ -307,7 +307,7 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "Open request and publications",
+                    "title": "Open Request And Publications",
                     "url": "/explore?schemaVersion=1&panes=%7B%22trace%22%3A%7B%22datasource%22%3A%22tempo%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22queryType%22%3A%22traceId%22%2C%22query%22%3A%22${__value.raw}%22%2C%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22tempo%22%7D%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D%7D",
                     "targetBlank": true
                   }

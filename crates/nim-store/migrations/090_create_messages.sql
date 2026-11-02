@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS messages (
     role            TEXT            NOT NULL,
     content         JSONB           NOT NULL,
     summary         TEXT,
-    confidence      REAL            NOT NULL,
     embedding       VECTOR(384),
+    confidence      REAL            NOT NULL DEFAULT 0.0,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS message_annotations (
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE chats
+ADD last_analyzed_id UUID REFERENCES messages(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS message_annotations_embedding_idx
 ON message_annotations USING hnsw (embedding vector_cosine_ops);

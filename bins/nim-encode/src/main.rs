@@ -115,11 +115,8 @@ async fn memories(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>
         tracing::info!("[{subject}] -> processing...");
 
         let res = match subject.as_str() {
-            "nim.memory.create" => {
-                Some(tokio::spawn(routes::memory::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
-            }
-            "nim.memory.update" => {
-                Some(tokio::spawn(routes::memory::update::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            "nim.memory.analyze" => {
+                Some(tokio::spawn(routes::memory::analyze::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
             }
             "nim.memory.recall" => {
                 Some(tokio::spawn(routes::memory::recall::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
@@ -167,11 +164,8 @@ async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool
         tracing::info!("[{subject}] -> processing...");
 
         let res = match subject.as_str() {
-            "nim.artifact.create" => {
-                Some(tokio::spawn(routes::artifact::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
-            }
-            "nim.artifact.update" => {
-                Some(tokio::spawn(routes::artifact::update::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            "nim.artifact.analyze" => {
+                Some(tokio::spawn(routes::artifact::analyze::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
             }
             _ => None,
         };

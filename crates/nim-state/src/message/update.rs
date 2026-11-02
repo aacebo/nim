@@ -4,8 +4,8 @@ use crate::{Error, Message, MessageContent, MessageId, MessageService};
 pub struct MessageUpdate {
     pub content: Option<MessageContent>,
     pub summary: Option<String>,
-    pub confidence: Option<f32>,
     pub embedding: Option<Vec<f32>>,
+    pub confidence: Option<f32>,
 }
 
 impl<'a> MessageService<'a> {
@@ -21,12 +21,12 @@ impl<'a> MessageService<'a> {
             row.summary = Some(value);
         }
 
-        if let Some(value) = value.confidence {
-            row.confidence = value;
-        }
-
         if let Some(value) = value.embedding {
             row.embedding = Some(value.into());
+        }
+
+        if let Some(value) = value.confidence {
+            row.confidence = value;
         }
 
         self.storage.messages().update(row).await?.try_into()

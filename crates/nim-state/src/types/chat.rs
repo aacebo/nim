@@ -1,12 +1,13 @@
-use crate::{ArtifactId, Embedding, EntityId, Version};
+use crate::{ArtifactId, Embedding, EntityId, MessageId, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Chat {
     pub id: ChatId,
     pub version: Version,
     pub summary: Option<String>,
-    pub confidence: f32,
     pub embedding: Option<Embedding>,
+    pub confidence: f32,
+    pub last_analyzed_id: Option<MessageId>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -68,8 +69,9 @@ impl From<nim_store::ChatRow> for Chat {
             id: value.id.into(),
             version: value.version.into(),
             summary: value.summary,
-            confidence: value.confidence,
             embedding: value.embedding.map(Into::into),
+            confidence: value.confidence,
+            last_analyzed_id: value.last_analyzed_id.map(Into::into),
             created_at: value.created_at,
             updated_at: value.updated_at,
         }

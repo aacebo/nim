@@ -18,8 +18,9 @@ impl<'a> ChatStorage<'a> {
                 id,
                 version,
                 summary,
-                confidence,
                 embedding,
+                confidence,
+                last_analyzed_id,
                 created_at,
                 updated_at
             FROM chats
@@ -90,8 +91,9 @@ impl<'a> ChatStorage<'a> {
                 id,
                 version,
                 summary,
-                confidence,
                 embedding,
+                confidence,
+                last_analyzed_id,
                 created_at,
                 updated_at
             )
@@ -102,14 +104,16 @@ impl<'a> ChatStorage<'a> {
                 $4,
                 $5,
                 $6,
-                $7
+                $7,
+                $8
             )
             RETURNING
                 id,
                 version,
                 summary,
-                confidence,
                 embedding,
+                confidence,
+                last_analyzed_id,
                 created_at,
                 updated_at
             "#,
@@ -117,8 +121,9 @@ impl<'a> ChatStorage<'a> {
         .bind(value.id)
         .bind(value.version)
         .bind(value.summary)
-        .bind(value.confidence)
         .bind(value.embedding)
+        .bind(value.confidence)
+        .bind(value.last_analyzed_id)
         .bind(value.created_at)
         .bind(value.updated_at)
         .fetch_one(self.pool)
@@ -133,24 +138,27 @@ impl<'a> ChatStorage<'a> {
             SET
                 version = version + 1,
                 summary = $2,
-                confidence = $3,
-                embedding = $4,
-                updated_at = $5
-            WHERE id = $1 AND version = $6
+                embedding = $3,
+                confidence = $4,
+                last_analyzed_id = $5,
+                updated_at = $6
+            WHERE id = $1 AND version = $7
             RETURNING
                 id,
                 version,
                 summary,
-                confidence,
                 embedding,
+                confidence,
+                last_analyzed_id,
                 created_at,
                 updated_at
             "#,
         )
         .bind(value.id)
         .bind(value.summary)
-        .bind(value.confidence)
         .bind(value.embedding)
+        .bind(value.confidence)
+        .bind(value.last_analyzed_id)
         .bind(chrono::Utc::now())
         .bind(value.version)
         .fetch_optional(self.pool)

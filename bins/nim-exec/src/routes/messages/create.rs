@@ -171,7 +171,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
             }
         }
 
-        ctx.signals().publish("nim.message.update", message).await?;
+        ctx.signals().publish("nim.message.update", message.clone()).await?;
+        ctx.signals().publish("nim.message.analyze", message).await?;
     }
 
     Ok(())

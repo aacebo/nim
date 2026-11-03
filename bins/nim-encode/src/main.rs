@@ -34,7 +34,8 @@ async fn main() -> Result<(), Error> {
 
     let (shutdown, receiver) = tokio::sync::watch::channel(false);
     let mut memories = tokio::spawn(memories(ctx.clone(), receiver.clone()));
-    let mut artifacts = tokio::spawn(artifacts(ctx, receiver));
+    let mut artifacts = tokio::spawn(artifacts(ctx.clone(), receiver.clone()));
+    let mut messages = tokio::spawn(messages(ctx, receiver));
 
     tokio::select! {
         result = &mut memories => {
@@ -45,6 +46,11 @@ async fn main() -> Result<(), Error> {
         result = &mut artifacts => {
             memories.abort();
             let _ = memories.await;
+            result?
+        }
+        result = &mut messages => {
+            messages.abort();
+            let _ = messages.await;
             result?
         }
         result = stop() => {
@@ -153,6 +159,7 @@ async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool
             _ = shutdown.changed() => break,
             req = artifacts.next() => req,
         };
+
         let Some(req) = req else {
             break;
         };
@@ -166,6 +173,56 @@ async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool
         let res = match subject.as_str() {
             "nim.artifact.analyze" => {
                 Some(tokio::spawn(routes::artifact::analyze::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            _ => None,
+        };
+
+        match res {
+            Some(Ok(_)) => {
+                tracing::info!("[{subject}.success] -> complete");
+                ctx.ack().await?
+            }
+            Some(Err(err)) => {
+                tracing::error!("[{subject}.error] -> {err}");
+                ctx.nack().await?
+            }
+            None => {
+                tracing::info!("[{subject}.success] -> ignored");
+                ctx.ack().await?
+            }
+        };
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument(skip(ctx, shutdown))]
+async fn messages(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
+    let mut messages = ctx.signals().subscribe("nim.message.>").await?;
+
+    loop {
+        let req = tokio::select! {
+            biased;
+            _ = shutdown.changed() => break,
+            req = messages.next() => req,
+        };
+
+        let Some(req) = req else {
+            break;
+        };
+
+        let (message, signal) = req?;
+        let subject = message.subject.to_string();
+        let ctx = ctx.clone().into_signal(signal.id, message);
+
+        tracing::info!("[{subject}] -> processing...");
+
+        let res = match subject.as_str() {
+            "nim.message.analyze" => {
+                Some(tokio::spawn(routes::messages::analyze::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
+            }
+            "nim.message.create" => {
+                Some(tokio::spawn(routes::messages::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
             }
             _ => None,
         };

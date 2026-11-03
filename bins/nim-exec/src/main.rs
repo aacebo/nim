@@ -70,9 +70,6 @@ async fn messages(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>
             "nim.message.analyze" => {
                 Some(tokio::spawn(routes::messages::analyze::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
             }
-            "nim.message.create" => {
-                Some(tokio::spawn(routes::messages::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
-            }
             _ => None,
         };
 

@@ -98,6 +98,10 @@ otelcol.connector.spanmetrics "local" {
   namespace              = "traces.spanmetrics"
   metrics_flush_interval = "15s"
 
+  dimension {
+    name = "nim.signal.source"
+  }
+
   histogram {
     unit = "s"
 

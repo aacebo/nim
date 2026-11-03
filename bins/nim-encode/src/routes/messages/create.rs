@@ -7,7 +7,16 @@ use crate::{Error, SignalContext};
 pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Error> {
     let message = signal.content;
     let content = message.content.to_string();
-    let artifacts = nim::ai::pipelines::text::summarize::run(&[content.as_bytes()])?;
+    let artifacts = nim::ai::pipelines::text::summarize::run_with(
+        &[content.as_bytes()],
+        nim::ai::pipelines::text::summarize::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some("Qwen/Qwen2.5-3B-Instruct-GGUF".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )?;
 
     if let Some(artifact) = artifacts.first() {
         let message = ctx
@@ -70,7 +79,16 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
                 let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
 
                 tracing::debug!("generating label embeddings...");
-                let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
+                let embeddings = nim::ai::pipelines::text::embeddings::run_with(
+                    &input,
+                    nim::ai::pipelines::text::embeddings::Options {
+                        model: nim::ai::models::ModelArgs {
+                            model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
+                            ..Default::default()
+                        },
+                    },
+                )?;
+
                 ctx.ack_progress().await?;
 
                 tracing::debug!("generating label categories...");

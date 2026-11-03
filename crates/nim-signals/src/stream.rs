@@ -19,7 +19,7 @@ impl Stream {
 impl Unpin for Stream {}
 
 impl futures_util::Stream for Stream {
-    type Item = Result<(jetstream::Message, RawSignal), Error>;
+    type Item = Result<(jetstream::Message, RawSignal, tracing::Span), Error>;
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, ctx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
         let pin = std::pin::pin!(&mut self.inner);
@@ -38,13 +38,20 @@ impl futures_util::Stream for Stream {
                 Ok(v) => v,
             };
 
+            let span = tracing::info_span!(
+                parent: None,
+                "signal.process",
+                otel.kind = "consumer",
+                otel.status_code = tracing::field::Empty,
+                messaging.system = "nats",
+                messaging.destination.name = %message.subject,
+                nim.signal.source = tracing::field::Empty,
+            );
+
             if let Some(headers) = &message.headers {
-                let span = tracing::info_span!(
-                    "signal.process",
-                    otel.kind = "consumer",
-                    messaging.system = "nats",
-                    messaging.destination.name = %message.subject,
-                );
+                if let Some(source) = headers.get("nim-source-service") {
+                    span.record("nim.signal.source", source.as_str());
+                }
 
                 let parent = self.propagator.extract(&NatsExtractor::from(headers));
 
@@ -54,7 +61,7 @@ impl futures_util::Stream for Stream {
                 };
             }
 
-            Some(Ok((message, signal)))
+            Some(Ok((message, signal, span)))
         })
     }
 }

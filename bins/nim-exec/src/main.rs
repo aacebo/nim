@@ -47,7 +47,7 @@ async fn main() -> Result<(), Error> {
 
 #[tracing::instrument(skip(ctx, shutdown))]
 async fn messages(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
-    let mut messages: nim::signals::Stream = ctx.signals().subscribe("nim.message.>").await?;
+    let mut messages: nim::signals::Stream = ctx.signals().subscribe("nim.message.analyze").await?;
 
     loop {
         let req = tokio::select! {
@@ -60,33 +60,37 @@ async fn messages(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>
             break;
         };
 
-        let (message, signal) = req?;
-        let subject = message.subject.to_string();
-        let ctx = ctx.clone().into_signal(signal.id, message);
+        let (message, signal, span) = req?;
+        let res: Result<(), Error> = async {
+            let subject = message.subject.to_string();
+            let ctx = ctx.clone().into_signal(signal.id, message);
 
-        tracing::info!("[{subject}] -> processing...");
+            tracing::info!("[{subject}] -> processing...");
 
-        let res = match subject.as_str() {
-            "nim.message.analyze" => {
-                Some(tokio::spawn(routes::messages::analyze::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?)
-            }
-            _ => None,
-        };
+            let res = tokio::spawn(routes::messages::analyze::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?;
 
-        match res {
-            Some(Ok(_)) => {
-                tracing::info!("[{subject}.success] -> complete");
-                ctx.ack().await?
-            }
-            Some(Err(err)) => {
-                tracing::error!("[{subject}.error] -> {err}");
-                ctx.nack().await?
-            }
-            None => {
-                tracing::info!("[{subject}.success] -> ignored");
-                ctx.ack().await?
-            }
-        };
+            match res {
+                Ok(_) => {
+                    tracing::info!("[{subject}.success] -> complete");
+                    ctx.ack().await?
+                }
+                Err(err) => {
+                    tracing::Span::current().record("otel.status_code", "ERROR");
+                    tracing::error!("[{subject}.error] -> {err}");
+                    ctx.nack().await?
+                }
+            };
+
+            Ok(())
+        }
+        .instrument(span.clone())
+        .await;
+
+        if res.is_err() {
+            span.record("otel.status_code", "ERROR");
+        }
+
+        res?;
     }
 
     Ok(())

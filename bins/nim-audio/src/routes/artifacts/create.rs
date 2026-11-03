@@ -15,7 +15,17 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     };
 
     tracing::debug!("generating captions...");
-    let captions = nim::ai::pipelines::audio::captions::run(&[bytes.as_slice()])?;
+    let captions = nim::ai::pipelines::audio::captions::run_with(
+        &[bytes.as_slice()],
+        nim::ai::pipelines::audio::captions::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some("wsntxxn/cnn14rnn-tempgru-audiocaps-captioning".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )?;
+
     let Some(caption) = captions.first() else {
         return Err(Error::custom(format!(
             "no captions could be generated from artifact `{}`",
@@ -99,6 +109,10 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let annotations = nim::ai::pipelines::audio::classify::run_with(
         &[bytes.as_slice()],
         nim::ai::pipelines::audio::classify::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some("wsntxxn/cnn8rnn-audioset-sed".into()),
+                ..Default::default()
+            },
             min_score: 0.2,
             limit: Some(5),
             ..Default::default()
@@ -113,7 +127,16 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
 
         tracing::debug!("generating label embeddings...");
-        let embeddings = nim::ai::pipelines::text::embeddings::run(&input)?;
+        let embeddings = nim::ai::pipelines::text::embeddings::run_with(
+            &input,
+            nim::ai::pipelines::text::embeddings::Options {
+                model: nim::ai::models::ModelArgs {
+                    model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
+                    ..Default::default()
+                },
+            },
+        )?;
+
         ctx.ack_progress().await?;
 
         tracing::debug!("generating label categories...");

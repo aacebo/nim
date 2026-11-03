@@ -39,7 +39,17 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
     };
 
     let text = summaries.join("\n");
-    let artifacts = nim::ai::pipelines::text::summarize::run(&[text.as_bytes()])?;
+    let artifacts = nim::ai::pipelines::text::summarize::run_with(
+        &[text.as_bytes()],
+        nim::ai::pipelines::text::summarize::Options {
+            model: nim::ai::models::ModelArgs {
+                model: Some("Qwen/Qwen2.5-3B-Instruct-GGUF".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )?;
+
     let Some(artifact) = artifacts.first() else {
         return Err(Error::custom(format!(
             "summary could be generated from artifact `{}`",

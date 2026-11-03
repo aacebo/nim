@@ -48,6 +48,7 @@ impl Client {
         let bytes = serde_json::to_vec(&signal)?;
         let context = tracing::Span::current().context();
         let mut headers = async_nats::HeaderMap::new();
+        headers.insert("nim-source-service", format!("nim-{}", self.name));
         self.propagator
             .inject_context(&context, &mut NatsInjector::from(&mut headers));
         let _ = self
@@ -108,6 +109,7 @@ impl SourceClient {
 
         let bytes = serde_json::to_vec(&signal)?;
         let mut headers = async_nats::HeaderMap::new();
+        headers.insert("nim-source-service", format!("nim-{}", self.inner.name));
         self.inner
             .propagator
             .inject_context(&context, &mut NatsInjector::from(&mut headers));

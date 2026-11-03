@@ -1,10 +1,12 @@
+use crate::Source;
+
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct TaskRow {
     pub id: uuid::Uuid,
     pub parent_id: Option<uuid::Uuid>,
     pub version: i32,
     pub name: String,
-    pub source: String,
+    pub source: sqlx::types::Json<Source>,
     pub status: sqlx::types::Json<TaskStatus>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,

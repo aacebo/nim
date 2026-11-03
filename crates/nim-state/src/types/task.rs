@@ -1,6 +1,6 @@
 pub use nim_store::TaskStatus;
 
-use crate::{ArtifactId, ChatId, MessageId, ModelId, Version};
+use crate::{ArtifactId, ChatId, MessageId, ModelId, Source, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {
@@ -8,7 +8,7 @@ pub struct Task {
     pub parent_id: Option<TaskId>,
     pub version: Version,
     pub name: String,
-    pub source: String,
+    pub source: Source,
     #[serde(flatten)]
     pub status: TaskStatus,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -73,7 +73,7 @@ impl From<nim_store::TaskRow> for Task {
             parent_id: value.parent_id.map(Into::into),
             version: value.version.into(),
             name: value.name,
-            source: value.source,
+            source: value.source.into_inner().into(),
             status: value.status.into_inner(),
             created_at: value.created_at,
             updated_at: value.updated_at,

@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     parent_id       UUID            REFERENCES tasks(id) ON DELETE SET NULL,
     version         INT             NOT NULL,
     name            TEXT            NOT NULL,           -- text_classify, audio_caption, ...
-    source          TEXT            NOT NULL,           -- audio, vision, text, encode...
+    source          JSONB           NOT NULL,
     status          JSONB           NOT NULL,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()

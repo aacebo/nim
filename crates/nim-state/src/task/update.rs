@@ -1,10 +1,10 @@
-use crate::{Error, Task, TaskId, TaskService, TaskStatus};
+use crate::{Error, Source, Task, TaskId, TaskService, TaskStatus};
 
 #[derive(Debug, Default)]
 pub struct TaskUpdate {
     pub parent_id: Option<TaskId>,
     pub name: Option<String>,
-    pub source: Option<String>,
+    pub source: Option<Source>,
     pub status: Option<TaskStatus>,
 }
 
@@ -22,7 +22,7 @@ impl<'a> TaskService<'a> {
         }
 
         if let Some(value) = value.source {
-            row.source = value;
+            row.source = nim_store::Json(value.into());
         }
 
         if let Some(value) = value.status {

@@ -1,12 +1,12 @@
 use nim_store::TaskRow;
 
-use crate::{Error, Task, TaskId, TaskService, TaskStatus};
+use crate::{Error, Source, Task, TaskId, TaskService, TaskStatus};
 
 #[derive(Debug)]
 pub struct TaskCreate {
     pub parent_id: Option<TaskId>,
     pub name: String,
-    pub source: String,
+    pub source: Source,
 }
 
 impl<'a> TaskService<'a> {
@@ -21,7 +21,7 @@ impl<'a> TaskService<'a> {
                 parent_id: value.parent_id.map(Into::into),
                 version: 0,
                 name: value.name,
-                source: value.source,
+                source: nim_store::Json(value.source.into()),
                 status: nim_store::Json(TaskStatus::Pending),
                 created_at: now,
                 updated_at: now,

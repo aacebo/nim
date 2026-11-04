@@ -18,10 +18,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let artifacts = nim::ai::pipelines::text::summarize::run_with(
         &[text.as_bytes()],
         nim::ai::pipelines::text::summarize::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("Qwen/Qwen2.5-3B-Instruct-GGUF".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("Qwen/Qwen2.5-3B-Instruct-GGUF")?,
             ..Default::default()
         },
     )?;
@@ -112,10 +109,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let annotations = nim::ai::pipelines::text::classify::run_with(
         &[text.as_bytes()],
         nim::ai::pipelines::text::classify::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("dbmdz/bert-large-cased-finetuned-conll03-english".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("dbmdz/bert-large-cased-finetuned-conll03-english")?,
             min_score: 0.2,
             ..Default::default()
         },
@@ -129,10 +123,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let keywords = nim::ai::pipelines::text::classify::run_with(
         &[text.as_bytes()],
         nim::ai::pipelines::text::classify::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("sentence-transformers/all-MiniLM-L6-v2".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L6-v2")?,
             min_score: 0.2,
             ..Default::default()
         },
@@ -153,10 +144,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let embeddings = nim::ai::pipelines::text::embeddings::run_with(
             &input,
             nim::ai::pipelines::text::embeddings::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
-                    ..Default::default()
-                },
+                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
             },
         )?;
 
@@ -166,10 +154,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let label_annotations = nim::ai::pipelines::text::classify::run_with(
             &input,
             nim::ai::pipelines::text::classify::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("facebook/bart-large-mnli".into()),
-                    ..Default::default()
-                },
+                model: nim::ai::models::refer("facebook/bart-large-mnli")?,
                 labels: Some(vec![
                     nim::state::Label::Entity.as_classify_label().to_string(),
                     nim::state::Label::Valence.as_classify_label().to_string(),

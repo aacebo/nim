@@ -11,10 +11,8 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
     let artifacts = nim::ai::pipelines::text::embeddings::run_with(
         &[body.text.as_bytes()],
         nim::ai::pipelines::text::embeddings::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")
+                .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?,
         },
     )
     .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;

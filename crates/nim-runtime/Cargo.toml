@@ -22,3 +22,4 @@ tracing = { workspace = true, optional = true }
 nim-ai = { workspace = true, optional = true }
 nim-state = { workspace = true, optional = true }
 nim-store = { workspace = true, optional = true }
+nim-signals = { workspace = true }

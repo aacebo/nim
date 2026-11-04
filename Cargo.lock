@@ -2691,6 +2691,7 @@ name = "nim-runtime"
 version = "0.0.0"
 dependencies = [
  "nim-ai",
+ "nim-signals",
  "nim-state",
  "nim-store",
  "tokio",

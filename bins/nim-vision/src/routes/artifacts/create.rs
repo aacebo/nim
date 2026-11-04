@@ -20,10 +20,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let captions = nim::ai::pipelines::images::captions::run_with(
         &[bytes.as_slice()],
         nim::ai::pipelines::images::captions::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("microsoft/git-base".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("microsoft/git-base")?,
             ..Default::default()
         },
     )?;
@@ -111,10 +108,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let annotations = nim::ai::pipelines::images::classify::run_with(
         &[bytes.as_slice()],
         nim::ai::pipelines::images::classify::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("google/mobilenet_v2_1.0_224".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("google/mobilenet_v2_1.0_224")?,
             min_score: 0.2,
             limit: Some(5),
             ..Default::default()
@@ -133,10 +127,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let regions = nim::ai::pipelines::images::classify::run_with(
         &[bytes.as_slice()],
         nim::ai::pipelines::images::classify::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some(String::from("facebook/detr-resnet-50")),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("facebook/detr-resnet-50")?,
             min_score: 0.2,
             limit: Some(100),
             ..Default::default()
@@ -158,10 +149,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let embeddings = nim::ai::pipelines::text::embeddings::run_with(
             &input,
             nim::ai::pipelines::text::embeddings::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
-                    ..Default::default()
-                },
+                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
             },
         )?;
 
@@ -171,10 +159,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let label_annotations = nim::ai::pipelines::text::classify::run_with(
             &input,
             nim::ai::pipelines::text::classify::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("facebook/bart-large-mnli".into()),
-                    ..Default::default()
-                },
+                model: nim::ai::models::refer("facebook/bart-large-mnli")?,
                 labels: Some(vec![
                     nim::state::Label::Entity.as_classify_label().to_string(),
                     nim::state::Label::Valence.as_classify_label().to_string(),

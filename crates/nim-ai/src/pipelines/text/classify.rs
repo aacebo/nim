@@ -1,10 +1,10 @@
-use crate::models::{ClassifyMedia, ClassifyOptions, ModelArgs, load};
+use crate::models::{ClassifyMedia, ClassifyOptions, ModelRef, load};
 use crate::types::Annotation;
 use crate::{Error, tasks};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
-    pub model: ModelArgs,
+    pub model: ModelRef,
     pub min_score: f64,
 
     #[serde(default)]
@@ -23,7 +23,7 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            model: Default::default(),
+            model: super::defaults::classify(),
             min_score: 0.2,
             limit: None,
             labels: None,
@@ -55,11 +55,7 @@ pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Vec<Annotation>
         return Ok(Vec::new());
     }
 
-    let default = match &options.labels {
-        Some(_) => super::defaults::zero_shot(),
-        None => super::defaults::classify(),
-    };
-    let model = load(&options.model.resolve(default)?)?;
+    let model = load(&options.model)?;
     classify_options.mode = model.classify_mode(ClassifyMedia::Text)?;
     let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
     let mut out = tasks::classify(capable, &model.context(), input, classify_options)?;

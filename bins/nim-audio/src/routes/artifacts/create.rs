@@ -18,10 +18,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let captions = nim::ai::pipelines::audio::captions::run_with(
         &[bytes.as_slice()],
         nim::ai::pipelines::audio::captions::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("wsntxxn/cnn14rnn-tempgru-audiocaps-captioning".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("wsntxxn/cnn14rnn-tempgru-audiocaps-captioning")?,
             ..Default::default()
         },
     )?;
@@ -109,10 +106,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let annotations = nim::ai::pipelines::audio::classify::run_with(
         &[bytes.as_slice()],
         nim::ai::pipelines::audio::classify::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("wsntxxn/cnn8rnn-audioset-sed".into()),
-                ..Default::default()
-            },
+            model: nim::ai::models::refer("wsntxxn/cnn8rnn-audioset-sed")?,
             min_score: 0.2,
             limit: Some(5),
             ..Default::default()
@@ -130,10 +124,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let embeddings = nim::ai::pipelines::text::embeddings::run_with(
             &input,
             nim::ai::pipelines::text::embeddings::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
-                    ..Default::default()
-                },
+                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
             },
         )?;
 
@@ -143,10 +134,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         let label_annotations = nim::ai::pipelines::text::classify::run_with(
             &input,
             nim::ai::pipelines::text::classify::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("facebook/bart-large-mnli".into()),
-                    ..Default::default()
-                },
+                model: nim::ai::models::refer("facebook/bart-large-mnli")?,
                 labels: Some(vec![
                     nim::state::Label::Entity.as_classify_label().to_string(),
                     nim::state::Label::Valence.as_classify_label().to_string(),

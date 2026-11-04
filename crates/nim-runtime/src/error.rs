@@ -2,6 +2,7 @@ pub enum Error {
     #[cfg(feature = "ai")]
     AI(nim_ai::Error),
     State(nim_state::Error),
+    Signal(nim_signals::Error),
 }
 
 #[cfg(feature = "ai")]
@@ -17,12 +18,19 @@ impl From<nim_state::Error> for Error {
     }
 }
 
+impl From<nim_signals::Error> for Error {
+    fn from(value: nim_signals::Error) -> Self {
+        Self::Signal(value)
+    }
+}
+
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             #[cfg(feature = "ai")]
             Self::AI(v) => write!(f, "{v:#?}"),
             Self::State(v) => write!(f, "{v:#?}"),
+            Self::Signal(v) => write!(f, "{v:#?}"),
         }
     }
 }
@@ -33,6 +41,7 @@ impl std::fmt::Display for Error {
             #[cfg(feature = "ai")]
             Self::AI(v) => write!(f, "{v}"),
             Self::State(v) => write!(f, "{v}"),
+            Self::Signal(v) => write!(f, "{v}"),
         }
     }
 }
@@ -43,6 +52,7 @@ impl std::error::Error for Error {
             #[cfg(feature = "ai")]
             Self::AI(v) => Some(v),
             Self::State(v) => Some(v),
+            Self::Signal(v) => Some(v),
         }
     }
 }

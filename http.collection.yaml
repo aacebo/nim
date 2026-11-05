@@ -1,0 +1,103 @@
+opencollection: 1.0.0
+info:
+  name: NIM
+  type: collection
+bundled: true
+request:
+  variables:
+  - name: BASE_URL
+    value: http://localhost:9999
+  - name: ROOT
+    value: ''
+items:
+- info:
+    name: Artifacts
+    type: folder
+    seq: 1
+  items:
+  - info:
+      name: Create Text Artifact
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: '{{BASE_URL}}/artifacts'
+      headers:
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"name\": \"dog_walking_in_grassy_field\",\n  \"text\": \"today I was walking and passed by a large grassy\
+          \ field where I saw a dog playing fetch with their owner\"\n}"
+      auth: inherit
+  - info:
+      name: Upload Image Artifact
+      type: http
+      seq: 2
+    http:
+      method: POST
+      url: '{{BASE_URL}}/artifacts'
+      headers: []
+      body:
+        type: multipart-form
+        data:
+        - name: image
+          type: file
+          value: '{{ROOT}}/assets/dog.png'
+          contentType: image/png
+      auth: inherit
+  - info:
+      name: Upload Audio Artifact
+      type: http
+      seq: 3
+    http:
+      method: POST
+      url: '{{BASE_URL}}/artifacts'
+      headers: []
+      body:
+        type: multipart-form
+        data:
+        - name: audio
+          type: file
+          value: '{{ROOT}}/assets/dog.wav'
+          contentType: audio/wav
+      auth: inherit
+- info:
+    name: Chats
+    type: folder
+    seq: 2
+  items:
+  - info:
+      name: Create Chat Message
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: '{{BASE_URL}}/chats/messages'
+      headers:
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"content\": [\n    \"hi my name is John, how are you?\",\n    {\n      \"url\": \"https://google.com/my-file.png\"\
+          \n    }\n  ]\n}"
+      auth: inherit
+- info:
+    name: Memories
+    type: folder
+    seq: 3
+  items:
+  - info:
+      name: Recall Memories
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: '{{BASE_URL}}/memories/recall'
+      headers:
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"text\": \"german shepherd\"\n}"
+      auth: inherit

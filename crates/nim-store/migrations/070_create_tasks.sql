@@ -9,6 +9,13 @@ CREATE TABLE IF NOT EXISTS tasks (
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS task_events (
+    id              UUID            PRIMARY KEY,
+    task_id         UUID            NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    content         JSONB           NOT NULL,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS models_tasks (
     model_id        UUID            NOT NULL REFERENCES models(id) ON DELETE CASCADE,
     task_id         UUID            NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,

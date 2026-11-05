@@ -14,8 +14,8 @@
                     "enable": true,
                 },
                 "check": {
-                    "workspace": false,
-                    "allTargets": false,
+                    "workspace": true,
+                    "allTargets": true,
                 },
             },
         },

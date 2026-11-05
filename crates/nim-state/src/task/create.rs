@@ -22,12 +22,12 @@ impl<'a> TaskService<'a> {
                 version: 0,
                 name: value.name,
                 source: nim_store::Json(value.source.into()),
-                status: nim_store::Json(TaskStatus::Pending),
+                status: serde_json::to_value(TaskStatus::Pending)?,
                 created_at: now,
                 updated_at: now,
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

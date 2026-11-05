@@ -1,0 +1,47 @@
+services:
+  postgres:
+    pull_policy: never
+  nats:
+    pull_policy: never
+  prometheus:
+    pull_policy: never
+  loki:
+    pull_policy: never
+  tempo:
+    pull_policy: never
+  grafana:
+    pull_policy: never
+  nats-exporter:
+    pull_policy: never
+  telegraf:
+    pull_policy: never
+  alloy:
+    pull_policy: never
+  gateway:
+    pull_policy: never
+    environment:
+      CARGO_NET_OFFLINE: "true"
+  exec:
+    pull_policy: never
+    environment:
+      CARGO_NET_OFFLINE: "true"
+  encode:
+    pull_policy: never
+    environment:
+      CARGO_NET_OFFLINE: "true"
+  text:
+    pull_policy: never
+    environment:
+      CARGO_NET_OFFLINE: "true"
+  audio:
+    pull_policy: never
+    environment:
+      CARGO_NET_OFFLINE: "true"
+  vision:
+    pull_policy: never
+    environment:
+      CARGO_NET_OFFLINE: "true"
+  sleep:
+    pull_policy: never
+    environment:
+      CARGO_NET_OFFLINE: "true"

@@ -90,7 +90,7 @@ impl TryFrom<nim_store::MessageRow> for Message {
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
-#[serde(untagged, rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum MessageContent {
     Text {
         #[validate(min_length = 1)]
@@ -108,7 +108,7 @@ pub enum MessageContent {
         artifact_id: ArtifactId,
     },
     #[validate(min_items = 1)]
-    Array(#[validate] Vec<MessageContent>),
+    Array(#[validate] Vec<Self>),
     #[validate]
     String(#[validate(min_length = 1)] String),
 }

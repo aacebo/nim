@@ -17,16 +17,22 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     // Extract Captions (ex. "a dog running")
 
     tracing::debug!("generating captions...");
-    let captions = nim::ai::pipelines::images::captions::run_with(
-        &[bytes.as_slice()],
-        nim::ai::pipelines::images::captions::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("microsoft/git-base".into()),
+    let captions = ctx
+        .runtime()
+        .pipelines()
+        .images()
+        .captions(
+            &[bytes.as_slice()],
+            nim::runtime::ai::ImageCaptionsOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("microsoft/git-base")?,
                 ..Default::default()
             },
-            ..Default::default()
-        },
-    )?;
+        )
+        .await?;
 
     let Some(caption) = captions.first() else {
         return Err(Error::custom(format!(
@@ -108,18 +114,24 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
     tracing::debug!("classifying image...");
-    let annotations = nim::ai::pipelines::images::classify::run_with(
-        &[bytes.as_slice()],
-        nim::ai::pipelines::images::classify::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("google/mobilenet_v2_1.0_224".into()),
+    let annotations = ctx
+        .runtime()
+        .pipelines()
+        .images()
+        .classify(
+            &[bytes.as_slice()],
+            nim::runtime::ai::ImageClassifyOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("google/mobilenet_v2_1.0_224")?,
+                min_score: 0.2,
+                limit: Some(5),
                 ..Default::default()
             },
-            min_score: 0.2,
-            limit: Some(5),
-            ..Default::default()
-        },
-    )?;
+        )
+        .await?;
 
     let mut annotations = if let Some(a) = annotations.first() {
         a.clone()
@@ -130,18 +142,24 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     ctx.ack_progress().await?;
 
     tracing::debug!("extracting image regions...");
-    let regions = nim::ai::pipelines::images::classify::run_with(
-        &[bytes.as_slice()],
-        nim::ai::pipelines::images::classify::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some(String::from("facebook/detr-resnet-50")),
+    let regions = ctx
+        .runtime()
+        .pipelines()
+        .images()
+        .classify(
+            &[bytes.as_slice()],
+            nim::runtime::ai::ImageClassifyOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("facebook/detr-resnet-50")?,
+                min_score: 0.2,
+                limit: Some(100),
                 ..Default::default()
             },
-            min_score: 0.2,
-            limit: Some(100),
-            ..Default::default()
-        },
-    )?;
+        )
+        .await?;
 
     if let Some(regions) = regions.first().cloned() {
         annotations.extend(regions);
@@ -152,49 +170,60 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     if !annotations.is_empty() {
         let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
         let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-        let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
 
         tracing::debug!("generating label embeddings...");
-        let embeddings = nim::ai::pipelines::text::embeddings::run_with(
-            &input,
-            nim::ai::pipelines::text::embeddings::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
-                    ..Default::default()
+        let embeddings = ctx
+            .runtime()
+            .pipelines()
+            .text()
+            .embed(
+                &labels,
+                nim::runtime::ai::TextEmbedOptions {
+                    task: nim::runtime::TaskOptions {
+                        sources: vec![signal.content.id.into()],
+                        ..Default::default()
+                    },
+                    model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
                 },
-            },
-        )?;
+            )
+            .await?;
 
         ctx.ack_progress().await?;
 
         tracing::debug!("generating label categories...");
-        let label_annotations = nim::ai::pipelines::text::classify::run_with(
-            &input,
-            nim::ai::pipelines::text::classify::Options {
-                model: nim::ai::models::ModelArgs {
-                    model: Some("facebook/bart-large-mnli".into()),
+        let label_annotations = ctx
+            .runtime()
+            .pipelines()
+            .text()
+            .classify(
+                &labels,
+                nim::runtime::ai::TextClassifyOptions {
+                    task: nim::runtime::TaskOptions {
+                        sources: vec![signal.content.id.into()],
+                        ..Default::default()
+                    },
+                    model: nim::ai::models::refer("facebook/bart-large-mnli")?,
+                    labels: Some(vec![
+                        nim::state::Label::Entity.as_classify_label().to_string(),
+                        nim::state::Label::Valence.as_classify_label().to_string(),
+                        nim::state::Label::Emotion.as_classify_label().to_string(),
+                        nim::state::Label::Salience.as_classify_label().to_string(),
+                        nim::state::Label::Threat.as_classify_label().to_string(),
+                        nim::state::Label::Reward.as_classify_label().to_string(),
+                        nim::state::Label::Novelty.as_classify_label().to_string(),
+                        nim::state::Label::Familiarity.as_classify_label().to_string(),
+                        nim::state::Label::Confidence.as_classify_label().to_string(),
+                        nim::state::Label::SelfRelevance.as_classify_label().to_string(),
+                        nim::state::Label::SocialRelevance.as_classify_label().to_string(),
+                        nim::state::Label::Temporal.as_classify_label().to_string(),
+                        nim::state::Label::Spatial.as_classify_label().to_string(),
+                    ]),
+                    multi_label: true,
+                    min_score: 0.2,
                     ..Default::default()
                 },
-                labels: Some(vec![
-                    nim::state::Label::Entity.as_classify_label().to_string(),
-                    nim::state::Label::Valence.as_classify_label().to_string(),
-                    nim::state::Label::Emotion.as_classify_label().to_string(),
-                    nim::state::Label::Salience.as_classify_label().to_string(),
-                    nim::state::Label::Threat.as_classify_label().to_string(),
-                    nim::state::Label::Reward.as_classify_label().to_string(),
-                    nim::state::Label::Novelty.as_classify_label().to_string(),
-                    nim::state::Label::Familiarity.as_classify_label().to_string(),
-                    nim::state::Label::Confidence.as_classify_label().to_string(),
-                    nim::state::Label::SelfRelevance.as_classify_label().to_string(),
-                    nim::state::Label::SocialRelevance.as_classify_label().to_string(),
-                    nim::state::Label::Temporal.as_classify_label().to_string(),
-                    nim::state::Label::Spatial.as_classify_label().to_string(),
-                ]),
-                multi_label: true,
-                min_score: 0.2,
-                ..Default::default()
-            },
-        )?;
+            )
+            .await?;
 
         ctx.ack_progress().await?;
 

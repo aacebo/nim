@@ -2690,7 +2690,9 @@ dependencies = [
 name = "nim-runtime"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "nim-ai",
+ "nim-signals",
  "nim-state",
  "nim-store",
  "tokio",

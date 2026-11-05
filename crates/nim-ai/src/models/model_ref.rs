@@ -12,7 +12,7 @@ use crate::clients::hf::HuggingFace;
 use crate::clients::http::HttpRepository;
 use crate::clients::openai::OpenAI;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ModelRef {
     Local(LocalModel),
     Remote(RemoteModel),
@@ -83,7 +83,7 @@ impl std::fmt::Display for ModelRef {
 
 /// A model whose weights we load and run ourselves. Every variant has weights, so `repository`
 /// and `loader` are total -- a model with no weights cannot be built as a `LocalModel`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LocalModel {
     Hub(ModelId),
     Path(Resource),
@@ -122,10 +122,10 @@ impl std::fmt::Display for LocalModel {
 }
 
 /// A model we call over the wire. It has an endpoint, never weights.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RemoteModel {
-    pub provider: Provider,
     pub id: ModelId,
+    pub provider: Provider,
     pub base_url: Option<String>,
     pub api_key: Option<String>,
 }

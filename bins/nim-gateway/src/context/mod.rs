@@ -7,7 +7,6 @@ pub struct Context {
     config: Config,
     pool: std::sync::Arc<sqlx::PgPool>,
     signals: std::sync::Arc<nim::signals::Client>,
-    _models: std::sync::Arc<nim::ai::Subscription>,
 }
 
 impl Context {
@@ -17,6 +16,10 @@ impl Context {
 
     pub fn signals(&self) -> &nim::signals::Client {
         &self.signals
+    }
+
+    pub fn runtime(&self) -> nim::runtime::Runtime<'_> {
+        nim::runtime::Runtime::new(&self.pool, self.signals.clone())
     }
 }
 
@@ -75,7 +78,12 @@ impl Context {
                     nim::signals::StreamConfig {
                         name: "TASKS".into(),
                         max_messages: 10_000,
-                        subjects: vec!["nim.task.create".into(), "nim.task.update".into()],
+                        subjects: vec![
+                            "nim.task.create".into(),
+                            "nim.task.start".into(),
+                            "nim.task.complete".into(),
+                            "nim.task.error".into(),
+                        ],
                         ..Default::default()
                     },
                     nim::signals::StreamConfig {
@@ -102,14 +110,7 @@ impl Context {
         .await?;
 
         let signals = std::sync::Arc::new(signals);
-        let models = std::sync::Arc::new(nim::runtime::models::persist(pool.as_ref().clone()).map_err(nim::Error::from)?);
-
-        Ok(Self {
-            config,
-            pool,
-            signals,
-            _models: models,
-        })
+        Ok(Self { config, pool, signals })
     }
 }
 

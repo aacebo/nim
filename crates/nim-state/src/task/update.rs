@@ -26,9 +26,9 @@ impl<'a> TaskService<'a> {
         }
 
         if let Some(value) = value.status {
-            row.status = nim_store::Json(value);
+            row.status = serde_json::to_value(value)?;
         }
 
-        Ok(self.storage.tasks().update(row).await?.into())
+        self.storage.tasks().update(row).await?.try_into()
     }
 }

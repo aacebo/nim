@@ -1,4 +1,4 @@
-pub use nim_store::TaskStatus;
+use nim_store::Span;
 
 use crate::{ArtifactId, ChatId, MessageId, ModelId, Source, Version};
 
@@ -66,18 +66,20 @@ impl<'de> serde::Deserialize<'de> for TaskId {
     }
 }
 
-impl From<nim_store::TaskRow> for Task {
-    fn from(value: nim_store::TaskRow) -> Self {
-        Self {
+impl TryFrom<nim_store::TaskRow> for Task {
+    type Error = crate::Error;
+
+    fn try_from(value: nim_store::TaskRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
             parent_id: value.parent_id.map(Into::into),
             version: value.version.into(),
             name: value.name,
             source: value.source.into_inner().into(),
-            status: value.status.into_inner(),
+            status: serde_json::from_value(value.status)?,
             created_at: value.created_at,
             updated_at: value.updated_at,
-        }
+        })
     }
 }
 
@@ -147,4 +149,120 @@ impl From<nim_store::MessageTaskRow> for MessageTask {
             created_at: value.created_at,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum TaskStatus {
+    Pending,
+    Started {
+        output: Option<TaskOutput>,
+        started_at: chrono::DateTime<chrono::Utc>,
+    },
+    Complete {
+        output: Option<TaskOutput>,
+        started_at: chrono::DateTime<chrono::Utc>,
+        ended_at: chrono::DateTime<chrono::Utc>,
+    },
+    Error {
+        reason: String,
+        started_at: chrono::DateTime<chrono::Utc>,
+        ended_at: chrono::DateTime<chrono::Utc>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum TaskOutput {
+    Object(TaskContent),
+    Array(Vec<TaskContent>),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TaskContent {
+    Text { text: String },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TaskEvent {
+    pub id: TaskEventId,
+    pub task_id: TaskId,
+    pub content: TaskEventContent,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TaskEventId(uuid::Uuid);
+
+impl TaskEventId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::now_v7())
+    }
+}
+
+impl From<uuid::Uuid> for TaskEventId {
+    fn from(value: uuid::Uuid) -> Self {
+        Self(value)
+    }
+}
+
+impl From<TaskEventId> for uuid::Uuid {
+    fn from(value: TaskEventId) -> Self {
+        value.0
+    }
+}
+
+impl std::fmt::Display for TaskEventId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "task_event_{}", self.0.simple())
+    }
+}
+
+impl serde::Serialize for TaskEventId {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        s.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for TaskEventId {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let v = String::deserialize(d)?;
+        let v = v
+            .strip_prefix("task_event_")
+            .ok_or_else(|| serde::de::Error::custom("invalid task event id"))?;
+
+        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
+        Ok(Self(v))
+    }
+}
+
+impl TryFrom<nim_store::TaskEventRow> for TaskEvent {
+    type Error = crate::Error;
+
+    fn try_from(value: nim_store::TaskEventRow) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: value.id.into(),
+            task_id: value.task_id.into(),
+            content: serde_json::from_value(value.content)?,
+            created_at: value.created_at,
+        })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TaskEventContent {
+    TextDelta {
+        span: Span,
+        text: String,
+        output_index: usize,
+        content_index: usize,
+    },
 }

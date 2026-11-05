@@ -8,16 +8,20 @@ pub struct Body {
 }
 
 pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::response::Result<axum::response::Response> {
-    let artifacts = nim::ai::pipelines::text::embeddings::run_with(
-        &[body.text.as_bytes()],
-        nim::ai::pipelines::text::embeddings::Options {
-            model: nim::ai::models::ModelArgs {
-                model: Some("sentence-transformers/all-MiniLM-L12-v2".into()),
+    let artifacts = ctx
+        .runtime()
+        .pipelines()
+        .text()
+        .embed(
+            &[&body.text],
+            nim::runtime::ai::TextEmbedOptions {
+                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")
+                    .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?,
                 ..Default::default()
             },
-        },
-    )
-    .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+        )
+        .await
+        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
 
     let Some(artifact) = artifacts.first() else {
         return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR.into());

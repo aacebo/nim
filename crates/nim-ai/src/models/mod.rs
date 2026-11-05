@@ -20,7 +20,6 @@ mod architecture;
 mod cache;
 mod capability;
 mod loader;
-mod model_args;
 mod model_config;
 mod model_id;
 mod model_ref;
@@ -33,7 +32,6 @@ pub use architecture::*;
 use cache::*;
 pub use capability::*;
 pub use loader::*;
-pub use model_args::*;
 pub use model_config::*;
 pub use model_id::*;
 pub use model_ref::*;
@@ -344,6 +342,10 @@ impl Model {
 
     pub fn context(&self) -> Context<'_> {
         Context::new(self.tokenizer.as_ref(), &self.device, &self.name)
+    }
+
+    pub fn config(&self) -> Option<&ModelConfig> {
+        self.config.as_ref()
     }
 
     pub fn as_embed(&self) -> Option<&dyn Embed> {

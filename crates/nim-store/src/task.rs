@@ -501,3 +501,82 @@ impl<'a> MessageTasksStorage<'a> {
         Ok(())
     }
 }
+
+#[derive(Copy, Clone)]
+pub struct TaskEventStorage<'a> {
+    pool: &'a sqlx::PgPool,
+}
+
+impl<'a> TaskEventStorage<'a> {
+    pub fn new(pool: &'a sqlx::PgPool) -> Self {
+        Self { pool }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn create(&self, value: types::TaskEventRow) -> Result<types::TaskEventRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            INSERT INTO task_events (
+                id,
+                task_id,
+                content,
+                created_at
+            )
+            VALUES (
+                $1,
+                $2,
+                $3,
+                $4
+            )
+            RETURNING
+                id,
+                task_id,
+                content,
+                created_at
+            "#,
+        )
+        .bind(value.id)
+        .bind(value.task_id)
+        .bind(value.content)
+        .bind(value.created_at)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::TaskEventRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                task_id,
+                content,
+                created_at
+            FROM task_events
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_task_id(&self, task_id: uuid::Uuid) -> Result<Vec<types::TaskEventRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                task_id,
+                content,
+                created_at
+            FROM task_events
+            WHERE task_id = $1
+            ORDER BY created_at ASC, id ASC
+            "#,
+        )
+        .bind(task_id)
+        .fetch_all(self.pool)
+        .await
+    }
+}

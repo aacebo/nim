@@ -1,18 +1,28 @@
 use crate::Error;
-use crate::models::{GenerateOptions, ModelArgs, load};
+use crate::models::{GenerateOptions, ModelRef, load};
 use crate::pipelines::text;
 use crate::tasks;
 use crate::types::Artifact;
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
-    pub model: ModelArgs,
+    pub model: ModelRef,
 
     #[serde(default)]
     pub beams: Option<usize>,
 
     #[serde(default)]
     pub max_len: Option<usize>,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            model: super::defaults::captions(),
+            beams: None,
+            max_len: None,
+        }
+    }
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
@@ -22,7 +32,7 @@ pub fn run(input: &[&[u8]]) -> Result<Vec<Artifact>, Error> {
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Error> {
-    let model = load(&options.model.resolve(super::defaults::captions())?)?;
+    let model = load(&options.model)?;
     let capable = model.as_generate().ok_or_else(|| model.cannot("generate"))?;
     let generation_options = GenerateOptions {
         beams: options.beams,

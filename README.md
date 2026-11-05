@@ -66,3 +66,51 @@ flowchart TD
     class Q,M neutral
     class P awake
 ```
+
+## Offline development
+
+While connected, prepare the Docker images, Rust toolchain, Cargo dependencies,
+and release binaries:
+
+```sh
+just prepare-offline
+```
+
+The recipe stops on failure and can be rerun. It does not recreate running
+services. While online, run the local text, embedding, audio, and vision requests
+you intend to use so their model assets are cached in `.cache`.
+
+Start the prepared stack without internet access:
+
+```sh
+docker compose -f compose.yaml -f compose.offline.yaml up -d --no-build --pull never
+```
+
+After editing source, rerun the affected service, for example:
+
+```sh
+docker compose -f compose.yaml -f compose.offline.yaml restart text
+```
+
+The service recompiles the mounted source with locked, offline Cargo dependencies.
+Rust 1.99.1, rustfmt, and clippy are installed in the development images. Cargo
+registry/git caches and release build output use shared named volumes. PostgreSQL,
+NATS, and observability data also use named volumes; model assets use `.cache`.
+Keep these volumes and `.cache` between sessions; `docker compose down -v` removes
+prepared volumes. If an existing PostgreSQL container has data in an anonymous
+volume, back it up and restore it into the new named volume before recreating it.
+
+New dependencies, image changes, or uncached models require online preparation
+again. Remote providers and internet URLs still require connectivity. The offline
+override disables Cargo networking and image pulls; it preserves local service
+networking and does not block every application's outbound traffic.
+
+Before departure, disconnect external networking and recreate the stack with the
+offline startup command plus `--force-recreate`. Check `/health` at
+`http://localhost:9999`, PostgreSQL readiness, NATS, and Grafana at
+`http://localhost:3000`. Use the requests in `http.collection.yaml` with local
+`assets/dog.png` and `assets/dog.wav`, a text artifact, a chat message, and memory
+recall. Wait for worker completion and inspect `docker compose logs` for failures;
+model loading alone does not verify inference. Edit source and restart a worker
+to confirm recompilation. Recreate containers again and confirm database records
+and cached models remain available.

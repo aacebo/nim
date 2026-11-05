@@ -1,5 +1,9 @@
 # Backlog
 
+## Errors
+
+Error nesting/rollup.
+
 ## Tasks
 
 Create a task for every inference run linked to its artifact/message/chat.

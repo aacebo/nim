@@ -34,7 +34,7 @@ impl<'a> ModelStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_name(&self, name: &str) -> Result<types::ModelRow, sqlx::Error> {
+    pub async fn find_by_name(&self, name: &str) -> Result<Option<types::ModelRow>, sqlx::Error> {
         sqlx::query_as(
             r#"
             SELECT
@@ -52,7 +52,7 @@ impl<'a> ModelStorage<'a> {
             "#,
         )
         .bind(name)
-        .fetch_one(self.pool)
+        .fetch_optional(self.pool)
         .await
     }
 

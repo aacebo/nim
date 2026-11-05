@@ -15,13 +15,22 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     };
 
     tracing::debug!("summarizing...");
-    let artifacts = nim::ai::pipelines::text::summarize::run_with(
-        &[text.as_bytes()],
-        nim::ai::pipelines::text::summarize::Options {
-            model: nim::ai::models::refer("Qwen/Qwen2.5-3B-Instruct-GGUF")?,
-            ..Default::default()
-        },
-    )?;
+    let artifacts = ctx
+        .runtime()
+        .pipelines()
+        .text()
+        .summarize(
+            &[&text],
+            nim::runtime::ai::TextSummarizeOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("Qwen/Qwen2.5-3B-Instruct-GGUF")?,
+                ..Default::default()
+            },
+        )
+        .await?;
 
     let Some(summary) = artifacts.first() else {
         return Err(Error::custom(format!(
@@ -106,28 +115,46 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     tracing::debug!("extracting entities...");
 
-    let annotations = nim::ai::pipelines::text::classify::run_with(
-        &[text.as_bytes()],
-        nim::ai::pipelines::text::classify::Options {
-            model: nim::ai::models::refer("dbmdz/bert-large-cased-finetuned-conll03-english")?,
-            min_score: 0.2,
-            ..Default::default()
-        },
-    )?;
+    let annotations = ctx
+        .runtime()
+        .pipelines()
+        .text()
+        .classify(
+            &[&text],
+            nim::runtime::ai::TextClassifyOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("dbmdz/bert-large-cased-finetuned-conll03-english")?,
+                min_score: 0.2,
+                ..Default::default()
+            },
+        )
+        .await?;
 
     let mut annotations = annotations.iter().flatten().cloned().collect::<Vec<_>>();
 
     ctx.ack_progress().await?;
     tracing::debug!("extracting keywords...");
 
-    let keywords = nim::ai::pipelines::text::classify::run_with(
-        &[text.as_bytes()],
-        nim::ai::pipelines::text::classify::Options {
-            model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L6-v2")?,
-            min_score: 0.2,
-            ..Default::default()
-        },
-    )?;
+    let keywords = ctx
+        .runtime()
+        .pipelines()
+        .text()
+        .classify(
+            &[&text],
+            nim::runtime::ai::TextClassifyOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L6-v2")?,
+                min_score: 0.2,
+                ..Default::default()
+            },
+        )
+        .await?;
 
     if let Some(keywords) = keywords.first().cloned() {
         annotations.extend(keywords);
@@ -138,43 +165,60 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     if !annotations.is_empty() {
         let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
         let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-        let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
 
         tracing::debug!("generating label embeddings...");
-        let embeddings = nim::ai::pipelines::text::embeddings::run_with(
-            &input,
-            nim::ai::pipelines::text::embeddings::Options {
-                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
-            },
-        )?;
+        let embeddings = ctx
+            .runtime()
+            .pipelines()
+            .text()
+            .embeddings(
+                &labels,
+                nim::runtime::ai::TextEmbeddingsOptions {
+                    task: nim::runtime::TaskOptions {
+                        sources: vec![signal.content.id.into()],
+                        ..Default::default()
+                    },
+                    model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
+                },
+            )
+            .await?;
 
         ctx.ack_progress().await?;
 
         tracing::debug!("generating label categories...");
-        let label_annotations = nim::ai::pipelines::text::classify::run_with(
-            &input,
-            nim::ai::pipelines::text::classify::Options {
-                model: nim::ai::models::refer("facebook/bart-large-mnli")?,
-                labels: Some(vec![
-                    nim::state::Label::Entity.as_classify_label().to_string(),
-                    nim::state::Label::Valence.as_classify_label().to_string(),
-                    nim::state::Label::Emotion.as_classify_label().to_string(),
-                    nim::state::Label::Salience.as_classify_label().to_string(),
-                    nim::state::Label::Threat.as_classify_label().to_string(),
-                    nim::state::Label::Reward.as_classify_label().to_string(),
-                    nim::state::Label::Novelty.as_classify_label().to_string(),
-                    nim::state::Label::Familiarity.as_classify_label().to_string(),
-                    nim::state::Label::Confidence.as_classify_label().to_string(),
-                    nim::state::Label::SelfRelevance.as_classify_label().to_string(),
-                    nim::state::Label::SocialRelevance.as_classify_label().to_string(),
-                    nim::state::Label::Temporal.as_classify_label().to_string(),
-                    nim::state::Label::Spatial.as_classify_label().to_string(),
-                ]),
-                multi_label: true,
-                min_score: 0.2,
-                ..Default::default()
-            },
-        )?;
+        let label_annotations = ctx
+            .runtime()
+            .pipelines()
+            .text()
+            .classify(
+                &labels,
+                nim::runtime::ai::TextClassifyOptions {
+                    task: nim::runtime::TaskOptions {
+                        sources: vec![signal.content.id.into()],
+                        ..Default::default()
+                    },
+                    model: nim::ai::models::refer("facebook/bart-large-mnli")?,
+                    labels: Some(vec![
+                        nim::state::Label::Entity.as_classify_label().to_string(),
+                        nim::state::Label::Valence.as_classify_label().to_string(),
+                        nim::state::Label::Emotion.as_classify_label().to_string(),
+                        nim::state::Label::Salience.as_classify_label().to_string(),
+                        nim::state::Label::Threat.as_classify_label().to_string(),
+                        nim::state::Label::Reward.as_classify_label().to_string(),
+                        nim::state::Label::Novelty.as_classify_label().to_string(),
+                        nim::state::Label::Familiarity.as_classify_label().to_string(),
+                        nim::state::Label::Confidence.as_classify_label().to_string(),
+                        nim::state::Label::SelfRelevance.as_classify_label().to_string(),
+                        nim::state::Label::SocialRelevance.as_classify_label().to_string(),
+                        nim::state::Label::Temporal.as_classify_label().to_string(),
+                        nim::state::Label::Spatial.as_classify_label().to_string(),
+                    ]),
+                    multi_label: true,
+                    min_score: 0.2,
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         ctx.ack_progress().await?;
 

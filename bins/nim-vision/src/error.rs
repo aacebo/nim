@@ -30,6 +30,12 @@ impl From<nim::signals::Error> for Error {
     }
 }
 
+impl From<nim::runtime::Error> for Error {
+    fn from(value: nim::runtime::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
 impl From<nim::ai::Error> for Error {
     fn from(value: nim::ai::Error) -> Self {
         Self::Core(value.into())

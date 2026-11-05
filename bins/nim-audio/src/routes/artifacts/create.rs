@@ -15,13 +15,22 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     };
 
     tracing::debug!("generating captions...");
-    let captions = nim::ai::pipelines::audio::captions::run_with(
-        &[bytes.as_slice()],
-        nim::ai::pipelines::audio::captions::Options {
-            model: nim::ai::models::refer("wsntxxn/cnn14rnn-tempgru-audiocaps-captioning")?,
-            ..Default::default()
-        },
-    )?;
+    let captions = ctx
+        .runtime()
+        .pipelines()
+        .audio()
+        .captions(
+            &[bytes.as_slice()],
+            nim::runtime::ai::AudioCaptionsOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("wsntxxn/cnn14rnn-tempgru-audiocaps-captioning")?,
+                ..Default::default()
+            },
+        )
+        .await?;
 
     let Some(caption) = captions.first() else {
         return Err(Error::custom(format!(
@@ -103,58 +112,84 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
 
     tracing::debug!("classifying audio...");
-    let annotations = nim::ai::pipelines::audio::classify::run_with(
-        &[bytes.as_slice()],
-        nim::ai::pipelines::audio::classify::Options {
-            model: nim::ai::models::refer("wsntxxn/cnn8rnn-audioset-sed")?,
-            min_score: 0.2,
-            limit: Some(5),
-            ..Default::default()
-        },
-    )?;
+    let annotations = ctx
+        .runtime()
+        .pipelines()
+        .audio()
+        .classify(
+            &[bytes.as_slice()],
+            nim::runtime::ai::AudioClassifyOptions {
+                task: nim::runtime::TaskOptions {
+                    sources: vec![signal.content.id.into()],
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("wsntxxn/cnn8rnn-audioset-sed")?,
+                min_score: 0.2,
+                limit: Some(5),
+                ..Default::default()
+            },
+        )
+        .await?;
 
     ctx.ack_progress().await?;
 
     if let Some(annotations) = annotations.first() {
         let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
         let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-        let input = labels.iter().map(|label| label.as_bytes()).collect::<Vec<_>>();
 
         tracing::debug!("generating label embeddings...");
-        let embeddings = nim::ai::pipelines::text::embeddings::run_with(
-            &input,
-            nim::ai::pipelines::text::embeddings::Options {
-                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
-            },
-        )?;
+        let embeddings = ctx
+            .runtime()
+            .pipelines()
+            .text()
+            .embeddings(
+                &labels,
+                nim::runtime::ai::TextEmbeddingsOptions {
+                    task: nim::runtime::TaskOptions {
+                        sources: vec![signal.content.id.into()],
+                        ..Default::default()
+                    },
+                    model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
+                },
+            )
+            .await?;
 
         ctx.ack_progress().await?;
 
         tracing::debug!("generating label categories...");
-        let label_annotations = nim::ai::pipelines::text::classify::run_with(
-            &input,
-            nim::ai::pipelines::text::classify::Options {
-                model: nim::ai::models::refer("facebook/bart-large-mnli")?,
-                labels: Some(vec![
-                    nim::state::Label::Entity.as_classify_label().to_string(),
-                    nim::state::Label::Valence.as_classify_label().to_string(),
-                    nim::state::Label::Emotion.as_classify_label().to_string(),
-                    nim::state::Label::Salience.as_classify_label().to_string(),
-                    nim::state::Label::Threat.as_classify_label().to_string(),
-                    nim::state::Label::Reward.as_classify_label().to_string(),
-                    nim::state::Label::Novelty.as_classify_label().to_string(),
-                    nim::state::Label::Familiarity.as_classify_label().to_string(),
-                    nim::state::Label::Confidence.as_classify_label().to_string(),
-                    nim::state::Label::SelfRelevance.as_classify_label().to_string(),
-                    nim::state::Label::SocialRelevance.as_classify_label().to_string(),
-                    nim::state::Label::Temporal.as_classify_label().to_string(),
-                    nim::state::Label::Spatial.as_classify_label().to_string(),
-                ]),
-                multi_label: true,
-                min_score: 0.2,
-                ..Default::default()
-            },
-        )?;
+        let label_annotations = ctx
+            .runtime()
+            .pipelines()
+            .text()
+            .classify(
+                &labels,
+                nim::runtime::ai::TextClassifyOptions {
+                    task: nim::runtime::TaskOptions {
+                        sources: vec![signal.content.id.into()],
+                        ..Default::default()
+                    },
+                    model: nim::ai::models::refer("facebook/bart-large-mnli")?,
+                    labels: Some(vec![
+                        nim::state::Label::Entity.as_classify_label().to_string(),
+                        nim::state::Label::Valence.as_classify_label().to_string(),
+                        nim::state::Label::Emotion.as_classify_label().to_string(),
+                        nim::state::Label::Salience.as_classify_label().to_string(),
+                        nim::state::Label::Threat.as_classify_label().to_string(),
+                        nim::state::Label::Reward.as_classify_label().to_string(),
+                        nim::state::Label::Novelty.as_classify_label().to_string(),
+                        nim::state::Label::Familiarity.as_classify_label().to_string(),
+                        nim::state::Label::Confidence.as_classify_label().to_string(),
+                        nim::state::Label::SelfRelevance.as_classify_label().to_string(),
+                        nim::state::Label::SocialRelevance.as_classify_label().to_string(),
+                        nim::state::Label::Temporal.as_classify_label().to_string(),
+                        nim::state::Label::Spatial.as_classify_label().to_string(),
+                    ]),
+                    multi_label: true,
+                    min_score: 0.2,
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         ctx.ack_progress().await?;
 

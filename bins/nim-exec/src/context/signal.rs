@@ -26,6 +26,10 @@ impl SignalContext {
         self.inner.services()
     }
 
+    pub fn runtime(&self) -> nim::runtime::Runtime<'_> {
+        nim::runtime::Runtime::new(&self.inner.pool, self.inner.signals.clone())
+    }
+
     pub fn signals(&self) -> &nim::signals::SourceClient {
         &self.signals
     }

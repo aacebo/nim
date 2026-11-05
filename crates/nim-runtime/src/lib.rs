@@ -1,5 +1,6 @@
 pub mod ai;
 mod error;
+mod models;
 mod tasks;
 
 pub use error::*;
@@ -14,5 +15,9 @@ impl<'a> Runtime<'a> {
         Self {
             _pipelines: ai::Pipelines::new(pool, signals),
         }
+    }
+
+    pub fn pipelines(&self) -> &ai::Pipelines<'a> {
+        &self._pipelines
     }
 }

@@ -10,7 +10,6 @@ pub struct Context {
     config: Config,
     pool: std::sync::Arc<sqlx::PgPool>,
     signals: std::sync::Arc<nim::signals::Client>,
-    _models: std::sync::Arc<nim::ai::Subscription>,
 }
 
 impl Context {
@@ -20,6 +19,10 @@ impl Context {
 
     pub fn services(&self) -> nim::state::Services<'_> {
         nim::state::Services::new(&self.pool)
+    }
+
+    pub fn runtime(&self) -> nim::runtime::Runtime<'_> {
+        nim::runtime::Runtime::new(&self.pool, self.signals.clone())
     }
 
     pub fn signals(&self) -> &nim::signals::Client {
@@ -44,14 +47,12 @@ impl Context {
         sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
         let signals = nim::signals::connect("vision", &config.nats_url).await?;
         let signals = std::sync::Arc::new(signals);
-        let models = std::sync::Arc::new(nim::runtime::models::persist(pool.as_ref().clone()).map_err(nim::Error::from)?);
 
         Ok(Self {
             span,
             config,
             pool,
             signals,
-            _models: models,
         })
     }
 }

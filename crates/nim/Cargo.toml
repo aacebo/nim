@@ -15,8 +15,8 @@ workspace = true
 default = []
 ai = ["dep:nim-ai"]
 runtime = ["dep:nim-runtime"]
-audio = ["nim-ai?/audio"]
-vision = ["nim-ai?/vision"]
+audio = ["nim-ai?/audio", "nim-runtime?/audio"]
+vision = ["nim-ai?/vision", "nim-runtime?/vision"]
 signals = ["dep:nim-signals"]
 
 [dependencies]

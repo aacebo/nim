@@ -1,6 +1,10 @@
 mod classify;
+mod embeddings;
+mod summarize;
 
 pub use classify::*;
+pub use embeddings::*;
+pub use summarize::*;
 
 pub struct TextPipelines<'a> {
     _signals: std::sync::Arc<nim_signals::Client>,

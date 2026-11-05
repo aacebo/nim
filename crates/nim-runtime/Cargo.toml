@@ -13,6 +13,8 @@ workspace = true
 
 [features]
 default = []
+audio = ["nim-ai/audio"]
+vision = ["nim-ai/vision"]
 
 [dependencies]
 chrono = { workspace = true }

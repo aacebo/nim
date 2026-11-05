@@ -102,7 +102,27 @@ pub(crate) async fn start<'a>(
         )
         .await?;
 
-    signals.publish("nim.task.start", task.clone()).await?;
+    if let Err(err) = signals.publish("nim.task.start", task.clone()).await {
+        if let Ok(task) = services
+            .tasks()
+            .update(
+                task.id,
+                nim_state::TaskUpdate {
+                    status: Some(nim_state::TaskStatus::Error {
+                        reason: err.to_string(),
+                        started_at,
+                        ended_at: chrono::Utc::now(),
+                    }),
+                    ..Default::default()
+                },
+            )
+            .await
+        {
+            let _ = signals.publish("nim.task.error", task).await;
+        }
+
+        return Err(err.into());
+    }
     Ok(task)
 }
 

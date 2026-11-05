@@ -30,6 +30,10 @@ impl SignalContext {
         &self.signals
     }
 
+    pub fn runtime(&self) -> nim::runtime::Runtime<'_> {
+        nim::runtime::Runtime::new(&self.inner.pool, self.inner.signals.clone())
+    }
+
     #[tracing::instrument(skip(self))]
     pub async fn ack(&self) -> Result<(), Error> {
         Ok(self.message.ack().await?)

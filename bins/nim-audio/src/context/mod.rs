@@ -10,7 +10,6 @@ pub struct Context {
     config: Config,
     pool: std::sync::Arc<sqlx::PgPool>,
     signals: std::sync::Arc<nim::signals::Client>,
-    _models: std::sync::Arc<nim::ai::Subscription>,
 }
 
 impl Context {
@@ -24,6 +23,10 @@ impl Context {
 
     pub fn signals(&self) -> &nim::signals::Client {
         &self.signals
+    }
+
+    pub fn runtime(&self) -> nim::runtime::Runtime<'_> {
+        nim::runtime::Runtime::new(&self.pool, self.signals.clone())
     }
 
     pub fn into_signal(self, id: uuid::Uuid, message: nim::signals::Message) -> SignalContext {
@@ -44,14 +47,12 @@ impl Context {
         sqlx::migrate!("../../crates/nim-store/migrations").run(pool.as_ref()).await?;
         let signals = nim::signals::connect("audio", &config.nats_url).await?;
         let signals = std::sync::Arc::new(signals);
-        let models = std::sync::Arc::new(nim::runtime::models::persist(pool.as_ref().clone()).map_err(nim::Error::from)?);
 
         Ok(Self {
             span,
             config,
             pool,
             signals,
-            _models: models,
         })
     }
 }

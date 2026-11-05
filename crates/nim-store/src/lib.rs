@@ -50,6 +50,7 @@ pub struct Storage<'a> {
     _message_tasks: MessageTasksStorage<'a>,
     _model_weights: ModelWeightStorage<'a>,
     _model_tasks: ModelTasksStorage<'a>,
+    _task_events: TaskEventStorage<'a>,
     _tasks: TaskStorage<'a>,
     _memory_recalls: MemoryRecallsStorage<'a>,
 }
@@ -77,6 +78,7 @@ impl<'a> Storage<'a> {
             _message_tasks: MessageTasksStorage::new(pool),
             _model_weights: ModelWeightStorage::new(pool),
             _model_tasks: ModelTasksStorage::new(pool),
+            _task_events: TaskEventStorage::new(pool),
             _tasks: TaskStorage::new(pool),
             _memory_recalls: MemoryRecallsStorage::new(pool),
         }
@@ -144,6 +146,10 @@ impl<'a> Storage<'a> {
 
     pub fn models(&self) -> ModelStorage<'a> {
         self._models
+    }
+
+    pub fn task_events(&self) -> TaskEventStorage<'a> {
+        self._task_events
     }
 
     pub fn tasks(&self) -> TaskStorage<'a> {

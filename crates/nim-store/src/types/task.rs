@@ -7,27 +7,9 @@ pub struct TaskRow {
     pub version: i32,
     pub name: String,
     pub source: sqlx::types::Json<Source>,
-    pub status: sqlx::types::Json<TaskStatus>,
+    pub status: sqlx::types::JsonValue,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "status", rename_all = "snake_case")]
-pub enum TaskStatus {
-    Pending,
-    Started {
-        started_at: chrono::DateTime<chrono::Utc>,
-    },
-    Complete {
-        started_at: chrono::DateTime<chrono::Utc>,
-        ended_at: chrono::DateTime<chrono::Utc>,
-    },
-    Error {
-        reason: String,
-        started_at: chrono::DateTime<chrono::Utc>,
-        ended_at: chrono::DateTime<chrono::Utc>,
-    },
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -55,5 +37,13 @@ pub struct ChatTaskRow {
 pub struct MessageTaskRow {
     pub message_id: uuid::Uuid,
     pub task_id: uuid::Uuid,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct TaskEventRow {
+    pub id: uuid::Uuid,
+    pub task_id: uuid::Uuid,
+    pub content: sqlx::types::JsonValue,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }

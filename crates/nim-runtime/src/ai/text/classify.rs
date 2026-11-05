@@ -1,6 +1,6 @@
 use nim_ai::{models::ModelRef, types::Annotation};
 
-use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines};
+use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct TextClassifyOptions {
@@ -9,7 +9,7 @@ pub struct TextClassifyOptions {
     pub limit: Option<usize>,
     pub labels: Option<Vec<String>>,
     pub multi_label: bool,
-    pub hypothesis_template: Option<String>,
+    pub hypothesis: Option<String>,
     pub task: TaskOptions,
 }
 
@@ -23,7 +23,7 @@ impl Default for TextClassifyOptions {
             limit: options.limit,
             labels: options.labels,
             multi_label: options.multi_label,
-            hypothesis_template: options.hypothesis_template,
+            hypothesis: options.hypothesis_template,
             task: Default::default(),
         }
     }
@@ -37,7 +37,7 @@ impl From<TextClassifyOptions> for nim_ai::pipelines::text::classify::Options {
             limit: options.limit,
             labels: options.labels,
             multi_label: options.multi_label,
-            hypothesis_template: options.hypothesis_template,
+            hypothesis_template: options.hypothesis,
         }
     }
 }
@@ -92,35 +92,17 @@ impl<'a> TextPipelines<'a> {
             })
             .await?;
 
-        let task = self
-            ._services
-            .tasks()
-            .create(nim_state::TaskCreate {
-                parent_id: options.task.parent_id,
-                name: "text_classify".into(),
-                source: nim_state::Source::System,
-            })
-            .await?;
+        let mut options = options;
 
-        self._services.tasks().link_model(model.id, task.id).await?;
-
-        for source in &options.task.sources {
-            match source {
-                TaskSource::Artifact(id) => {
-                    self._services.tasks().link_artifact(*id, task.id).await?;
-                }
-                TaskSource::Chat(id) => {
-                    self._services.tasks().link_chat(*id, task.id).await?;
-                }
-                TaskSource::Message(id) => {
-                    self._services.tasks().link_message(*id, task.id).await?;
-                }
-            };
+        if !options.task.sources.contains(&TaskSource::Model(model.id)) {
+            options.task.sources.push(TaskSource::Model(model.id));
         }
 
-        self._signals.publish("nim.task.create", task).await?;
-        let input = input.iter().map(|v| v.as_ref().as_bytes()).collect::<Vec<_>>();
-        let out = nim_ai::pipelines::text::classify::run_with(&input, options.into())?;
+        let out = task_run!(self, "text_classify", &options, {
+            let input = input.iter().map(|v| v.as_ref().as_bytes()).collect::<Vec<_>>();
+            nim_ai::pipelines::text::classify::run_with(&input, options.into())
+        })?;
+
         Ok(out)
     }
 }

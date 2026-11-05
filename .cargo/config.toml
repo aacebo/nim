@@ -2,11 +2,18 @@
 jobs = -1
 warnings = "deny"
 
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+
 [doc]
 rustdocflags = ["-D", "warnings"]
 
 [env]
 RUST_BACKTRACE = "1"
+CARGO_NET_OFFLINE = "true"
 
 [net]
 retry = 3

@@ -13,6 +13,8 @@ services:
       POSTGRES_DB: main
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
+    volumes:
+      - postgres:/var/lib/postgresql/data
     healthcheck:
       test: pg_isready -U admin -d main
       interval: 10s
@@ -43,7 +45,9 @@ services:
       NIM_CACHE: /.cache
     volumes:
       - .:/app
-      - /app/target
+      - target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - staging:/.staging
       - ./.cache:/.cache
     healthcheck:
@@ -70,7 +74,9 @@ services:
       NIM_CACHE: /.cache
     volumes:
       - .:/app
-      - /app/target
+      - target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - ./.cache:/.cache
     depends_on:
       gateway:
@@ -88,7 +94,9 @@ services:
       NIM_CACHE: /.cache
     volumes:
       - .:/app
-      - /app/target
+      - target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - ./.cache:/.cache
     depends_on:
       gateway:
@@ -106,7 +114,9 @@ services:
       NIM_CACHE: /.cache
     volumes:
       - .:/app
-      - /app/target
+      - target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - staging:/.staging
       - ./.cache:/.cache
     depends_on:
@@ -125,7 +135,9 @@ services:
       NIM_CACHE: /.cache
     volumes:
       - .:/app
-      - /app/target
+      - target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - staging:/.staging
       - ./.cache:/.cache
     depends_on:
@@ -144,7 +156,9 @@ services:
       NIM_CACHE: /.cache
     volumes:
       - .:/app
-      - /app/target
+      - target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - staging:/.staging
       - ./.cache:/.cache
     depends_on:
@@ -163,12 +177,18 @@ services:
       NIM_CACHE: /.cache
     volumes:
       - .:/app
-      - /app/target
+      - target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - ./.cache:/.cache
     depends_on:
       gateway:
         condition: service_healthy
 
 volumes:
+  postgres:
+  target:
+  cargo-registry:
+  cargo-git:
   nats:
   staging:

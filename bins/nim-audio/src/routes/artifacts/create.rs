@@ -142,9 +142,9 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .runtime()
             .pipelines()
             .text()
-            .embeddings(
+            .embed(
                 &labels,
-                nim::runtime::ai::TextEmbeddingsOptions {
+                nim::runtime::ai::TextEmbedOptions {
                     task: nim::runtime::TaskOptions {
                         sources: vec![signal.content.id.into()],
                         ..Default::default()

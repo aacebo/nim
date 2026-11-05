@@ -100,9 +100,9 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
                     .runtime()
                     .pipelines()
                     .text()
-                    .embeddings(
+                    .embed(
                         &labels,
-                        nim::runtime::ai::TextEmbeddingsOptions {
+                        nim::runtime::ai::TextEmbedOptions {
                             task: nim::runtime::TaskOptions {
                                 sources: vec![message.id.into(), message.chat_id.into()],
                                 ..Default::default()

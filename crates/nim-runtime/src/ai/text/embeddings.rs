@@ -3,12 +3,12 @@ use nim_ai::{models::ModelRef, types::Artifact};
 use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
 #[derive(Debug, Clone)]
-pub struct TextEmbeddingsOptions {
+pub struct TextEmbedOptions {
     pub model: ModelRef,
     pub task: TaskOptions,
 }
 
-impl Default for TextEmbeddingsOptions {
+impl Default for TextEmbedOptions {
     fn default() -> Self {
         let options = nim_ai::pipelines::text::embeddings::Options::default();
 
@@ -19,14 +19,14 @@ impl Default for TextEmbeddingsOptions {
     }
 }
 
-impl From<TextEmbeddingsOptions> for nim_ai::pipelines::text::embeddings::Options {
-    fn from(options: TextEmbeddingsOptions) -> Self {
+impl From<TextEmbedOptions> for nim_ai::pipelines::text::embeddings::Options {
+    fn from(options: TextEmbedOptions) -> Self {
         Self { model: options.model }
     }
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn embeddings<T>(&self, input: &[T], options: TextEmbeddingsOptions) -> Result<Vec<Artifact>, Error>
+    pub async fn embed<T>(&self, input: &[T], options: TextEmbedOptions) -> Result<Vec<Artifact>, Error>
     where
         T: AsRef<str>,
     {

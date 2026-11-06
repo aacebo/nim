@@ -30,6 +30,7 @@ pub use sqlx::types::Json;
 
 #[derive(Copy, Clone)]
 pub struct Storage<'a> {
+    _search: SearchStorage<'a>,
     _chats: ChatStorage<'a>,
     _messages: MessageStorage<'a>,
     _chat_entities: ChatEntitiesStorage<'a>,
@@ -58,6 +59,7 @@ pub struct Storage<'a> {
 impl<'a> Storage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self {
+            _search: SearchStorage::new(pool),
             _chats: ChatStorage::new(pool),
             _messages: MessageStorage::new(pool),
             _chat_entities: ChatEntitiesStorage::new(pool),
@@ -82,6 +84,10 @@ impl<'a> Storage<'a> {
             _tasks: TaskStorage::new(pool),
             _memory_recalls: MemoryRecallsStorage::new(pool),
         }
+    }
+
+    pub fn search(&self) -> SearchStorage<'a> {
+        self._search
     }
 
     pub fn chats(&self) -> ChatStorage<'a> {

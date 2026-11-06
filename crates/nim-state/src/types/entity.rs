@@ -9,6 +9,7 @@ pub struct Entity {
     pub name: String,
     pub summary: Option<String>,
     pub confidence: f32,
+    #[serde(skip)]
     pub embedding: Option<Embedding>,
     pub recalls: u64,
     pub recalled_at: Option<chrono::DateTime<chrono::Utc>>,

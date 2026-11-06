@@ -5,6 +5,7 @@ pub struct Chat {
     pub id: ChatId,
     pub version: Version,
     pub summary: Option<String>,
+    #[serde(skip)]
     pub embedding: Option<Embedding>,
     pub confidence: f32,
     pub last_analyzed_id: Option<MessageId>,

@@ -1,4 +1,4 @@
-use crate::{MemoryFilter, MemoryType, SearchItem, types};
+use crate::types;
 
 #[derive(Copy, Clone)]
 pub struct MemoryStorage<'a> {
@@ -90,58 +90,6 @@ impl<'a> MemoryStorage<'a> {
         .bind(relation_id)
         .fetch_all(self.pool)
         .await
-    }
-
-    #[tracing::instrument(skip_all)]
-    pub async fn search(
-        &self,
-        embedding: &[f32],
-        filter: MemoryFilter,
-    ) -> Result<Vec<SearchItem<types::MemoryRow>>, sqlx::Error> {
-        #[derive(askama::Template)]
-        #[template(
-            ext = "txt",
-            source = "
-                SELECT
-                    (1 - LEAST(artifacts.distance, annotations.distance))::real AS similarity,
-                    memories.*
-                FROM memories
-                LEFT JOIN (
-                    SELECT memories_artifacts.memory_id, MIN(artifacts.embedding <=> $1::vector) AS distance
-                    FROM artifacts
-                    JOIN memories_artifacts ON memories_artifacts.artifact_id = artifacts.id
-                    WHERE artifacts.embedding IS NOT NULL
-                    GROUP BY memories_artifacts.memory_id
-                ) AS artifacts ON artifacts.memory_id = memories.id
-                LEFT JOIN (
-                    SELECT memories_artifacts.memory_id, MIN(annotations.embedding <=> $1::vector) AS distance
-                    FROM artifact_annotations AS annotations
-                    JOIN memories_artifacts ON memories_artifacts.artifact_id = annotations.artifact_id
-                    WHERE annotations.embedding IS NOT NULL
-                    GROUP BY memories_artifacts.memory_id
-                ) AS annotations ON annotations.memory_id = memories.id
-                WHERE (artifacts.distance IS NOT NULL OR annotations.distance IS NOT NULL)
-                {% if ty.is_some() %}
-                AND memories.type = $2
-                {% endif %}
-                AND (1 - LEAST(artifacts.distance, annotations.distance))::real >= $4
-                ORDER BY LEAST(artifacts.distance, annotations.distance), memories.id
-                LIMIT $3;
-            "
-        )]
-        struct Query {
-            ty: Option<MemoryType>,
-        }
-
-        let query = Query { ty: filter.ty };
-
-        sqlx::query_as(sqlx::AssertSqlSafe(query.to_string()))
-            .bind(pgvector::Vector::from(embedding.to_vec()))
-            .bind(filter.ty)
-            .bind(filter.limit.map(|v| v as i64).unwrap_or(10))
-            .bind(filter.min_score.unwrap_or(0.2))
-            .fetch_all(self.pool)
-            .await
     }
 
     #[tracing::instrument(skip(self))]

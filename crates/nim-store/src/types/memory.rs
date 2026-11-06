@@ -2,11 +2,12 @@ use crate::Source;
 
 use super::Context;
 
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
 pub struct MemoryRow {
     pub id: uuid::Uuid,
     pub version: i32,
     #[sqlx(rename = "type")]
+    #[serde(rename = "type")]
     pub ty: MemoryType,
     pub sources: sqlx::types::Json<Vec<Source>>,
     pub contexts: sqlx::types::Json<Vec<Context>>,
@@ -26,7 +27,8 @@ pub struct MemoryRelationRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, sqlx::Type)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "text", rename_all = "snake_case")]
 pub enum MemoryType {
     Episodic,

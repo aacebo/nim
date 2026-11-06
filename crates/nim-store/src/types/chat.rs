@@ -1,8 +1,9 @@
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
 pub struct ChatRow {
     pub id: uuid::Uuid,
     pub version: i32,
     pub summary: Option<String>,
+    #[serde(skip)]
     pub embedding: Option<pgvector::Vector>,
     pub confidence: f32,
     pub last_analyzed_id: Option<uuid::Uuid>,

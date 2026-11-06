@@ -10,6 +10,7 @@ pub struct Artifact {
     #[serde(flatten)]
     pub content: ArtifactContent,
     pub summary: Option<String>,
+    #[serde(skip)]
     pub embedding: Option<Embedding>,
     pub confidence: f32,
     pub salience: f32,

@@ -55,8 +55,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     let memory = if let Some(embedding) = summary.vector.as_deref() {
         ctx.services()
-            .memories()
-            .search(
+            .search()
+            .memories(
                 embedding,
                 nim::store::MemoryFilter {
                     ty: Some(nim::store::MemoryType::Working),

@@ -33,8 +33,8 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
 
     let results = ctx
         .services()
-        .memories()
-        .search(
+        .search()
+        .memories(
             embedding.as_slice(),
             nim::store::MemoryFilter {
                 limit: Some(10),

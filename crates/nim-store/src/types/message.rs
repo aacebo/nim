@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
 pub struct MessageRow {
     pub id: uuid::Uuid,
     pub chat_id: uuid::Uuid,
@@ -7,6 +7,7 @@ pub struct MessageRow {
     pub role: Role,
     pub content: sqlx::types::JsonValue,
     pub summary: Option<String>,
+    #[serde(skip)]
     pub embedding: Option<pgvector::Vector>,
     pub confidence: f32,
     pub created_at: chrono::DateTime<chrono::Utc>,

@@ -4,7 +4,6 @@ mod find_by_artifact_id;
 mod find_by_entity_id;
 mod find_by_id;
 mod link;
-mod search;
 mod unlink;
 mod update;
 

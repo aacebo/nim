@@ -2,6 +2,7 @@ mod artifacts;
 mod chats;
 mod health;
 mod memories;
+mod search;
 
 use crate::Context;
 
@@ -11,4 +12,5 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
         .merge(memories::new())
         .merge(chats::new())
         .route("/health", axum::routing::get(health::route))
+        .route("/search", axum::routing::get(search::route))
 }

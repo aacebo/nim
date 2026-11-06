@@ -6,6 +6,7 @@ mod memory;
 mod message;
 mod model;
 mod recall;
+mod search;
 mod task;
 mod types;
 
@@ -17,6 +18,7 @@ pub use memory::*;
 pub use message::*;
 pub use model::*;
 pub use recall::*;
+pub use search::*;
 pub use task::*;
 pub use types::*;
 
@@ -24,6 +26,7 @@ pub use nim_store::Page;
 
 #[derive(Copy, Clone)]
 pub struct Services<'a> {
+    _search: SearchService<'a>,
     _chats: ChatService<'a>,
     _messages: MessageService<'a>,
     _artifacts: ArtifactService<'a>,
@@ -37,6 +40,7 @@ pub struct Services<'a> {
 impl<'a> Services<'a> {
     pub fn new(pool: &'a nim_store::PgPool) -> Self {
         Self {
+            _search: SearchService::new(pool),
             _chats: ChatService::new(pool),
             _messages: MessageService::new(pool),
             _artifacts: ArtifactService::new(pool),
@@ -46,6 +50,10 @@ impl<'a> Services<'a> {
             _recalls: RecallService::new(pool),
             _tasks: TaskService::new(pool),
         }
+    }
+
+    pub fn search(&self) -> SearchService<'a> {
+        self._search
     }
 
     pub fn chats(&self) -> ChatService<'a> {

@@ -11,6 +11,7 @@ pub struct Message {
     pub role: Role,
     pub content: MessageContent,
     pub summary: Option<String>,
+    #[serde(skip)]
     pub embedding: Option<Embedding>,
     pub confidence: f32,
     pub created_at: chrono::DateTime<chrono::Utc>,

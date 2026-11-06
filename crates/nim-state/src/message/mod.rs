@@ -8,7 +8,6 @@ mod find_annotations;
 mod find_by_chat_id;
 mod find_by_id;
 mod find_by_parent_id;
-mod search;
 mod update;
 mod update_annotation;
 

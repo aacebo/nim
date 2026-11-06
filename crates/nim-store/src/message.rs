@@ -1,4 +1,4 @@
-use crate::{MessageFilter, Page, SearchItem, types};
+use crate::{Page, types};
 
 #[derive(Copy, Clone)]
 pub struct MessageStorage<'a> {
@@ -97,35 +97,6 @@ impl<'a> MessageStorage<'a> {
         .bind(cursor_at)
         .bind(cursor_id)
         .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
-        .fetch_all(self.pool)
-        .await
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub async fn search(
-        &self,
-        embedding: &[f32],
-        filter: MessageFilter,
-    ) -> Result<Vec<SearchItem<types::MessageRow>>, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            SELECT
-                (1 - (embedding <=> $1::vector))::real AS similarity,
-                messages.*
-            FROM messages
-            WHERE embedding IS NOT NULL
-            AND (1 - (embedding <=> $1::vector))::real >= $2
-            AND ($4::uuid IS NULL OR chat_id = $4)
-            AND ($5::text IS NULL OR role = $5)
-            ORDER BY embedding <=> $1::vector, id
-            LIMIT $3
-            "#,
-        )
-        .bind(pgvector::Vector::from(embedding.to_vec()))
-        .bind(filter.min_score.unwrap_or(0.2))
-        .bind(filter.limit.map(|value| value as i64).unwrap_or(10))
-        .bind(filter.chat_id)
-        .bind(filter.role)
         .fetch_all(self.pool)
         .await
     }

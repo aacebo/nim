@@ -4,7 +4,6 @@ mod find_by_artifact_id;
 mod find_by_id;
 mod find_by_relation_id;
 mod relate;
-mod search;
 mod unrelate;
 mod update;
 

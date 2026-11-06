@@ -34,10 +34,10 @@ pub async fn route(ctx: HttpContext, query: axum::extract::Query<Query>) -> axum
 
     let items = ctx
         .services()
-        .chats()
-        .search(
+        .search()
+        .all(
             embedding,
-            nim::store::ChatFilter {
+            nim::store::Filter {
                 limit: Some(10),
                 min_score: Some(0.5),
             },

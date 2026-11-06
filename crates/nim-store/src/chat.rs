@@ -1,4 +1,4 @@
-use crate::{ChatFilter, SearchItem, types};
+use crate::types;
 
 #[derive(Copy, Clone)]
 pub struct ChatStorage<'a> {
@@ -59,27 +59,6 @@ impl<'a> ChatStorage<'a> {
             "#,
         )
         .bind(artifact_id)
-        .fetch_all(self.pool)
-        .await
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub async fn search(&self, embedding: &[f32], filter: ChatFilter) -> Result<Vec<SearchItem<types::ChatRow>>, sqlx::Error> {
-        sqlx::query_as(
-            r#"
-            SELECT
-                (1 - (embedding <=> $1::vector))::real AS similarity,
-                chats.*
-            FROM chats
-            WHERE embedding IS NOT NULL
-            AND (1 - (embedding <=> $1::vector))::real >= $2
-            ORDER BY embedding <=> $1::vector, id
-            LIMIT $3
-            "#,
-        )
-        .bind(pgvector::Vector::from(embedding.to_vec()))
-        .bind(filter.min_score.unwrap_or(0.2))
-        .bind(filter.limit.map(|value| value as i64).unwrap_or(10))
         .fetch_all(self.pool)
         .await
     }

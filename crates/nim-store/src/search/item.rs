@@ -18,14 +18,14 @@ impl<T> SearchItem<T> {
 
 impl<'r, T> sqlx::FromRow<'r, sqlx::postgres::PgRow> for SearchItem<T>
 where
-    T: sqlx::FromRow<'r, sqlx::postgres::PgRow>,
+    T: serde::de::DeserializeOwned,
 {
     fn from_row(row: &'r sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
         use sqlx::Row;
 
         Ok(Self {
             score: row.try_get("similarity")?,
-            inner: T::from_row(row)?,
+            inner: row.try_get::<sqlx::types::Json<T>, _>("inner")?.into_inner(),
         })
     }
 }

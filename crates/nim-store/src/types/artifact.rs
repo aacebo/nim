@@ -1,9 +1,10 @@
-#[derive(Debug, Clone, sqlx::FromRow)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
 pub struct ArtifactRow {
     pub id: uuid::Uuid,
     pub version: i32,
     pub name: String,
     pub summary: Option<String>,
+    #[serde(skip)]
     pub embedding: Option<pgvector::Vector>,
     pub confidence: f32,
     pub salience: f32,

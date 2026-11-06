@@ -10,7 +10,7 @@ services:
       - --web.enable-remote-write-receiver
       - --log.level=error
     volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
       - prometheus:/prometheus
 
   loki:
@@ -21,7 +21,7 @@ services:
     command:
       - -config.file=/etc/loki/local-config.yaml
     volumes:
-      - ./loki.yaml:/etc/loki/local-config.yaml:ro
+      - ./infra/loki.yaml:/etc/loki/local-config.yaml:ro
       - loki:/loki
 
   tempo:
@@ -30,7 +30,7 @@ services:
     command:
       - -config.file=/etc/tempo/config.yaml
     volumes:
-      - ./tempo.yaml:/etc/tempo/config.yaml:ro
+      - ./infra/tempo.yaml:/etc/tempo/config.yaml:ro
       - tempo:/var/tempo
 
   grafana:
@@ -44,9 +44,9 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
       - grafana:/var/lib/grafana
-      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
-      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./infra/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./infra/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
       - loki
@@ -68,7 +68,7 @@ services:
     environment:
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-nim}
     volumes:
-      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./infra/telegraf.conf:/etc/telegraf/telegraf.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   alloy:
@@ -86,7 +86,7 @@ services:
       - --storage.path=/var/lib/alloy/data
       - /etc/alloy/config.alloy
     volumes:
-      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - ./infra/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy:/var/lib/alloy/data
     depends_on:

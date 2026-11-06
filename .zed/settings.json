@@ -17,6 +17,9 @@
                     "workspace": true,
                     "allTargets": true,
                 },
+                "rust": {
+                  "analyzerTargetDir": true
+                }
             },
         },
     },

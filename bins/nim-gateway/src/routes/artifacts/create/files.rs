@@ -112,5 +112,5 @@ pub async fn route(
         artifacts.push(artifact);
     }
 
-    Ok(axum::Json(artifacts).into_response())
+    Ok((axum::http::StatusCode::CREATED, axum::Json(artifacts)).into_response())
 }

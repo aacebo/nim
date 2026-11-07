@@ -2,8 +2,9 @@ use candle_core::Device;
 use tokenizers::Tokenizer;
 
 use crate::Error;
-use crate::pipelines::common::Batch;
 use crate::types::{Annotation, Span};
+
+use super::Batch;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Generation {
@@ -16,8 +17,43 @@ pub trait Generate: Send + Sync {
 }
 
 /// A sentence vector per input.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum EmbedMode {
+    #[default]
+    Raw,
+    Query,
+    Document,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EmbedOptions {
+    pub mode: EmbedMode,
+    pub instruction: Option<String>,
+    pub dimensions: Option<usize>,
+}
+
+impl EmbedOptions {
+    pub fn validate(&self) -> Result<(), Error> {
+        if self.instruction.is_some() && self.mode != EmbedMode::Query {
+            return Err(Error::custom("ai::config", "embedding instructions require query mode"));
+        }
+
+        Ok(())
+    }
+}
+
 pub trait Embed: Send + Sync {
     fn embed(&self, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error>;
+
+    fn embed_with(&self, ctx: &Context, input: &[&[u8]], options: &EmbedOptions) -> Result<Vec<Vec<f32>>, Error> {
+        options.validate()?;
+
+        if options != &EmbedOptions::default() {
+            return Err(Error::custom("ai::config", "model does not support embedding options"));
+        }
+
+        self.embed(ctx, input)
+    }
 }
 
 pub trait Classify: Send + Sync {

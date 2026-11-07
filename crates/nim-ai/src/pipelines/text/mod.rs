@@ -1,6 +1,5 @@
 pub mod classify;
 pub mod embeddings;
-pub mod generate;
 pub mod summarize;
 
 /// Default models, one per capability. A model that cannot serve the routine you called is an

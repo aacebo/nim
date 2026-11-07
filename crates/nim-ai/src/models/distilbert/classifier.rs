@@ -3,7 +3,6 @@ use candle_nn::{Linear, Module, VarBuilder, ops};
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
-use crate::pipelines::common::decode_text;
 use crate::tasks::{aggregation, classification, decode_entities};
 use crate::types::Annotation;
 
@@ -102,7 +101,10 @@ impl Forward for Classifier {
 
 impl Classify for Classifier {
     fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
         if options.labels.is_some()

@@ -5,6 +5,7 @@ use crate::{Error, TaskOptions, TaskSource, ai::ImagePipelines, task_run};
 #[derive(Debug, Clone)]
 pub struct ImageCaptionsOptions {
     pub model: ModelRef,
+    pub embedding: nim_ai::pipelines::text::embeddings::Options,
     pub beams: Option<usize>,
     pub max_len: Option<usize>,
     pub task: TaskOptions,
@@ -16,6 +17,7 @@ impl Default for ImageCaptionsOptions {
 
         Self {
             model: options.model,
+            embedding: options.embedding,
             beams: options.beams,
             max_len: options.max_len,
             task: Default::default(),
@@ -27,6 +29,7 @@ impl From<ImageCaptionsOptions> for nim_ai::pipelines::images::captions::Options
     fn from(options: ImageCaptionsOptions) -> Self {
         Self {
             model: options.model,
+            embedding: options.embedding,
             beams: options.beams,
             max_len: options.max_len,
         }

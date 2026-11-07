@@ -1,5 +1,4 @@
 use crate::Error;
-use crate::pipelines::common::decode_text;
 use crate::tasks::{anchor, zero_shot};
 use crate::types::{Annotation, Offset, Span};
 
@@ -45,7 +44,10 @@ struct Item {
 /// endpoint. This is the full remote row of the capability matrix.
 impl Embed for RemoteModel {
     fn embed(&self, _ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         if text.is_empty() {
             return Ok(Vec::new());
         }
@@ -56,7 +58,10 @@ impl Embed for RemoteModel {
 
 impl Classify for RemoteModel {
     fn classify(&self, _ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
         let out = match (options.mode, options.labels) {
@@ -263,7 +268,10 @@ impl Generate for RemoteModel {
             ));
         }
 
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         let prompt = options.prompt.unwrap_or(
             "Summarize the text the user gives you. Be concise and factual; use only information present in the text.",
         );

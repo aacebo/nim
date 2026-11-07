@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     name            TEXT            NOT NULL,
     content         JSONB           NOT NULL,
     summary         TEXT,
-    embedding       VECTOR(384),
+    embedding       VECTOR(768),
     confidence      REAL            NOT NULL DEFAULT 0.0,
     salience        REAL            NOT NULL DEFAULT 0.0,
     strength        REAL            NOT NULL DEFAULT 0.0,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS artifact_annotations (
     text            TEXT            NOT NULL,
     spans           JSONB           NOT NULL,
     confidence      REAL            NOT NULL,
-    embedding       VECTOR(384),
+    embedding       VECTOR(768),
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );

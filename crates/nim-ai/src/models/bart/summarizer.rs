@@ -5,10 +5,9 @@ use candle_nn::VarBuilder;
 
 use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
-use crate::pipelines::common::decode_text;
-use crate::pipelines::text::generate;
 
 use super::config::Config;
+use super::generate;
 use super::model::Bart;
 
 /// BART behind the `Generate` capability.
@@ -49,7 +48,10 @@ impl Generate for Summarizer {
             ));
         }
 
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         let mut generation = self.generation;
 
         if let Some(beams) = options.beams {

@@ -7,7 +7,6 @@ use candle_transformers::models::{quantized_qwen2, qwen2};
 
 use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
-use crate::pipelines::common::decode_text;
 
 use super::Config;
 
@@ -153,7 +152,10 @@ impl Generate for Generator {
             ));
         }
 
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         text.iter().map(|text| self.one(ctx, text, &options)).collect()
     }
 }

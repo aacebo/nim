@@ -1,12 +1,16 @@
 use crate::Error;
 use crate::models::{GenerateOptions, ModelRef, load};
 use crate::pipelines::text;
+use crate::pipelines::text::embeddings::Options as EmbeddingOptions;
 use crate::tasks;
 use crate::types::Artifact;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
     pub model: ModelRef,
+
+    #[serde(default)]
+    pub embedding: EmbeddingOptions,
 
     #[serde(default)]
     pub beams: Option<usize>,
@@ -19,6 +23,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             model: super::defaults::captions(),
+            embedding: Default::default(),
             beams: None,
             max_len: None,
         }
@@ -41,11 +46,12 @@ pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Erro
     };
 
     let captions = tasks::generate(capable, &model.context(), input, generation_options)?;
-    let out = text::embeddings::run(
+    let out = text::embeddings::run_with(
         &captions
             .iter()
             .map(|generation| generation.text.as_bytes())
             .collect::<Vec<_>>(),
+        options.embedding,
     )?;
     let out = out
         .into_iter()

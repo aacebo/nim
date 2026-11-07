@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS messages (
     role            TEXT            NOT NULL,
     content         JSONB           NOT NULL,
     summary         TEXT,
-    embedding       VECTOR(384),
+    embedding       VECTOR(768),
     confidence      REAL            NOT NULL DEFAULT 0.0,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS message_annotations (
     text            TEXT            NOT NULL,
     spans           JSONB           NOT NULL,
     confidence      REAL            NOT NULL,
-    embedding       VECTOR(384),
+    embedding       VECTOR(768),
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );

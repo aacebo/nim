@@ -6,7 +6,7 @@ use crate::{Error, SignalContext};
 #[tracing::instrument(skip(ctx, signal))]
 pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Error> {
     let message = signal.content;
-    let content = message.content.to_string();
+    let content = message.content.to_string().to_lowercase();
     let artifacts = ctx
         .runtime()
         .pipelines()
@@ -14,6 +14,14 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
         .summarize(
             &[content.as_str()],
             nim::runtime::ai::TextSummarizeOptions {
+                embedding: nim::ai::pipelines::text::embeddings::Options {
+                    model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
+                    embedding: nim::ai::models::EmbedOptions {
+                        mode: nim::ai::models::EmbedMode::Document,
+                        dimensions: Some(768),
+                        ..Default::default()
+                    },
+                },
                 task: nim::runtime::TaskOptions {
                     sources: vec![message.id.into(), message.chat_id.into()],
                     ..Default::default()
@@ -41,7 +49,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
 
         if let Some(text) = artifact.value.as_str() {
             // Named entities: people, organizations, locations
-
             tracing::debug!("extracting entities...");
 
             let annotations = ctx
@@ -94,7 +101,6 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
             if !annotations.is_empty() {
                 let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
                 let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
-
                 tracing::debug!("generating label embeddings...");
                 let embeddings = ctx
                     .runtime()
@@ -103,17 +109,21 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
                     .embed(
                         &labels,
                         nim::runtime::ai::TextEmbedOptions {
+                            embedding: nim::ai::models::EmbedOptions {
+                                mode: nim::ai::models::EmbedMode::Document,
+                                dimensions: Some(768),
+                                ..Default::default()
+                            },
                             task: nim::runtime::TaskOptions {
                                 sources: vec![message.id.into(), message.chat_id.into()],
                                 ..Default::default()
                             },
-                            model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
+                            model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
                         },
                     )
                     .await?;
 
                 ctx.ack_progress().await?;
-
                 tracing::debug!("generating label categories...");
                 let label_annotations = ctx
                     .runtime()

@@ -1,6 +1,5 @@
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed};
-use crate::pipelines::common::decode_text;
 use crate::tasks;
 use crate::types::{Annotation, Span};
 
@@ -22,7 +21,10 @@ impl<E: Embed> Embed for KeyBert<E> {
 
 impl<E: Embed> Classify for KeyBert<E> {
     fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
         if options.mode != ClassifyMode::Regions

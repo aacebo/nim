@@ -45,7 +45,7 @@ impl<'a> SearchStorage<'a> {
                 WHERE (artifacts.distance IS NOT NULL OR annotations.distance IS NOT NULL)
                 AND ($2::text IS NULL OR memories.type = $2)
                 AND (1 - LEAST(artifacts.distance, annotations.distance))::real >= $4
-                ORDER BY LEAST(artifacts.distance, annotations.distance), memories.id
+                ORDER BY similarity DESC, memories.created_at DESC, memories.id
                 LIMIT $3;
             "#,
         )
@@ -67,7 +67,7 @@ impl<'a> SearchStorage<'a> {
             FROM chats
             WHERE embedding IS NOT NULL
             AND (1 - (embedding <=> $1::vector))::real >= $2
-            ORDER BY embedding <=> $1::vector, id
+            ORDER BY similarity DESC, created_at DESC, id
             LIMIT $3
             "#,
         )
@@ -94,7 +94,7 @@ impl<'a> SearchStorage<'a> {
             AND (1 - (embedding <=> $1::vector))::real >= $2
             AND ($4::uuid IS NULL OR chat_id = $4)
             AND ($5::text IS NULL OR role = $5)
-            ORDER BY embedding <=> $1::vector, id
+            ORDER BY similarity DESC, created_at DESC, id
             LIMIT $3
             "#,
         )
@@ -123,7 +123,7 @@ impl<'a> SearchStorage<'a> {
             ) AS annotations ON annotations.artifact_id = artifacts.id
             WHERE (artifacts.embedding IS NOT NULL OR annotations.distance IS NOT NULL)
             AND (1 - LEAST(artifacts.embedding <=> $1::vector, annotations.distance))::real >= $2
-            ORDER BY LEAST(artifacts.embedding <=> $1::vector, annotations.distance), artifacts.id
+            ORDER BY similarity DESC, artifacts.created_at DESC, artifacts.id
             LIMIT $3
             "#,
         )
@@ -175,7 +175,7 @@ impl<'a> SearchStorage<'a> {
             )
             SELECT similarity, "inner" FROM records
             WHERE similarity >= $2
-            ORDER BY created_at DESC, record_type, id
+            ORDER BY similarity DESC, created_at DESC, record_type, id
             LIMIT $3
             "#,
         )

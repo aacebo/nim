@@ -6,7 +6,6 @@ use tokenizers::{TruncationParams, TruncationStrategy};
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
-use crate::pipelines::common::decode_text;
 use crate::tasks::zero_shot::{self, softmax};
 use crate::types::{Annotation, Offset, Span};
 
@@ -212,7 +211,10 @@ impl Forward for ZeroShotClassifier {
 
 impl Classify for ZeroShotClassifier {
     fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
-        let text = decode_text(input)?;
+        let text = input
+            .iter()
+            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
         let out = match (options.mode, options.labels) {

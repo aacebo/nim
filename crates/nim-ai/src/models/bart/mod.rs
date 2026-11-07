@@ -4,6 +4,7 @@ mod config;
 mod decoder;
 mod embeddings;
 mod encoder;
+pub mod generate;
 mod model;
 mod summarizer;
 mod zero_shot;

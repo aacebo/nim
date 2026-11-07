@@ -5,6 +5,7 @@ use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines, task_run};
 #[derive(Debug, Clone)]
 pub struct TextSummarizeOptions {
     pub model: ModelRef,
+    pub embedding: nim_ai::pipelines::text::embeddings::Options,
     pub beams: Option<usize>,
     pub max_len: Option<usize>,
     pub task: TaskOptions,
@@ -16,6 +17,7 @@ impl Default for TextSummarizeOptions {
 
         Self {
             model: options.model,
+            embedding: options.embedding,
             beams: options.beams,
             max_len: options.max_len,
             task: Default::default(),
@@ -27,6 +29,7 @@ impl From<TextSummarizeOptions> for nim_ai::pipelines::text::summarize::Options 
     fn from(options: TextSummarizeOptions) -> Self {
         Self {
             model: options.model,
+            embedding: options.embedding,
             beams: options.beams,
             max_len: options.max_len,
         }

@@ -6,12 +6,12 @@ use crate::{Error, SignalContext};
 #[tracing::instrument(skip(ctx, signal))]
 pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Error> {
     let text = match &signal.content.content {
-        nim::state::ArtifactContent::Text { text } => text.clone(),
+        nim::state::ArtifactContent::Text { text } => text.to_lowercase(),
         nim::state::ArtifactContent::File {
             path,
             size: _,
             media_type: _,
-        } => tokio::fs::read_to_string(path).await?,
+        } => tokio::fs::read_to_string(path).await?.to_lowercase(),
     };
 
     tracing::debug!("summarizing...");
@@ -22,6 +22,14 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         .summarize(
             &[&text],
             nim::runtime::ai::TextSummarizeOptions {
+                embedding: nim::ai::pipelines::text::embeddings::Options {
+                    model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
+                    embedding: nim::ai::models::EmbedOptions {
+                        mode: nim::ai::models::EmbedMode::Document,
+                        dimensions: Some(768),
+                        ..Default::default()
+                    },
+                },
                 task: nim::runtime::TaskOptions {
                     sources: vec![signal.content.id.into()],
                     ..Default::default()
@@ -174,11 +182,16 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .embed(
                 &labels,
                 nim::runtime::ai::TextEmbedOptions {
+                    embedding: nim::ai::models::EmbedOptions {
+                        mode: nim::ai::models::EmbedMode::Document,
+                        dimensions: Some(768),
+                        ..Default::default()
+                    },
                     task: nim::runtime::TaskOptions {
                         sources: vec![signal.content.id.into()],
                         ..Default::default()
                     },
-                    model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
+                    model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
                 },
             )
             .await?;

@@ -13,6 +13,9 @@ pub enum ModelType {
     Llama,
     Mistral,
     Qwen2,
+    Qwen3,
+    #[serde(rename = "gemma3_text")]
+    Gemma3Text,
     T5,
     #[serde(rename = "mobilenet_v2")]
     MobileNetV2,
@@ -36,6 +39,8 @@ impl ModelType {
             Self::Llama => "llama",
             Self::Mistral => "mistral",
             Self::Qwen2 => "qwen2",
+            Self::Qwen3 => "qwen3",
+            Self::Gemma3Text => "gemma3_text",
             Self::T5 => "t5",
             Self::MobileNetV2 => "mobilenet_v2",
             Self::Detr => "detr",
@@ -60,6 +65,8 @@ impl std::str::FromStr for ModelType {
             "llama" => Self::Llama,
             "mistral" => Self::Mistral,
             "qwen2" => Self::Qwen2,
+            "qwen3" => Self::Qwen3,
+            "gemma3_text" => Self::Gemma3Text,
             "t5" => Self::T5,
             "mobilenet_v2" => Self::MobileNetV2,
             "detr" => Self::Detr,

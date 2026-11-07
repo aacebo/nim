@@ -1,6 +1,5 @@
 use crate::Error;
 use crate::models::{Context, Embed};
-use crate::pipelines::common::decode_text;
 use crate::types::Keyword;
 
 use super::{candidates, scorer};
@@ -9,7 +8,10 @@ use super::{candidates, scorer};
 /// to the document. Any embedder will do -- which is the point of taking `&dyn Embed` rather than
 /// a concrete model.
 pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
-    let text = decode_text(input)?;
+    let text = input
+        .iter()
+        .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+        .collect::<Result<Vec<_>, _>>()?;
     text.iter().map(|text| one(model, ctx, text, top_n)).collect()
 }
 

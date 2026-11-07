@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS entities (
     name        TEXT            NOT NULL,
     summary     TEXT,
     confidence  REAL            NOT NULL,
-    embedding   VECTOR(384),
+    embedding   VECTOR(768),
     recalls     BIGINT          NOT NULL,
     recalled_at TIMESTAMPTZ,
     created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),

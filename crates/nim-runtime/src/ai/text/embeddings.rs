@@ -1,10 +1,11 @@
-use nim_ai::{models::ModelRef, types::Artifact};
+use nim_ai::{models::EmbedOptions, models::ModelRef, types::Artifact};
 
 use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct TextEmbedOptions {
     pub model: ModelRef,
+    pub embedding: EmbedOptions,
     pub task: TaskOptions,
 }
 
@@ -14,6 +15,7 @@ impl Default for TextEmbedOptions {
 
         Self {
             model: options.model,
+            embedding: options.embedding,
             task: Default::default(),
         }
     }
@@ -21,7 +23,10 @@ impl Default for TextEmbedOptions {
 
 impl From<TextEmbedOptions> for nim_ai::pipelines::text::embeddings::Options {
     fn from(options: TextEmbedOptions) -> Self {
-        Self { model: options.model }
+        Self {
+            model: options.model,
+            embedding: options.embedding,
+        }
     }
 }
 

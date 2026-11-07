@@ -22,6 +22,14 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         .captions(
             &[bytes.as_slice()],
             nim::runtime::ai::AudioCaptionsOptions {
+                embedding: nim::ai::pipelines::text::embeddings::Options {
+                    model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
+                    embedding: nim::ai::models::EmbedOptions {
+                        mode: nim::ai::models::EmbedMode::Document,
+                        dimensions: Some(768),
+                        ..Default::default()
+                    },
+                },
                 task: nim::runtime::TaskOptions {
                     sources: vec![signal.content.id.into()],
                     ..Default::default()
@@ -110,8 +118,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
 
     ctx.ack_progress().await?;
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
-
     tracing::debug!("classifying audio...");
+
     let annotations = ctx
         .runtime()
         .pipelines()
@@ -145,18 +153,23 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
             .embed(
                 &labels,
                 nim::runtime::ai::TextEmbedOptions {
+                    embedding: nim::ai::models::EmbedOptions {
+                        mode: nim::ai::models::EmbedMode::Document,
+                        dimensions: Some(768),
+                        ..Default::default()
+                    },
+                    model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
                     task: nim::runtime::TaskOptions {
                         sources: vec![signal.content.id.into()],
                         ..Default::default()
                     },
-                    model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")?,
                 },
             )
             .await?;
 
         ctx.ack_progress().await?;
-
         tracing::debug!("generating label categories...");
+
         let label_annotations = ctx
             .runtime()
             .pipelines()

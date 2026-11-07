@@ -21,6 +21,16 @@ pub fn embed<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]]) -> Re
     model.embed(ctx, input)
 }
 
+pub fn embed_with<E: Embed + ?Sized>(
+    model: &E,
+    ctx: &Context,
+    input: &[&[u8]],
+    options: &crate::models::EmbedOptions,
+) -> Result<Vec<Vec<f32>>, Error> {
+    options.validate()?;
+    model.embed_with(ctx, input, options)
+}
+
 /// KeyBERT, over any embedder -- local or hosted. Previously this only worked locally, by
 /// special-casing a call into the embeddings pipeline's cache.
 pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {

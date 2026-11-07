@@ -2,7 +2,6 @@ use unicode_categories::UnicodeCategories;
 
 use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
-use crate::pipelines::common::decode_text;
 use crate::types::{Annotation, Offset, Span};
 
 use super::{char_offset, classify};
@@ -40,7 +39,10 @@ pub fn entities<C: Classify + ?Sized>(
         ..options.clone()
     };
 
-    let text = decode_text(input)?;
+    let text = input
+        .iter()
+        .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+        .collect::<Result<Vec<_>, _>>()?;
 
     text.iter()
         .map(|text| {

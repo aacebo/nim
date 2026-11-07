@@ -15,7 +15,12 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
         .embed(
             &[&body.text],
             nim::runtime::ai::TextEmbedOptions {
-                model: nim::ai::models::refer("sentence-transformers/all-MiniLM-L12-v2")
+                embedding: nim::ai::models::EmbedOptions {
+                    mode: nim::ai::models::EmbedMode::Query,
+                    dimensions: Some(768),
+                    ..Default::default()
+                },
+                model: nim::ai::models::refer("unsloth/embeddinggemma-300m")
                     .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?,
                 ..Default::default()
             },

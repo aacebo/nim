@@ -7,16 +7,19 @@ pub mod cnn8rnn;
 #[cfg(feature = "vision")]
 pub mod detr;
 pub mod distilbert;
+pub mod embeddinggemma;
 #[cfg(feature = "vision")]
 pub mod git;
 pub mod keybert;
 #[cfg(feature = "vision")]
 pub mod mobilenet;
 pub mod qwen2;
+pub mod qwen3;
 #[cfg(feature = "audio")]
 pub mod whisper;
 
 mod architecture;
+mod batch;
 mod cache;
 mod capability;
 mod loader;
@@ -29,6 +32,7 @@ mod remote;
 mod tokenizer;
 
 pub use architecture::*;
+pub use batch::Batch;
 use cache::*;
 pub use capability::*;
 pub use loader::*;
@@ -123,6 +127,8 @@ pub enum AnyModel {
     DistilBertSequenceClassifier(distilbert::Classifier),
     Summarizer(bart::Summarizer),
     QwenGenerator(qwen2::Generator),
+    QwenEmbedder(qwen3::Embedder),
+    GemmaEmbedder(embeddinggemma::Embedder),
     #[cfg(feature = "vision")]
     VisionClassifier(mobilenet::Classifier),
     #[cfg(feature = "vision")]
@@ -221,6 +227,8 @@ impl Model {
             ModelType::Whisper => {
                 return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
             }
+            ModelType::Qwen3 => AnyModel::QwenEmbedder(qwen3::Embedder::new(&repo)?),
+            ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::Embedder::new(&repo)?),
             ModelType::Bart => {
                 let config: bart::Config = repo.config()?;
 
@@ -350,6 +358,8 @@ impl Model {
 
     pub fn as_embed(&self) -> Option<&dyn Embed> {
         match &self.model {
+            AnyModel::QwenEmbedder(model) => Some(model),
+            AnyModel::GemmaEmbedder(model) => Some(model),
             AnyModel::Embedder(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,

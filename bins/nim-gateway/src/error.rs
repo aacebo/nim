@@ -21,6 +21,18 @@ impl From<nim::Error> for Error {
     }
 }
 
+impl From<nim::ai::Error> for Error {
+    fn from(value: nim::ai::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
+impl From<nim::runtime::Error> for Error {
+    fn from(value: nim::runtime::Error) -> Self {
+        Self::Core(value.into())
+    }
+}
+
 impl From<nim::signals::Error> for Error {
     fn from(value: nim::signals::Error) -> Self {
         Self::Core(value.into())
@@ -146,6 +158,12 @@ impl axum::response::IntoResponse for Error {
             Self::Http(err) => err,
             Self::Multipart(err) => err.into_response(),
             Self::Valid(err) => (axum::http::StatusCode::BAD_REQUEST, axum::Json(err)).into_response(),
+            Self::Core(err) => match err {
+                nim::Error::State(nim::state::Error::Sql(sqlx::Error::RowNotFound)) => {
+                    axum::http::StatusCode::NOT_FOUND.into_response()
+                }
+                _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            },
             err => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response(),
         }
     }

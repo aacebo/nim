@@ -5,6 +5,7 @@ mod delete_annotation;
 mod find_annotation;
 mod find_annotation_by_label;
 mod find_annotations;
+mod find_by_chat_id;
 mod find_by_id;
 mod find_by_memory_id;
 mod link;

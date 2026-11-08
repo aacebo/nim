@@ -1,4 +1,4 @@
-use crate::types;
+use crate::{Page, types};
 
 #[derive(Copy, Clone)]
 pub struct ChatStorage<'a> {
@@ -8,6 +8,35 @@ pub struct ChatStorage<'a> {
 impl<'a> ChatStorage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self { pool }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find(&self, page: Page) -> Result<Vec<types::ChatRow>, sqlx::Error> {
+        let (cursor_id, cursor_at) = page.cursor.unzip();
+
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                version,
+                summary,
+                embedding,
+                confidence,
+                last_analyzed_id,
+                last_analyzed_at,
+                created_at,
+                updated_at
+            FROM chats
+            WHERE ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
+            ORDER BY created_at, id
+            LIMIT $3
+            "#,
+        )
+        .bind(cursor_at)
+        .bind(cursor_id)
+        .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
+        .fetch_all(self.pool)
+        .await
     }
 
     #[tracing::instrument(skip(self))]

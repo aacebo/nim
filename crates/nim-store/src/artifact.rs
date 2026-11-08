@@ -1,4 +1,4 @@
-use crate::types;
+use crate::{Page, types};
 
 #[derive(Copy, Clone)]
 pub struct ArtifactStorage<'a> {
@@ -32,6 +32,40 @@ impl<'a> ArtifactStorage<'a> {
         )
         .bind(id)
         .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_chat_id(&self, chat_id: uuid::Uuid, page: Page) -> Result<Vec<types::ArtifactRow>, sqlx::Error> {
+        let (cursor_id, cursor_at) = page.cursor.unzip();
+
+        sqlx::query_as(
+            r#"
+            SELECT
+                artifacts.id,
+                artifacts.version,
+                artifacts.name,
+                artifacts.content,
+                artifacts.summary,
+                artifacts.embedding,
+                artifacts.confidence,
+                artifacts.salience,
+                artifacts.strength,
+                artifacts.created_at,
+                artifacts.updated_at
+            FROM artifacts
+            JOIN chats_artifacts ON chats_artifacts.artifact_id = artifacts.id
+            WHERE chats_artifacts.chat_id = $1
+            AND ($2::timestamptz IS NULL OR (artifacts.created_at, artifacts.id) > ($2, $3::uuid))
+            ORDER BY artifacts.created_at, artifacts.id
+            LIMIT $4
+            "#,
+        )
+        .bind(chat_id)
+        .bind(cursor_at)
+        .bind(cursor_id)
+        .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
+        .fetch_all(self.pool)
         .await
     }
 

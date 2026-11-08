@@ -1,6 +1,6 @@
 use axum::response::IntoResponse;
 
-use crate::http::HttpContext;
+use crate::{Error, http::HttpContext};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 pub struct Query {
@@ -32,13 +32,12 @@ pub async fn route(ctx: HttpContext, query: axum::extract::Query<Query>) -> axum
                     dimensions: Some(768),
                     ..Default::default()
                 },
-                model: nim::ai::models::refer("unsloth/embeddinggemma-300m")
-                    .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?,
+                model: nim::ai::models::refer("unsloth/embeddinggemma-300m").map_err(Error::from)?,
                 task: Default::default(),
             },
         )
         .await
-        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+        .map_err(Error::from)?;
 
     let Some(artifact) = artifacts.first() else {
         return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR.into());
@@ -59,7 +58,7 @@ pub async fn route(ctx: HttpContext, query: axum::extract::Query<Query>) -> axum
             },
         )
         .await
-        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+        .map_err(Error::from)?;
 
     Ok(axum::Json(items).into_response())
 }

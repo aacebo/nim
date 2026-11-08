@@ -1,7 +1,7 @@
 use axum::response::IntoResponse;
 
-use crate::extract;
 use crate::http::HttpContext;
+use crate::{Error, extract};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Params {
@@ -19,13 +19,7 @@ pub async fn route(
     params: axum::extract::Path<Params>,
     body: extract::Json<Body>,
 ) -> axum::response::Result<axum::response::Response> {
-    let chat = ctx
-        .services()
-        .chats()
-        .find_by_id(params.chat_id)
-        .await
-        .map_err(|err| (axum::http::StatusCode::NOT_FOUND, err.to_string()).into_response())?;
-
+    let chat = ctx.services().chats().find_by_id(params.chat_id).await.map_err(Error::from)?;
     let message = ctx
         .services()
         .messages()
@@ -36,12 +30,12 @@ pub async fn route(
             content: body.content.clone(),
         })
         .await
-        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+        .map_err(Error::from)?;
 
     ctx.signals()
         .publish("nim.message.create", message.clone())
         .await
-        .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?;
+        .map_err(Error::from)?;
 
     Ok((axum::http::StatusCode::CREATED, axum::Json(message)).into_response())
 }

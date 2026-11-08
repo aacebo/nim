@@ -22,6 +22,7 @@ collapsible_if = "allow"
 
 [workspace.dependencies]
 axum = { version = "0.8" }
+askama = { version = "0.16" }
 mime = { version = "0.3" }
 mime_guess = { version = "2" }
 heck = { version = "0.5" }

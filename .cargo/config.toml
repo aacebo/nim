@@ -13,7 +13,6 @@ rustdocflags = ["-D", "warnings"]
 
 [env]
 RUST_BACKTRACE = "1"
-CARGO_NET_OFFLINE = "true"
 
 [net]
 retry = 3

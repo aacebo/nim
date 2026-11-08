@@ -1,0 +1,26 @@
+:root {
+    color-scheme: dark;
+    background: #04030c;
+}
+
+body {
+    margin: 0;
+}
+
+main {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background:
+        radial-gradient(ellipse at 38% 38%, #0b1749, transparent 48%),
+        radial-gradient(ellipse at 64% 66%, #310c35, transparent 52%),
+        #04030c;
+}
+
+#orb {
+    display: block;
+    width: min(94vw, 90vh, 760px);
+    width: min(94vw, 90dvh, 760px);
+    aspect-ratio: 1;
+}

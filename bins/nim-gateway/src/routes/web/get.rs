@@ -12,10 +12,15 @@ use axum::{
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>Hello World</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Nim</title>
+        <link rel="stylesheet" href="/web/static/orb.css">
+        <script src="/web/static/orb.js" defer></script>
     </head>
     <body>
-        <h1>Hello World</h1>
+        <main>
+            <canvas id="orb" role="img" aria-label="A glowing blue and magenta orb with drifting beads"></canvas>
+        </main>
     </body>
 </html>"#
 )]

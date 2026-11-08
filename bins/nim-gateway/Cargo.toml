@@ -26,3 +26,6 @@ tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "sig
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 futures-util = { workspace = true }
+
+tower = { version = "0.5", features = ["make", "util"] }
+tower-http = { version = "0.7", features = ["fs", "normalize-path"] }

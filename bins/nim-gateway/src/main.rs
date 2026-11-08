@@ -8,6 +8,7 @@ pub use config::*;
 pub use context::*;
 pub use error::*;
 
+use tower::Layer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -31,6 +32,7 @@ async fn main() -> Result<(), Error> {
         .merge(routes::new())
         .layer(axum::middleware::from_fn_with_state(state.clone(), context::http::middleware))
         .with_state(state.clone());
+    let app = tower_http::normalize_path::NormalizePathLayer::trim_trailing_slash().layer(app);
     let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", state.port)).await?;
     axum::serve(listener, app).with_graceful_shutdown(stop()).await?;

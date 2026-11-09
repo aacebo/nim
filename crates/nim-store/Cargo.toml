@@ -16,6 +16,7 @@ uuid.workspace = true
 chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_valid.workspace = true
 tracing.workspace = true
 
 sqlx = { workspace = true, features = ["runtime-tokio", "migrate", "derive", "postgres", "uuid", "chrono", "json"] }

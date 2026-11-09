@@ -1,9 +1,9 @@
-use async_nats::jetstream;
+use async_nats::{jetstream, service::ServiceExt};
 use opentelemetry::propagation::TextMapPropagator;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::{Error, Signal, Stream, headers::NatsInjector};
+use crate::{Error, Service, ServiceError, Signal, Stream, ToSignal, headers::NatsInjector};
 
 #[derive(Clone)]
 pub struct Client {
@@ -26,6 +26,12 @@ impl Client {
             source_id,
             inner: self.clone(),
         }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn service(&self, name: &str, version: &str) -> Result<Service, Error> {
+        let service = self.context.client().service_builder().start(name, version).await?;
+        Ok(service.into())
     }
 
     #[tracing::instrument(
@@ -81,6 +87,56 @@ impl Client {
         let stream = consumer.messages().await?;
         Ok(Stream::new(stream, self.propagator.clone()))
     }
+
+    #[tracing::instrument(
+        name = "signal.request",
+        skip(self, signal),
+        fields(otel.kind = "client", messaging.system = "nats"),
+    )]
+    pub async fn request<S, T, R>(&self, subject: S, signal: T) -> Result<Signal<R>, Error>
+    where
+        S: std::fmt::Debug + async_nats::ToSubject,
+        T: std::fmt::Debug + serde::Serialize,
+        R: std::fmt::Debug + for<'a> serde::Deserialize<'a>,
+    {
+        self.request_signal(subject, Signal::from(signal)).await
+    }
+
+    async fn request_signal<S, T, R>(&self, subject: S, signal: Signal<T>) -> Result<Signal<R>, Error>
+    where
+        S: async_nats::ToSubject,
+        T: serde::Serialize,
+        R: for<'a> serde::Deserialize<'a>,
+    {
+        let bytes = serde_json::to_vec(&signal)?;
+        let context = tracing::Span::current().context();
+        let mut headers = async_nats::HeaderMap::new();
+        headers.insert("nim-source-service", format!("nim-{}", self.name));
+        self.propagator
+            .inject_context(&context, &mut NatsInjector::from(&mut headers));
+        let message = self
+            .context
+            .client()
+            .request_with_headers(subject, headers, bytes.into())
+            .await?;
+
+        if let Some(headers) = &message.headers
+            && let Some(status) = headers.get(async_nats::service::NATS_SERVICE_ERROR)
+        {
+            let code = headers
+                .get(async_nats::service::NATS_SERVICE_ERROR_CODE)
+                .and_then(|value| value.as_str().parse().ok())
+                .unwrap_or_default();
+
+            return Err(ServiceError {
+                status: status.as_str().to_string(),
+                code,
+            }
+            .into());
+        }
+
+        message.to_signal()
+    }
 }
 
 pub struct SourceClient {
@@ -120,5 +176,22 @@ impl SourceClient {
             .await?
             .await?;
         Ok(())
+    }
+
+    #[tracing::instrument(
+        name = "signal.request",
+        skip(self, signal),
+        fields(otel.kind = "client", messaging.system = "nats"),
+    )]
+    pub async fn request<S, T, R>(&self, subject: S, signal: T) -> Result<Signal<R>, Error>
+    where
+        S: std::fmt::Debug + async_nats::ToSubject,
+        T: std::fmt::Debug + serde::Serialize,
+        R: std::fmt::Debug + for<'a> serde::Deserialize<'a>,
+    {
+        let mut signal = Signal::from(signal);
+        signal.source_id = Some(self.source_id);
+
+        self.inner.request_signal(subject, signal).await
     }
 }

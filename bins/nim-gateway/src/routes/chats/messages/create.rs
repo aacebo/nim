@@ -11,6 +11,9 @@ pub struct Params {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 pub struct Body {
     #[validate]
+    pub role: nim::state::Role,
+
+    #[validate]
     pub content: nim::state::MessageContent,
 }
 
@@ -26,7 +29,7 @@ pub async fn route(
         .create(nim::state::MessageCreate {
             chat_id: chat.id,
             parent_id: None,
-            role: nim::state::Role::User,
+            role: body.role,
             content: body.content.clone(),
         })
         .await

@@ -13,7 +13,7 @@ workspace = true
 
 [dependencies]
 nim = { workspace = true, features = ["runtime", "ai", "signals"] }
-axum = { workspace = true, features = ["multipart"] }
+axum = { workspace = true, features = ["multipart", "ws"] }
 askama = { workspace = true, features = ["serde_json"] }
 mime = { workspace = true }
 mime_guess = { workspace = true }

@@ -18,9 +18,35 @@ main {
         #04030c;
 }
 
-#orb {
+#orb-trigger {
+    -webkit-appearance: none;
+    appearance: none;
     display: block;
     width: min(94vw, 90vh, 760px);
     width: min(94vw, 90dvh, 760px);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+#orb-trigger:focus-visible {
+    outline: 2px solid #b9c8ff;
+    outline-offset: 2px;
+}
+
+#orb {
+    display: block;
+    width: 100%;
     aspect-ratio: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #orb-trigger:active {
+        outline: 2px solid #f1b7f1;
+        outline-offset: 2px;
+    }
 }

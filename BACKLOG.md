@@ -1,5 +1,10 @@
 # Backlog
 
+## Orb
+
+1. Changes colors based on emotion.
+2. Animation should change when speaking to match voice.
+
 ## Errors
 
 Error nesting/rollup.

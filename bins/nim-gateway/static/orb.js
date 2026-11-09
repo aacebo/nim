@@ -1,5 +1,6 @@
 const canvas = document.querySelector("#orb");
 const context = canvas.getContext("2d");
+const trigger = document.querySelector("#orb-trigger");
 
 if (context) {
     animateOrb();
@@ -15,6 +16,14 @@ function animateOrb() {
     const tiltSin = Math.sin(tilt);
     const rollCos = Math.cos(roll);
     const rollSin = Math.sin(roll);
+    const gradientStops = [0, 0.34, 0.62, 0.86, 1];
+    const palettes = [
+        [[0, 231, 255], [70, 114, 255], [156, 87, 255], [240, 46, 255], [255, 88, 200]],
+        [[103, 107, 255], [129, 121, 255], [189, 143, 255], [247, 105, 203], [255, 118, 155]],
+        [[18, 245, 182], [48, 200, 227], [64, 139, 255], [127, 87, 255], [191, 104, 255]],
+    ];
+    const transitionDuration = 18;
+    const rippleDuration = 1.5;
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
     const beads = Array.from({ length: 760 }, (_, index) => ({
         latitude: Math.asin(2 * Math.random() - 1),
@@ -38,6 +47,10 @@ function animateOrb() {
     let frame;
     let previous;
     let time = 0;
+    let ripple;
+    let rippleFront;
+    let rippleStrength;
+    let rippleGlow;
 
     function direction(latitude, longitude) {
         const ring = Math.cos(latitude);
@@ -64,11 +77,64 @@ function animateOrb() {
         point.x = x * scale;
         point.y = y * scale;
         point.z = z;
+        applyRipple(point);
+    }
+
+    function applyRipple(point, amplitude = 1) {
+        point.glow = 0;
+
+        if (!ripple) {
+            return;
+        }
+
+        const dx = point.x / radius - ripple.x;
+        const dy = point.y / radius - ripple.y;
+        const distance = Math.hypot(dx, dy);
+        const wave = (distance - rippleFront) / 0.21;
+        const band = Math.exp(-wave * wave);
+        const displacement = amplitude * rippleStrength * Math.cos(wave * 1.7) * band;
+        const scale = displacement / Math.max(distance, 0.09);
+
+        point.x += dx * scale;
+        point.y += dy * scale;
+        point.glow = band;
+    }
+
+    function startRipple(event) {
+        if (reducedMotion.matches || document.hidden) {
+            return;
+        }
+
+        const bounds = canvas.getBoundingClientRect();
+        const pointer = event.detail > 0;
+        ripple = {
+            x: pointer ? (event.clientX - bounds.left - bounds.width / 2) / radius : 0,
+            y: pointer ? (event.clientY - bounds.top - bounds.height / 2) / radius : 0,
+            start: time,
+        };
+    }
+
+    function gradient() {
+        const position = time / transitionDuration;
+        const index = Math.floor(position);
+        const progress = position - index;
+        const blend = progress * progress * (3 - 2 * progress);
+        const from = palettes[index % palettes.length];
+        const to = palettes[(index + 1) % palettes.length];
+        const result = context.createLinearGradient(-radius * 0.83, -radius, radius * 0.65, radius);
+
+        for (let stop = 0; stop < gradientStops.length; stop++) {
+            const channels = from[stop].map((channel, i) => channel + (to[stop][i] - channel) * blend);
+            result.addColorStop(gradientStops[stop], `rgb(${channels.join(", ")})`);
+        }
+
+        return result;
     }
 
     function drawMesh() {
         const near = new Path2D();
         const far = new Path2D();
+        const crest = ripple ? new Path2D() : undefined;
 
         for (let row = 0; row <= latitudeSteps; row++) {
             for (let column = 0; column < longitudeSteps; column++) {
@@ -80,6 +146,11 @@ function animateOrb() {
             const path = start.z + end.z >= 0 ? near : far;
             path.moveTo(start.x, start.y);
             path.lineTo(end.x, end.y);
+
+            if (crest && path === near && start.glow + end.glow > 1.2) {
+                crest.moveTo(start.x, start.y);
+                crest.lineTo(end.x, end.y);
+            }
         }
 
         for (let row = 0; row <= latitudeSteps; row++) {
@@ -100,12 +171,21 @@ function animateOrb() {
         context.lineWidth = 0.55;
         context.globalAlpha = 0.21;
         context.stroke(far);
-        context.lineWidth = 3.6;
-        context.globalAlpha = 0.14;
+        context.lineWidth = 2.4;
+        context.globalAlpha = 0.11;
         context.stroke(near);
         context.lineWidth = 0.75;
         context.globalAlpha = 0.87;
         context.stroke(near);
+
+        if (crest) {
+            context.lineWidth = 3.4;
+            context.globalAlpha = rippleGlow * 0.3;
+            context.stroke(crest);
+            context.lineWidth = 1.6;
+            context.globalAlpha = rippleGlow;
+            context.stroke(crest);
+        }
     }
 
     function drawBeads() {
@@ -123,14 +203,16 @@ function animateOrb() {
                 beadPoint.x = Math.cos(longitude) * distance;
                 beadPoint.y = Math.sin(longitude) * distance;
                 beadPoint.z = 0;
+                applyRipple(beadPoint, 0.5);
             } else {
                 const latitude = bead.latitude + 0.026 * Math.cos(phase);
                 project(direction(latitude, longitude), beadPoint);
             }
 
             const light = beadPoint.z < 0 ? 0.33 : 1;
-            const dot = bead.size * (0.82 + 0.28 * pulse) * Math.max(0.67, size / 760);
-            context.globalAlpha = light * (0.44 + 0.52 * pulse);
+            const glow = ripple ? beadPoint.glow * rippleGlow : 0;
+            const dot = bead.size * (0.82 + 0.28 * pulse + 0.6 * glow) * Math.max(0.67, size / 760);
+            context.globalAlpha = light * Math.min(1, 0.44 + 0.52 * pulse + glow);
             context.beginPath();
             context.arc(beadPoint.x, beadPoint.y, dot, 0, turn);
             context.fill();
@@ -138,8 +220,20 @@ function animateOrb() {
     }
 
     function draw() {
+        if (ripple) {
+            const progress = (time - ripple.start) / rippleDuration;
+
+            if (progress >= 1) {
+                ripple = undefined;
+            } else {
+                rippleFront = progress * 2.5;
+                rippleGlow = Math.min(progress * 18, 1) * (1 - progress);
+                rippleStrength = radius * 0.0425 * rippleGlow;
+            }
+        }
+
+        color = gradient();
         context.clearRect(-size / 2, -size / 2, size, size);
-        context.globalCompositeOperation = "lighter";
         drawMesh();
         drawBeads();
         context.globalAlpha = 1;
@@ -149,15 +243,9 @@ function animateOrb() {
         size = canvas.getBoundingClientRect().width;
         const pixels = Math.round(size * Math.min(devicePixelRatio, 2));
         canvas.width = canvas.height = pixels;
-        radius = size * 0.395;
+        radius = size * 0.38;
         const scale = pixels / size;
         context.setTransform(scale, 0, 0, scale, pixels / 2, pixels / 2);
-        color = context.createLinearGradient(-radius * 0.83, -radius, radius * 0.65, radius);
-        color.addColorStop(0, "#00e7ff");
-        color.addColorStop(0.34, "#4672ff");
-        color.addColorStop(0.62, "#9c57ff");
-        color.addColorStop(0.86, "#f02eff");
-        color.addColorStop(1, "#ff58c8");
         draw();
     }
 
@@ -175,13 +263,17 @@ function animateOrb() {
         cancelAnimationFrame(frame);
         previous = undefined;
 
-        if (!document.hidden && !reducedMotion.matches) {
+        if (reducedMotion.matches) {
+            ripple = undefined;
+            draw();
+        } else if (!document.hidden) {
             frame = requestAnimationFrame(tick);
         }
     }
 
     resize();
     syncMotion();
+    trigger.addEventListener("click", startRipple);
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", syncMotion);
     reducedMotion.addEventListener("change", syncMotion);

@@ -14,12 +14,14 @@ use axum::{
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Nim</title>
-        <link rel="stylesheet" href="/web/static/orb.css">
-        <script src="/web/static/orb.js" defer></script>
+        <link rel="stylesheet" href="/web/static/orb.css?v=2">
+        <script src="/web/static/orb.js?v=5" defer></script>
     </head>
     <body>
         <main>
-            <canvas id="orb" role="img" aria-label="A glowing blue and magenta orb with drifting beads"></canvas>
+            <button id="orb-trigger" type="button" aria-label="Ripple the glowing AI orb">
+                <canvas id="orb" aria-hidden="true"></canvas>
+            </button>
         </main>
     </body>
 </html>"#

@@ -5,21 +5,22 @@
 1. Changes colors based on emotion.
 2. Animation should change when speaking to match voice.
 
+## Websockets
+
+Add web websockets for live activity.
+
 ## Errors
 
 Error nesting/rollup.
-
-## Tasks
-
-Create a task for every inference run linked to its artifact/message/chat.
 
 ## Worker Healthchecks
 
 Add http endpoints for metrics/health to workers for observability.
 
-## Blackbox
+## Inference
 
-Add blackbox for service up/down status view in grafana.
+Add inference loop to `nim-exec` that uses qwen starting weights then performs live
+weight updates.
 
 ## Platt Scaling
 

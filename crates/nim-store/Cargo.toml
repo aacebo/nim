@@ -21,4 +21,5 @@ tracing.workspace = true
 
 sqlx = { workspace = true, features = ["runtime-tokio", "migrate", "derive", "postgres", "uuid", "chrono", "json"] }
 askama = { workspace = true, default-features = false, features = ["std", "alloc", "derive"] }
+hex = { version = "0.4" }
 pgvector = { version = "0.4.2", features = ["sqlx"] }

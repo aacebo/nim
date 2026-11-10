@@ -12,7 +12,7 @@ impl<'a> ChatStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn find(&self, page: Page) -> Result<Vec<types::ChatRow>, sqlx::Error> {
-        let (cursor_id, cursor_at) = page.cursor.unzip();
+        let (cursor_id, cursor_at) = page.cursor.map(|cursor| (cursor.id, cursor.timestamp)).unzip();
 
         sqlx::query_as(
             r#"

@@ -37,7 +37,7 @@ impl<'a> ArtifactStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn find_by_chat_id(&self, chat_id: uuid::Uuid, page: Page) -> Result<Vec<types::ArtifactRow>, sqlx::Error> {
-        let (cursor_id, cursor_at) = page.cursor.unzip();
+        let (cursor_id, cursor_at) = page.cursor.map(|cursor| (cursor.id, cursor.timestamp)).unzip();
 
         sqlx::query_as(
             r#"

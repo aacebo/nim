@@ -22,7 +22,7 @@ pub use search::*;
 pub use task::*;
 pub use types::*;
 
-pub use nim_store::Page;
+pub use nim_store::{Cursor, Page};
 
 #[derive(Copy, Clone)]
 pub struct Services<'a> {

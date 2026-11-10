@@ -2598,6 +2598,7 @@ version = "0.0.0"
 dependencies = [
  "askama",
  "chrono",
+ "hex",
  "pgvector",
  "serde",
  "serde_json",

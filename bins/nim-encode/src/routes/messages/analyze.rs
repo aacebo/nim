@@ -1,6 +1,6 @@
 use nim::{
     signals::Signal,
-    state::{Message, Page},
+    state::{Cursor, Message, Page},
 };
 
 use crate::{Error, SignalContext};
@@ -11,7 +11,10 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
     let cursor = chat
         .last_analyzed_id
         .zip(chat.last_analyzed_at)
-        .map(|(id, at)| (id.into(), at));
+        .map(|(id, timestamp)| Cursor {
+            id: id.into(),
+            timestamp,
+        });
     let messages = ctx
         .services()
         .messages()

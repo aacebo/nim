@@ -16,10 +16,10 @@ use axum::{
         <title>Nim</title>
         <link rel="stylesheet" href="/web/static/orb.css?v=2">
         <link rel="stylesheet" href="/web/static/hud.css?v=11">
-        <link rel="stylesheet" href="/web/static/memory.css?v=8">
+        <link rel="stylesheet" href="/web/static/memory.css?v=9">
         <script src="/web/static/client.js" defer></script>
         <script src="/web/static/orb.js?v=5" defer></script>
-        <script src="/web/static/memory.js?v=7" defer></script>
+        <script src="/web/static/memory.js?v=9" defer></script>
         <script src="/web/static/hud.js?v=10" defer></script>
     </head>
     <body>
@@ -145,17 +145,12 @@ use axum::{
                                 <stop stop-color="#506c90" stop-opacity=".04"/>
                                 <stop offset="1" stop-color="#506c90" stop-opacity=".23"/>
                             </linearGradient>
-                            <linearGradient id="memory-horizon-light" gradientUnits="userSpaceOnUse" x1="0" x2="1200" y1="440" y2="440">
-                                <stop stop-color="#ffdba2" stop-opacity=".9"/>
-                                <stop offset=".31" stop-color="#e6b271" stop-opacity=".04"/>
-                                <stop offset=".62" stop-color="#e6b271" stop-opacity=".12"/>
-                                <stop offset=".83" stop-color="#f2c589" stop-opacity=".7"/>
-                                <stop offset="1" stop-color="#ffdba2" stop-opacity=".08"/>
-                            </linearGradient>
+                            <radialGradient id="memory-horizon-bloom">
+                                <stop stop-color="#ffdd9c" stop-opacity=".58"/>
+                                <stop offset="1" stop-color="#e99b51" stop-opacity="0"/>
+                            </radialGradient>
                         </defs>
                         <path fill="url(#memory-floor-light)" d="M0 440h1200v360H0Z"/>
-                        <path class="memory-horizon-glow" stroke="url(#memory-horizon-light)" d="M0 440h1200"/>
-                        <path class="memory-horizon" stroke="url(#memory-horizon-light)" d="M0 440h1200"/>
                         <g id="memory-horizon-points"/>
                     </svg>
                 </div>

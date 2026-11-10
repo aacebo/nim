@@ -50,20 +50,6 @@
     fill: #b6d4f5;
 }
 
-.memory-horizon,
-.memory-horizon-glow {
-    fill: none;
-}
-
-.memory-horizon {
-    stroke-width: 1.35;
-}
-
-.memory-horizon-glow {
-    stroke-width: 9;
-    filter: blur(5px);
-}
-
 .memory-header,
 .memory-controls,
 .memory-modes,
@@ -198,6 +184,10 @@
     scrollbar-width: none;
 }
 
+#memory-timeline[data-hovering] {
+    cursor: pointer;
+}
+
 #memory-timeline::-webkit-scrollbar {
     display: none;
 }
@@ -230,6 +220,7 @@
     border: 0;
     translate: -50% -50%;
     transform: translateX(var(--memory-x));
+    pointer-events: none;
 }
 
 #memory-view .memory-timeline-node[hidden] {

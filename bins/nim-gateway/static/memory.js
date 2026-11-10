@@ -147,7 +147,7 @@ const memoryView = (() => {
         }
     }
 
-    function timelinePoint(progress, width, height, time) {
+    function timelinePoint(progress, width, height) {
         const left = progress < 0.52;
         const t = left ? progress / 0.52 : (progress - 0.52) / 0.48;
         const u = 1 - t;
@@ -158,10 +158,7 @@ const memoryView = (() => {
             ? 1.2 * u ** 3 + 0.72 * 3 * u ** 2 * t + 0.49 * 3 * u * t ** 2 + 0.62 * t ** 3
             : 0.62 * u ** 3 + 0.75 * 3 * u ** 2 * t + 0.17 * 3 * u * t ** 2 - 0.12 * t ** 3;
         const depth = 0.52 - 0.83 * progress + 1.48 * Math.max(0, 1 - progress) ** 2.5;
-        const wave = Math.sin(Math.PI * progress) * Math.min(1, width / 640);
-        const driftX = Math.sin(time * 0.91 + progress * 9) * wave * 9;
-        const driftY = Math.sin(time * 1.28 + progress * 8) * wave * 19;
-        return { x: ((x - 0.5) * width + driftX) * (1 + depth), y: ((y - 0.5) * height + driftY) * (1 + depth), z: depth * width };
+        return { x: (x - 0.5) * width * (1 + depth), y: (y - 0.5) * height * (1 + depth), z: depth * width };
     }
 
     function projectTimeline({ x, y, z }, width, height) {
@@ -170,8 +167,8 @@ const memoryView = (() => {
     }
 
     function timelineSlice(progress, width, height, time, lift) {
-        const point = timelinePoint(progress, width, height, time);
-        const next = timelinePoint(progress + 0.001, width, height, time);
+        const point = timelinePoint(progress, width, height);
+        const next = timelinePoint(progress + 0.001, width, height);
         const dx = next.x - point.x;
         const dy = next.y - point.y;
         const dz = next.z - point.z;
@@ -180,7 +177,7 @@ const memoryView = (() => {
         const nx = -dy / planar;
         const ny = dx / planar;
         const radius = Math.min(width * 0.10, height * 0.14) * (1 + lift * 0.22);
-        const twist = progress * 7.1 + Math.sin(time * 0.9 + progress * 5) * 0.19;
+        const twist = progress * 7.1 + time * 0.42;
         const corners = [];
 
         for (let side = 0; side < 6; side++) {
@@ -311,7 +308,7 @@ const memoryView = (() => {
             }
 
             if (selected >= 0 && selected <= limit) {
-                const anchor = projectTimeline(timelinePoint(selected, width, height, time), width, height);
+                const anchor = projectTimeline(timelinePoint(selected, width, height), width, height);
                 const top = anchor.y - Math.min(height * 0.23, width * 0.18);
                 timelineContext.beginPath();
                 traceTimeline([{ x: anchor.x, y: top }, { x: anchor.x, y: anchor.y - Math.min(height * 0.08, width * 0.07) }]);
@@ -438,7 +435,7 @@ const memoryView = (() => {
             const button = timelineButtons.get(index + 1);
             const x = focalX + index * timelinePitch - scrollLeft;
             const progress = x / width;
-            const position = projectTimeline(timelinePoint(progress, width, height, 0), width, height);
+            const position = projectTimeline(timelinePoint(progress, width, height), width, height);
             button.style.setProperty("--memory-y", `${position.y}px`);
             button.style.setProperty("--memory-x", `${position.x - x}px`);
             button.dataset.progress = progress;

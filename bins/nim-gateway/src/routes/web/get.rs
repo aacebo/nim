@@ -19,7 +19,7 @@ use axum::{
         <link rel="stylesheet" href="/web/static/memory.css?v=9">
         <script src="/web/static/client.js" defer></script>
         <script src="/web/static/orb.js?v=5" defer></script>
-        <script src="/web/static/memory.js?v=9" defer></script>
+        <script src="/web/static/memory.js?v=10" defer></script>
         <script src="/web/static/hud.js?v=10" defer></script>
     </head>
     <body>

@@ -343,6 +343,11 @@
     stroke: none;
 }
 
+#memory-edges line:not(.memory-link-active, .memory-link-highlight),
+#memory-edges line:not(.memory-link-active, .memory-link-highlight) + .memory-link-point {
+    opacity: 0.35;
+}
+
 #memory-edges .memory-link-active {
     stroke: #ef9ca7;
     stroke-width: 1.35;

@@ -177,7 +177,7 @@ const memoryView = (() => {
         const nx = -dy / planar;
         const ny = dx / planar;
         const radius = Math.min(width * 0.10, height * 0.14) * (1 + lift * 0.22);
-        const twist = progress * 7.1 + time * 0.42;
+        const twist = progress * 7.1 + time * 0.21;
         const corners = [];
 
         for (let side = 0; side < 6; side++) {
@@ -384,14 +384,18 @@ const memoryView = (() => {
             }
         }
 
-        for (let index = 0; index < 860; index++) {
+        const scatteredCount = 860;
+        const horizonCount = 380;
+
+        for (let index = 0; index < scatteredCount + horizonCount; index++) {
+            const nearHorizon = index >= scatteredCount;
             const x = random() * 1200;
             const horizon = 440 + 6 * Math.sin(x / 150) + 3 * Math.cos(x / 55);
             const spread = random() ** 2.25;
-            const y = horizon + (random() < 0.53 ? 1 : -1) * (spread * 68 + random() * 3);
-            const radius = 0.34 + random() ** 3 * 1.3;
+            const y = horizon + (random() < 0.53 ? 1 : -1) * (spread * (nearHorizon ? 12 : 37) + random() * 2);
+            const radius = 0.34 + random() ** 3 * (nearHorizon ? 0.45 : 1.3);
             const opacity = (0.24 + random() * 0.68) * (1 - spread * 0.57);
-            const fill = index % 5 === 0 ? "#b2d1f2" : index % 3 === 0 ? "#ffc077" : "#fff0c6";
+            const fill = !nearHorizon && index % 5 === 0 ? "#b2d1f2" : index % 3 === 0 ? "#ffc077" : "#fff0c6";
 
             if (radius > 0.84) {
                 lights.push(makeSvgElement("circle", {
@@ -684,7 +688,13 @@ const memoryView = (() => {
 
     function moveGraphNodes() {
         cancelAnimationFrame(graphFrame);
-        const anchor = graphNodes.get(hoveredNode ?? focusedNode);
+        const highlightedId = hoveredNode ?? focusedNode;
+        const anchor = graphNodes.get(highlightedId);
+
+        for (const { line, fromId, toId } of graphEdges.values()) {
+            line.classList.toggle("memory-link-highlight", fromId === highlightedId || toId === highlightedId);
+        }
+
         const moves = [...graphNodes.values()].map((node) => {
             let x = 0;
             let y = 0;

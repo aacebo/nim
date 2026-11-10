@@ -15,6 +15,7 @@ use axum::{
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Nim</title>
         <link rel="stylesheet" href="/web/static/orb.css?v=2">
+        <script src="/web/static/client.js" defer></script>
         <script src="/web/static/orb.js?v=5" defer></script>
     </head>
     <body>

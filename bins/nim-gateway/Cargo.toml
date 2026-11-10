@@ -18,6 +18,7 @@ askama = { workspace = true, features = ["serde_json"] }
 mime = { workspace = true }
 mime_guess = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 serde_valid = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }

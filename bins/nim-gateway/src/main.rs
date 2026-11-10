@@ -3,6 +3,7 @@ mod context;
 mod error;
 mod extract;
 mod routes;
+mod sockets;
 
 pub use config::*;
 pub use context::*;

@@ -2522,6 +2522,7 @@ dependencies = [
  "mime_guess",
  "nim",
  "serde",
+ "serde_json",
  "serde_valid",
  "sqlx",
  "tokio",

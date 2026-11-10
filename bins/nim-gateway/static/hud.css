@@ -1,0 +1,361 @@
+.orb-scene {
+    --hud-ink: #e7f5fa;
+    --hud-line: #b0c8d7;
+    --hub-top: max(18px, env(safe-area-inset-top));
+    --hub-left: max(18px, env(safe-area-inset-left));
+    position: relative;
+    color: var(--hud-ink);
+    font: 400 14px/1.4 system-ui, sans-serif;
+}
+
+#orb-trigger {
+    position: relative;
+}
+
+.animus-grid {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 260ms ease;
+    pointer-events: none;
+}
+
+.orb-scene:not([data-hud="idle"]) .animus-grid {
+    opacity: 1;
+}
+
+.grid-lines {
+    fill: none;
+    stroke: #9ec4de;
+    stroke-width: 1;
+    opacity: 0.13;
+    vector-effect: non-scaling-stroke;
+}
+
+#animus-hub {
+    position: fixed;
+    z-index: 1;
+    top: max(var(--hub-top), calc(50% - 112px));
+    left: max(var(--hub-left), calc(50% - min(47vw, 45dvh, 380px) - 144px));
+    visibility: hidden;
+    transition: visibility 0s linear 220ms;
+}
+
+.orb-scene[data-hud="hub"] #animus-hub {
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.hub-action,
+#hub-back,
+#action-panel button {
+    appearance: none;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: 500 11px/1 system-ui, sans-serif;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.hub-action {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    text-align: left;
+}
+
+.hub-symbol {
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 5px;
+}
+
+.hub-label {
+    padding: 6px 8px;
+    background: rgb(24 43 56 / 80%);
+    white-space: nowrap;
+}
+
+#animus-hub > button {
+    opacity: 0;
+    transform: translate(-10px, -6px);
+    transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.orb-scene[data-hud="hub"] #animus-hub > button {
+    opacity: 1;
+    transform: none;
+}
+
+.orb-scene[data-hud="hub"] #animus-hub > :nth-child(2) {
+    transition-delay: 40ms;
+}
+
+.orb-scene[data-hud="hub"] #animus-hub > :nth-child(3) {
+    transition-delay: 80ms;
+}
+
+.orb-scene[data-hud="hub"] #animus-hub > :nth-child(4) {
+    transition-delay: 120ms;
+}
+
+#animus-hub > .hub-action:nth-child(2) {
+    margin-left: 16px;
+}
+
+#animus-hub > .hub-action:nth-child(4) {
+    margin-left: 24px;
+}
+
+#hub-back {
+    margin-left: 38px;
+    color: #c0d5e1;
+}
+
+#hub-back:hover {
+    color: #fff;
+}
+
+.orb-scene[data-hud="hub"] .hub-action:is(:hover, :focus-visible) {
+    --cube-top: #ce8088;
+    --cube-left: #a45261;
+    --cube-right: #763847;
+}
+
+.hub-action:is(:hover, :focus-visible) .hub-label {
+    background: #60313f;
+}
+
+#animus-hub :focus-visible,
+#action-panel :focus-visible {
+    outline: 2px solid #ecf9ff;
+    outline-offset: 3px;
+}
+
+#action-panel {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 180ms ease, transform 220ms ease, visibility 0s linear 220ms;
+}
+
+.orb-scene[data-hud="panel"] #action-panel {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+}
+
+@media (max-width: 760px) {
+    #animus-hub {
+        top: max(var(--hub-top), calc(100% - 232px - env(safe-area-inset-bottom)));
+        left: var(--hub-left);
+    }
+}
+
+@media (max-height: 300px) {
+    #animus-hub {
+        top: var(--hub-top);
+        max-height: calc(100dvh - var(--hub-top) - 12px);
+        padding: 4px;
+        overflow-y: auto;
+    }
+}
+
+#action-panel,
+#chat-status {
+    position: fixed;
+    inset-inline: max(14px, env(safe-area-inset-left), env(safe-area-inset-right));
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    max-width: 480px;
+    margin-inline: auto;
+}
+
+#action-panel {
+    z-index: 2;
+    box-sizing: border-box;
+    border: 1px solid rgb(197 222 233 / 35%);
+    background: rgb(11 21 32 / 84%);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    transform: translateY(8px);
+}
+
+.action-header,
+.chat-fields {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.action-header {
+    padding: 0 8px 0 12px;
+    border-bottom: 1px solid rgb(197 222 233 / 20%);
+    background: linear-gradient(90deg, rgb(176 200 215 / 22%), rgb(176 200 215 / 4%));
+}
+
+.action-heading {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.action-heading svg {
+    width: 20px;
+    height: 20px;
+}
+
+.action-header h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+#action-panel button {
+    color: #c0d5e1;
+}
+
+#action-panel button:hover {
+    color: #fff;
+}
+
+#action-panel button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+#action-back svg {
+    display: none;
+}
+
+#action-panel.chat-panel {
+    --chat-corner: linear-gradient(#e1e7ec, #e1e7ec);
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: start;
+    max-width: 430px;
+    border-color: rgb(214 226 235 / 18%);
+    background: rgb(12 17 24 / 72%);
+}
+
+.chat-panel::after {
+    position: absolute;
+    inset: -2px;
+    background:
+        var(--chat-corner) top left / 8px 1px,
+        var(--chat-corner) top left / 1px 8px,
+        var(--chat-corner) top right / 8px 1px,
+        var(--chat-corner) top right / 1px 8px,
+        var(--chat-corner) bottom left / 8px 1px,
+        var(--chat-corner) bottom left / 1px 8px,
+        var(--chat-corner) bottom right / 8px 1px,
+        var(--chat-corner) bottom right / 1px 8px;
+    background-repeat: no-repeat;
+    content: "";
+    pointer-events: none;
+}
+
+.chat-panel .action-header {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.chat-panel .action-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.chat-panel #action-back {
+    display: grid;
+    width: 44px;
+    padding: 0;
+    place-items: center;
+}
+
+.chat-panel #action-back span {
+    display: none;
+}
+
+.chat-panel #action-back svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.25;
+}
+
+.chat-fields {
+    margin-right: 5px;
+}
+
+#chat-send:is(:hover, :focus-visible) {
+    background: #60313f;
+}
+
+#chat-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 0 2px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font: 16px system-ui, sans-serif;
+}
+
+#chat-input::placeholder {
+    color: #a9c0ce;
+}
+
+#action-panel #chat-input:focus-visible {
+    outline: none;
+    box-shadow: inset 0 -1px rgb(214 226 235 / 45%);
+}
+
+#chat-error {
+    margin: 0;
+    color: #ffc7c4;
+}
+
+#chat-error:not(:empty) {
+    padding: 4px 8px 8px 2px;
+}
+
+#chat-status {
+    margin-block: 0;
+    text-align: center;
+    pointer-events: none;
+}
+
+.orb-scene[data-hud="panel"] #chat-status {
+    bottom: calc(2px + env(safe-area-inset-bottom));
+    font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animus-grid,
+    #animus-hub,
+    #animus-hub > button,
+    #action-panel {
+        transition: none;
+    }
+}

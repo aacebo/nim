@@ -3,11 +3,11 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{RwLock, mpsc::UnboundedSender};
 
 #[derive(Clone, Default)]
-pub struct Map {
+pub struct Sockets {
     inner: Arc<RwLock<HashMap<uuid::Uuid, UnboundedSender<nim::signals::RawSignal>>>>,
 }
 
-impl Map {
+impl Sockets {
     pub async fn open(&self) -> Subscription {
         let id = uuid::Uuid::now_v7();
         let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();

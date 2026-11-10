@@ -8,7 +8,9 @@ mod sockets;
 pub use config::*;
 pub use context::*;
 pub use error::*;
+pub use sockets::*;
 
+use futures_util::StreamExt;
 use tower::Layer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -28,23 +30,53 @@ async fn main() -> Result<(), Error> {
 
     let config = Config::load()?;
     let state = std::sync::Arc::new(Context::connect(config).await?);
-    let join = tokio::spawn(start());
-    let app = axum::Router::new()
-        .merge(routes::new())
-        .layer(axum::middleware::from_fn_with_state(state.clone(), context::http::middleware))
-        .with_state(state.clone());
-    let app = tower_http::normalize_path::NormalizePathLayer::trim_trailing_slash().layer(app);
-    let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", state.port)).await?;
-    axum::serve(listener, app).with_graceful_shutdown(stop()).await?;
-    let _ = join.await?;
-    Ok(())
+    let (shutdown, receiver) = tokio::sync::watch::channel(false);
+
+    tokio::select! {
+        result = start(state.clone(), receiver) => result,
+        result = stop() => {
+            let _ = shutdown.send(true);
+            Ok(result)
+        },
+    }
 }
 
-#[tracing::instrument]
-async fn start() -> Result<(), nim::Error> {
+#[tracing::instrument(skip_all)]
+async fn start(ctx: std::sync::Arc<Context>, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
+    let app = axum::Router::new()
+        .merge(routes::new())
+        .layer(axum::middleware::from_fn_with_state(ctx.clone(), context::http::middleware))
+        .with_state(ctx.clone());
+    let app = tower_http::normalize_path::NormalizePathLayer::trim_trailing_slash().layer(app);
+    let app = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", ctx.port)).await?;
+
     tracing::info!("listening...");
-    Ok(())
+
+    let events = async move {
+        let mut chats = ctx.signals().subscribe("nim.chat.*").await?;
+        let mut messages = ctx.signals().subscribe("nim.message.*").await?;
+
+        loop {
+            tokio::select! {
+                biased;
+                _ = shutdown.changed() => break,
+                Some(Ok((_, signal, _span))) = chats.next() => {
+                    ctx.sockets().send(signal).await.map_err(nim::runtime::Error::custom)?;
+                },
+                Some(Ok((_, signal, _span))) = messages.next() => {
+                    ctx.sockets().send(signal).await.map_err(nim::runtime::Error::custom)?;
+                },
+            }
+        }
+
+        Ok(())
+    };
+
+    tokio::select! {
+        result = axum::serve(listener, app).with_graceful_shutdown(stop()) => Ok(result?),
+        result = events => result,
+    }
 }
 
 #[tracing::instrument]

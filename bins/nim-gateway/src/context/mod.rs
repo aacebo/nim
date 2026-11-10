@@ -1,4 +1,4 @@
-use crate::{Config, Error, sockets};
+use crate::{Config, Error, Sockets};
 
 pub mod http;
 
@@ -7,7 +7,7 @@ pub struct Context {
     config: Config,
     pool: std::sync::Arc<sqlx::PgPool>,
     signals: std::sync::Arc<nim::signals::Client>,
-    sockets: sockets::Map,
+    sockets: Sockets,
 }
 
 impl Context {
@@ -23,7 +23,7 @@ impl Context {
         nim::runtime::Runtime::new(&self.pool, self.signals.clone())
     }
 
-    pub fn sockets(&self) -> &sockets::Map {
+    pub fn sockets(&self) -> &Sockets {
         &self.sockets
     }
 }
@@ -120,7 +120,7 @@ impl Context {
             config,
             pool,
             signals,
-            sockets: sockets::Map::default(),
+            sockets: Sockets::default(),
         })
     }
 }

@@ -12,8 +12,8 @@
     position: relative;
 }
 
-.animus-grid,
-.animus-cubes {
+.hud-grid,
+.hud-cubes {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -24,7 +24,7 @@
     pointer-events: none;
 }
 
-.orb-scene:not([data-hud="idle"]) :is(.animus-grid, .animus-cubes) {
+.orb-scene:not([data-hud="idle"]) :is(.hud-grid, .hud-cubes) {
     opacity: 1;
 }
 
@@ -97,7 +97,7 @@
     }
 }
 
-#animus-hub {
+#orb-hub {
     position: fixed;
     z-index: 1;
     top: max(var(--hub-top), calc(50% - 112px));
@@ -106,7 +106,7 @@
     transition: visibility 0s linear 220ms;
 }
 
-.orb-scene[data-hud="hub"] #animus-hub {
+.orb-scene[data-hud="hub"] #orb-hub {
     visibility: visible;
     transition-delay: 0s;
 }
@@ -147,34 +147,34 @@
     white-space: nowrap;
 }
 
-#animus-hub > button {
+#orb-hub > button {
     opacity: 0;
     transform: translate(-10px, -6px);
     transition: opacity 180ms ease, transform 220ms ease;
 }
 
-.orb-scene[data-hud="hub"] #animus-hub > button {
+.orb-scene[data-hud="hub"] #orb-hub > button {
     opacity: 1;
     transform: none;
 }
 
-.orb-scene[data-hud="hub"] #animus-hub > :nth-child(2) {
+.orb-scene[data-hud="hub"] #orb-hub > :nth-child(2) {
     transition-delay: 40ms;
 }
 
-.orb-scene[data-hud="hub"] #animus-hub > :nth-child(3) {
+.orb-scene[data-hud="hub"] #orb-hub > :nth-child(3) {
     transition-delay: 80ms;
 }
 
-.orb-scene[data-hud="hub"] #animus-hub > :nth-child(4) {
+.orb-scene[data-hud="hub"] #orb-hub > :nth-child(4) {
     transition-delay: 120ms;
 }
 
-#animus-hub > .hub-action:nth-child(2) {
+#orb-hub > .hub-action:nth-child(2) {
     margin-left: 16px;
 }
 
-#animus-hub > .hub-action:nth-child(4) {
+#orb-hub > .hub-action:nth-child(4) {
     margin-left: 24px;
 }
 
@@ -197,7 +197,7 @@
     background: #60313f;
 }
 
-#animus-hub :focus-visible,
+#orb-hub :focus-visible,
 #action-panel :focus-visible {
     outline: 2px solid #ecf9ff;
     outline-offset: 3px;
@@ -217,14 +217,14 @@
 }
 
 @media (max-width: 760px) {
-    #animus-hub {
+    #orb-hub {
         top: max(var(--hub-top), calc(100% - 232px - env(safe-area-inset-bottom)));
         left: var(--hub-left);
     }
 }
 
 @media (max-height: 300px) {
-    #animus-hub {
+    #orb-hub {
         top: var(--hub-top);
         max-height: calc(100dvh - var(--hub-top) - 12px);
         padding: 4px;
@@ -565,10 +565,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .animus-grid,
-    .animus-cubes,
-    #animus-hub,
-    #animus-hub > button,
+    .hud-grid,
+    .hud-cubes,
+    #orb-hub,
+    #orb-hub > button,
     #action-panel,
     #chat-status,
     .chat-panel::after,

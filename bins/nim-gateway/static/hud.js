@@ -1,7 +1,8 @@
 const orbScene = document.querySelector(".orb-scene");
-const animusHub = document.querySelector("#animus-hub");
+const orbHub = document.querySelector("#orb-hub");
 const orbTrigger = document.querySelector("#orb-trigger");
 const chatAction = document.querySelector("#chat-action");
+const memoryAction = document.querySelector("#memory-action");
 const hubBack = document.querySelector("#hub-back");
 const actionPanel = document.querySelector("#action-panel");
 const actionTitle = document.querySelector("#action-title");
@@ -45,9 +46,14 @@ function isChatOpen() {
 }
 
 function setHudView(view) {
+    if (orbScene.dataset.hud === "memory" && view !== "memory") {
+        memoryView.close();
+    }
+
     orbScene.dataset.hud = view;
-    animusHub.inert = view !== "hub";
+    orbHub.inert = view !== "hub";
     actionPanel.inert = view !== "panel";
+    orbTrigger.inert = view === "memory";
     orbTrigger.setAttribute("aria-expanded", String(view === "hub"));
     renderChatTranscript();
 }
@@ -64,6 +70,13 @@ function returnToHub() {
 
 function openAction(action) {
     activeAction = action;
+
+    if (action === memoryAction) {
+        setHudView("memory");
+        memoryView.open();
+        return;
+    }
+
     actionTitle.textContent = action.textContent.trim();
     const isChat = action === chatAction;
     actionPanel.classList.toggle("chat-panel", isChat);
@@ -91,19 +104,26 @@ orbTrigger.addEventListener("click", () => {
     }
 });
 
-for (const action of animusHub.querySelectorAll(".hub-action")) {
+for (const action of orbHub.querySelectorAll(".hub-action")) {
     action.addEventListener("click", () => openAction(action));
 }
 
 hubBack.addEventListener("click", closeHub);
 actionBack.addEventListener("click", returnToHub);
+document.querySelector("#memory-back").addEventListener("click", returnToHub);
 
 document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || event.isComposing) {
         return;
     }
 
-    if (orbScene.dataset.hud === "panel") {
+    if (orbScene.dataset.hud === "memory") {
+        event.preventDefault();
+
+        if (!memoryView.dismissDetails()) {
+            returnToHub();
+        }
+    } else if (orbScene.dataset.hud === "panel") {
         event.preventDefault();
         returnToHub();
     } else if (orbScene.dataset.hud === "hub") {

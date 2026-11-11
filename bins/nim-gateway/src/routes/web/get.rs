@@ -16,10 +16,10 @@ use axum::{
         <title>Nim</title>
         <link rel="stylesheet" href="/web/static/orb.css?v=2">
         <link rel="stylesheet" href="/web/static/hud.css?v=11">
-        <link rel="stylesheet" href="/web/static/memory.css?v=10">
+        <link rel="stylesheet" href="/web/static/memory.css?v=11">
         <script src="/web/static/client.js" defer></script>
         <script src="/web/static/orb.js?v=5" defer></script>
-        <script src="/web/static/memory.js?v=13" defer></script>
+        <script src="/web/static/memory.js?v=14" defer></script>
         <script src="/web/static/hud.js?v=10" defer></script>
     </head>
     <body>

@@ -284,20 +284,20 @@ const memoryView = (() => {
                 timelineContext.beginPath();
                 traceTimeline(slice);
                 timelineContext.closePath();
-                timelineContext.fillStyle = active ? "rgb(42 6 16 / 19%)" : "rgb(251 248 250 / 4%)";
+                timelineContext.fillStyle = active ? "rgb(57 37 14 / 19%)" : "rgb(251 248 250 / 4%)";
 
                 if (cap) {
                     const left = Math.min(...slice.map(({ x }) => x));
                     const right = Math.max(...slice.map(({ x }) => x));
-                    const crimson = timelineContext.createLinearGradient(left, 0, right, 0);
-                    crimson.addColorStop(0, "rgb(192 43 56 / 93%)");
-                    crimson.addColorStop(0.47, "rgb(94 8 24 / 92%)");
-                    crimson.addColorStop(1, "rgb(63 13 26 / 88%)");
-                    timelineContext.fillStyle = crimson;
+                    const selectionGradient = timelineContext.createLinearGradient(left, 0, right, 0);
+                    selectionGradient.addColorStop(0, "rgb(217 164 65 / 93%)");
+                    selectionGradient.addColorStop(0.47, "rgb(101 70 25 / 92%)");
+                    selectionGradient.addColorStop(1, "rgb(57 37 14 / 88%)");
+                    timelineContext.fillStyle = selectionGradient;
                 }
 
                 timelineContext.fill();
-                timelineContext.strokeStyle = cap ? "#ffe6e7" : active ? "rgb(231 109 120 / 68%)" : "rgb(255 254 255 / 52%)";
+                timelineContext.strokeStyle = cap ? "#ffe3a3" : active ? "rgb(255 227 163 / 68%)" : "rgb(255 254 255 / 52%)";
 
                 if (highlight && !active) {
                     timelineContext.strokeStyle = `rgb(255 254 255 / ${0.52 + timelineLift * 0.45})`;
@@ -312,10 +312,10 @@ const memoryView = (() => {
                 const top = anchor.y - Math.min(height * 0.23, width * 0.18);
                 timelineContext.beginPath();
                 traceTimeline([{ x: anchor.x, y: top }, { x: anchor.x, y: anchor.y - Math.min(height * 0.08, width * 0.07) }]);
-                timelineContext.strokeStyle = "#8e1224";
+                timelineContext.strokeStyle = "#d9a441";
                 timelineContext.lineWidth = 1.15;
                 timelineContext.stroke();
-                timelineContext.fillStyle = "#a01e2e";
+                timelineContext.fillStyle = "#d9a441";
                 timelineContext.beginPath();
                 traceTimeline([{ x: anchor.x, y: top - 8 }, { x: anchor.x + 5, y: top - 3 }, { x: anchor.x, y: top + 2 }, { x: anchor.x - 5, y: top - 3 }]);
                 timelineContext.closePath();

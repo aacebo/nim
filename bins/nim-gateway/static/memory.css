@@ -2,7 +2,8 @@
     --memory-ink: #edf3f7;
     --memory-muted: #b5c4d0;
     --memory-line: #7798ad;
-    --memory-accent: #9d5160;
+    --memory-accent: #d9a441;
+    --memory-accent-light: #ffe3a3;
     position: fixed;
     z-index: 4;
     inset: 0;
@@ -101,7 +102,7 @@
 }
 
 #memory-view :focus-visible {
-    outline: 2px solid #e8d7c7;
+    outline: 2px solid var(--memory-accent-light);
     outline-offset: 2px;
 }
 
@@ -138,13 +139,13 @@
     bottom: 9px;
     left: 3px;
     height: 1px;
-    background: #d16a7b;
+    background: var(--memory-accent);
     content: "";
 }
 
 #memory-back span {
     margin-right: 3px;
-    color: #dba3ac;
+    color: var(--memory-accent-light);
     font-size: 15px;
     line-height: 0;
 }
@@ -258,8 +259,8 @@
     justify-items: end;
     width: 100vw;
     padding: 4px 12px 5px;
-    background: linear-gradient(90deg, #4d070e, #850d1d);
-    color: #fff0f2;
+    background: linear-gradient(90deg, #39250e, #654619);
+    color: #fff5df;
     line-height: 1;
     text-transform: uppercase;
 }
@@ -349,7 +350,7 @@
 }
 
 #memory-edges .memory-link-active {
-    stroke: #ef9ca7;
+    stroke: var(--memory-accent-light);
     stroke-width: 1.35;
 }
 
@@ -381,12 +382,12 @@
 }
 
 .memory-graph-node[aria-current="true"] .memory-graph-frame {
-    background: #ffa8b4;
+    background: var(--memory-accent-light);
     opacity: 0.78;
 }
 
 .memory-graph-node[aria-current="true"] {
-    filter: drop-shadow(0 0 6px rgb(221 67 94 / 54%));
+    filter: drop-shadow(0 0 6px rgb(217 164 65 / 54%));
 }
 
 .memory-graph-label {
@@ -407,7 +408,7 @@
 
 .memory-graph-node[aria-current="true"] .memory-graph-label {
     opacity: 1;
-    background: linear-gradient(90deg, #8d2b3c, rgb(110 30 47 / 66%));
+    background: linear-gradient(90deg, #654619, rgb(69 45 16 / 86%));
 }
 
 .memory-graph-node:is(:hover, :focus-visible) :is(.memory-graph-frame, .memory-graph-label) {
@@ -486,7 +487,7 @@
     padding: 10px 14px 14px;
     overflow: auto;
     border: 1px solid rgb(187 206 217 / 52%);
-    border-left: 2px solid #c76b7d;
+    border-left: 2px solid var(--memory-accent);
     background: rgb(17 28 41 / 94%);
     box-shadow: 0 10px 32px rgb(0 0 0 / 42%);
     backdrop-filter: blur(12px);

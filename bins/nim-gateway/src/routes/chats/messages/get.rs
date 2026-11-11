@@ -9,11 +9,12 @@ pub struct Params {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 pub struct Query {
+    pub cursor: Option<nim::state::Cursor>,
+
     #[validate(minimum = 5)]
     #[validate(maximum = 500)]
     #[serde(default = "defaults::limit")]
     pub limit: usize,
-    pub cursor: Option<nim::state::Cursor>,
 }
 
 pub async fn route(
@@ -21,6 +22,7 @@ pub async fn route(
     params: axum::extract::Path<Params>,
     query: axum::extract::Query<Query>,
 ) -> axum::response::Result<axum::response::Response> {
+    serde_valid::Validate::validate(&query.0).map_err(Error::from)?;
     let _chat = ctx.services().chats().find_by_id(params.chat_id).await.map_err(Error::from)?;
     let items = ctx
         .services()

@@ -1,4 +1,4 @@
-use crate::types;
+use crate::{Cursor, Page, PageResponse, types};
 
 #[derive(Copy, Clone)]
 pub struct MemoryStorage<'a> {
@@ -8,6 +8,46 @@ pub struct MemoryStorage<'a> {
 impl<'a> MemoryStorage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self { pool }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find(&self, page: Page) -> Result<PageResponse<types::MemoryRow>, sqlx::Error> {
+        let (cursor_id, cursor_at) = page.cursor.map(|cursor| (cursor.id, cursor.timestamp)).unzip();
+        let data: Vec<types::MemoryRow> = sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                version,
+                type,
+                sources,
+                contexts,
+                salience,
+                strength,
+                confidence,
+                recalls,
+                recalled_at,
+                created_at,
+                updated_at
+            FROM memories
+            WHERE ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
+            ORDER BY created_at, id
+            LIMIT $3
+            "#,
+        )
+        .bind(cursor_at)
+        .bind(cursor_id)
+        .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
+        .fetch_all(self.pool)
+        .await?;
+
+        Ok(PageResponse {
+            size: page.limit,
+            next: data.last().filter(|_| data.len() == page.limit).map(|v| Cursor {
+                id: v.id,
+                timestamp: v.created_at,
+            }),
+            data,
+        })
     }
 
     #[tracing::instrument(skip(self))]
@@ -231,6 +271,16 @@ pub struct MemoryRelationsStorage<'a> {
 impl<'a> MemoryRelationsStorage<'a> {
     pub fn new(pool: &'a sqlx::PgPool) -> Self {
         Self { pool }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_memory_ids(&self, ids: &[uuid::Uuid]) -> Result<Vec<types::MemoryRelationRow>, sqlx::Error> {
+        sqlx::query_as(
+            "SELECT source_id, target_id, created_at FROM memories_relations WHERE source_id = ANY($1) OR target_id = ANY($1)",
+        )
+        .bind(ids)
+        .fetch_all(self.pool)
+        .await
     }
 
     #[tracing::instrument(skip(self))]

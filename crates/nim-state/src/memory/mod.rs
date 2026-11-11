@@ -1,5 +1,6 @@
 mod create;
 mod delete;
+mod find;
 mod find_by_artifact_id;
 mod find_by_id;
 mod find_by_relation_id;

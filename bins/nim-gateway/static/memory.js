@@ -1,52 +1,10 @@
 const memoryView = (() => {
-    const memories = [
-        { id: 1, date: "2025-01-07", type: "Episodic", title: "First light", summary: "A sunrise observation recorded from the east ridge." },
-        { id: 2, date: "2025-01-18", type: "Semantic", title: "Signal key", summary: "A glossary of the short pulses used by the survey team." },
-        { id: 3, date: "2025-02-03", type: "Procedural", title: "Gate calibration", summary: "The sequence for tuning a relay gate before a crossing." },
-        { id: 4, date: "2025-02-19", type: "Episodic", title: "South passage", summary: "A walk through the southern passage during a low-tide survey." },
-        { id: 5, date: "2025-03-02", type: "Working", title: "Field notes", summary: "Unsorted observations from three stops along the relay route." },
-        { id: 6, date: "2025-03-17", type: "Semantic", title: "Coastal map", summary: "Landmarks and bearings for navigating the coast in low visibility." },
-        { id: 7, date: "2025-04-06", type: "Procedural", title: "Relay handoff", summary: "Instructions for passing a signal between survey stations." },
-        { id: 8, date: "2025-04-22", type: "Episodic", title: "North station", summary: "A visit to the northern relay and a record of its test transmissions." },
-        { id: 9, date: "2025-05-11", type: "Working", title: "Signal drift", summary: "Measurements of a recurring delay in the northern relay." },
-        { id: 10, date: "2025-05-29", type: "Semantic", title: "Relay network", summary: "An index of survey stations and how their coverage overlaps." },
-        { id: 11, date: "2025-06-10", type: "Episodic", title: "Quiet station", summary: "A standalone observation from a station outside the survey route." },
-        { id: 12, date: "2025-06-24", type: "Episodic", title: "Archive crossing", summary: "The final survey crossing, with observations from the coast and relay network." },
-    ];
-    const fixtureLinks = [[12, 10], [12, 8], [12, 6], [12, 5], [12, 7], [12, 4], [10, 9], [9, 8], [8, 10], [10, 7], [8, 5], [5, 3], [3, 1], [6, 4], [4, 2]];
-    const sites = ["East Ridge", "Greywater", "Signal Point", "West Reach", "Beacon Hill", "Salt Flats", "Outer Shoal", "Glass Harbor"];
-
-    for (let id = memories.length + 1; id <= 1000; id++) {
-        const index = id - 13;
-        const site = sites[Math.floor(index / 12) % sites.length];
-        const record = memories[index % 12];
-        const date = new Date(Date.UTC(2025, 5, 24 + (index + 1) * 2)).toISOString().slice(0, 10);
-        const visit = Math.floor(index / (12 * sites.length)) + 1;
-        memories.push({ id, date, type: record.type, title: `${record.title} / ${site}`, summary: `${site}, survey ${visit}. ${record.summary}`, art: index % 12 });
-        fixtureLinks.push([id, id - 1]);
-
-        if (id > 24) {
-            fixtureLinks.push([id, id - 12], [id, id - (3 + id % 5)]);
-        }
-
-        if (id > 60 && id % 3 === 0) {
-            fixtureLinks.push([id, id - 36]);
-        }
-    }
-
+    const memories = [];
     const relations = new Map();
+    const memoryById = new Map();
+    let loading = false;
+    let loaded = false;
 
-    for (const [from, to] of fixtureLinks) {
-        for (const [id, neighbor] of [[from, to], [to, from]]) {
-            if (!relations.has(id)) {
-                relations.set(id, new Set());
-            }
-
-            relations.get(id).add(neighbor);
-        }
-    }
-
-    const memoryById = new Map(memories.map((memory) => [memory.id, memory]));
     const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
     const view = document.querySelector("#memory-view");
@@ -95,7 +53,7 @@ const memoryView = (() => {
         "M15 65h70v-5H69V43H57v-7H43v7H31v17H15ZM46 50h8v10h-8Z",
         "M8 65h84v-7H76V44h-8v14H60V34H40v24h-8V44h-8v14H8ZM47 42h6v16h-6Z",
     ];
-    let selectedId = memories.at(-1).id;
+    let selectedId;
     let topology = "timeline";
     let detailAnchor;
     let hoveredNode;
@@ -331,7 +289,7 @@ const memoryView = (() => {
     }
 
     function refreshTimeline() {
-        if (!view.hidden && !timelineStage.hidden && timelineFrame === undefined) {
+        if (!view.hidden && !timelineStage.hidden && memories.length && timelineFrame === undefined) {
             timelineFrame = requestAnimationFrame(drawTimeline);
         }
     }
@@ -487,7 +445,7 @@ const memoryView = (() => {
         if (topology === "timeline") {
             viewStatus.textContent = `${memories.length} records · ← → Browse`;
         } else if (graphNodes.size === 1) {
-            viewStatus.textContent = "No linked memories in this demo.";
+            viewStatus.textContent = "No linked memories.";
         } else {
             viewStatus.textContent = `${graphNodes.size} of ${memories.length} memories · ${graphEdges.size} links`;
         }
@@ -808,6 +766,10 @@ const memoryView = (() => {
 
         stopTimeline();
 
+        if (!memories.length) {
+            return;
+        }
+
         if (graph.hidden) {
             timelineOpenedAt = performance.now();
             lastTimelineDraw = undefined;
@@ -860,6 +822,8 @@ const memoryView = (() => {
     }
 
     function hitTimeline(event) {
+        if (!memories.length) return undefined;
+
         const bounds = timelineCanvas.getBoundingClientRect();
         const x = event.clientX - bounds.left;
         const y = event.clientY - bounds.top;
@@ -921,6 +885,8 @@ const memoryView = (() => {
     });
 
     timeline.addEventListener("keydown", (event) => {
+        if (!memories.length) return;
+
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
             return;
         }
@@ -952,14 +918,14 @@ const memoryView = (() => {
     detailClose.addEventListener("click", () => dismissDetails());
     expand.addEventListener("click", () => expandGraph(selectedId));
     timeline.addEventListener("scroll", () => {
-        if (!view.hidden && !timelineStage.hidden) {
+        if (!view.hidden && !timelineStage.hidden && memories.length) {
             positionTimelineTiles(true);
             positionDetails();
         }
     });
     graph.addEventListener("scroll", positionDetails);
     window.addEventListener("resize", () => {
-        if (!view.hidden && !timelineStage.hidden) {
+        if (!view.hidden && !timelineStage.hidden && memories.length) {
             measureTimeline();
             centerTimeline(selectedId);
         }
@@ -972,19 +938,112 @@ const memoryView = (() => {
     });
 
     return {
-        open() {
+        async open() {
             view.hidden = false;
 
             if (!document.querySelector("#memory-horizon-points").childElementCount) {
                 drawHorizonPoints();
             }
 
-            if (!timelineButtons.size) {
-                buildTimeline();
+            if (!loaded && !loading) {
+                loading = true;
+                viewStatus.textContent = "Loading memories…";
+                timelineToggle.disabled = true;
+                graphToggle.disabled = true;
+
+                try {
+                    const records = [];
+                    const query = new URLSearchParams({ limit: "100" });
+                    const cursors = new Set();
+
+                    while (true) {
+                        const response = await fetch(`/memories?${query}`);
+
+                        if (!response.ok) {
+                            throw new Error("Memory request failed");
+                        }
+
+                        const page = await response.json();
+                        records.push(...page.data);
+
+                        if (!page.next) {
+                            break;
+                        }
+
+                        if (cursors.has(page.next)) {
+                            throw new Error("Memory cursor did not advance");
+                        }
+
+                        cursors.add(page.next);
+                        query.set("cursor", page.next);
+                    }
+
+                    const ids = new Map();
+
+                    for (const record of records) {
+                        if (ids.has(record.id)) {
+                            continue;
+                        }
+
+                        // The timeline uses sequential positions; retain the API identity separately.
+                        const id = memories.length + 1;
+                        ids.set(record.id, id);
+                        const artifacts = record.artifacts ?? [];
+                        const type = record.type.charAt(0).toUpperCase() + record.type.slice(1);
+                        const summary = artifacts.map((artifact) => artifact.summary || artifact.text || artifact.name).filter(Boolean).join("\n\n");
+                        const memory = {
+                            id, apiId: record.id, date: record.created_at, type,
+                            title: artifacts.find((artifact) => artifact.name)?.name || `${type} memory`,
+                            summary: summary || "No artifact content.",
+                            art: (id - 1) % memoryArtPaths.length,
+                        };
+                        memories.push(memory);
+                        memoryById.set(id, memory);
+                    }
+
+                    for (const record of records) {
+                        const from = ids.get(record.id);
+
+                        for (const related of record.relations ?? []) {
+                            const to = ids.get(related);
+
+                            if (!to || from === to) {
+                                continue;
+                            }
+
+                            if (!relations.has(from)) relations.set(from, new Set());
+                            if (!relations.has(to)) relations.set(to, new Set());
+                            relations.get(from).add(to);
+                            relations.get(to).add(from);
+                        }
+                    }
+
+                    loaded = true;
+                    selectedId = memories.at(-1)?.id;
+
+                    if (memories.length) {
+                        buildTimeline();
+                    } else {
+                        selectionTitle.textContent = "No memories yet";
+                        selectionIndex.textContent = "00";
+                        selectionType.textContent = "";
+                        selectionDate.textContent = "";
+                        viewStatus.textContent = "No memories yet.";
+                    }
+                } catch {
+                    viewStatus.textContent = "Unable to load memories. Close and reopen to retry.";
+                    return;
+                } finally {
+                    loading = false;
+                    timelineToggle.disabled = !memories.length;
+                    graphToggle.disabled = !memories.length;
+                }
             }
 
-            setTopology("timeline");
-            timelineButtons.get(selectedId).focus({ preventScroll: true });
+            if (!view.hidden && memories.length) {
+                setTopology("timeline");
+                timelineButtons.get(selectedId).focus({ preventScroll: true });
+            }
         },
         close() {
             dismissDetails(false);

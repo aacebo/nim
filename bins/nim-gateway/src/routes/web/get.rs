@@ -189,7 +189,7 @@ use axum::{
                     </div>
                 </div>
                 <footer class="memory-footer">
-                    <span>Demo memories</span>
+                    <span>Stored memories</span>
                     <span id="memory-view-status" role="status"></span>
                 </footer>
                 <section id="memory-details" role="dialog" aria-labelledby="memory-detail-title" hidden>

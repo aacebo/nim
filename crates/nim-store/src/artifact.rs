@@ -1,4 +1,4 @@
-use crate::{Page, types};
+use crate::{Cursor, Page, PageResponse, types};
 
 #[derive(Copy, Clone)]
 pub struct ArtifactStorage<'a> {
@@ -36,10 +36,13 @@ impl<'a> ArtifactStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_chat_id(&self, chat_id: uuid::Uuid, page: Page) -> Result<Vec<types::ArtifactRow>, sqlx::Error> {
+    pub async fn find_by_chat_id(
+        &self,
+        chat_id: uuid::Uuid,
+        page: Page,
+    ) -> Result<PageResponse<types::ArtifactRow>, sqlx::Error> {
         let (cursor_id, cursor_at) = page.cursor.map(|cursor| (cursor.id, cursor.timestamp)).unzip();
-
-        sqlx::query_as(
+        let data: Vec<types::ArtifactRow> = sqlx::query_as(
             r#"
             SELECT
                 artifacts.id,
@@ -66,7 +69,16 @@ impl<'a> ArtifactStorage<'a> {
         .bind(cursor_id)
         .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
         .fetch_all(self.pool)
-        .await
+        .await?;
+
+        Ok(PageResponse {
+            size: page.limit,
+            next: data.last().filter(|_| data.len() == page.limit).map(|v| Cursor {
+                id: v.id,
+                timestamp: v.created_at,
+            }),
+            data,
+        })
     }
 
     #[tracing::instrument(skip(self))]

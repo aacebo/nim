@@ -1,4 +1,4 @@
-use crate::{Page, types};
+use crate::{Cursor, Page, PageResponse, types};
 
 #[derive(Copy, Clone)]
 pub struct ChatStorage<'a> {
@@ -11,10 +11,9 @@ impl<'a> ChatStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find(&self, page: Page) -> Result<Vec<types::ChatRow>, sqlx::Error> {
+    pub async fn find(&self, page: Page) -> Result<PageResponse<types::ChatRow>, sqlx::Error> {
         let (cursor_id, cursor_at) = page.cursor.map(|cursor| (cursor.id, cursor.timestamp)).unzip();
-
-        sqlx::query_as(
+        let data: Vec<types::ChatRow> = sqlx::query_as(
             r#"
             SELECT
                 id,
@@ -36,7 +35,16 @@ impl<'a> ChatStorage<'a> {
         .bind(cursor_id)
         .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
         .fetch_all(self.pool)
-        .await
+        .await?;
+
+        Ok(PageResponse {
+            size: page.limit,
+            next: data.last().filter(|_| data.len() == page.limit).map(|v| Cursor {
+                id: v.id,
+                timestamp: v.created_at,
+            }),
+            data,
+        })
     }
 
     #[tracing::instrument(skip(self))]

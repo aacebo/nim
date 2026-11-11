@@ -214,13 +214,13 @@ async function loadChatHistory() {
                 throw new Error("Chat history request failed");
             }
 
-            const messages = await response.json();
+            const page = await response.json();
 
-            for (const message of messages) {
+            for (const message of page.data) {
                 mergeChatMessage(message);
             }
 
-            const cursor = response.headers.get("x-next-cursor");
+            const cursor = page.next;
 
             if (!cursor) {
                 break;

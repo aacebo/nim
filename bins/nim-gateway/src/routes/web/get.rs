@@ -15,12 +15,12 @@ use axum::{
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title>Nim</title>
         <link rel="stylesheet" href="/web/static/orb.css?v=2">
-        <link rel="stylesheet" href="/web/static/hud.css?v=11">
+        <link rel="stylesheet" href="/web/static/hud.css?v=13">
         <link rel="stylesheet" href="/web/static/memory.css?v=11">
         <script src="/web/static/client.js" defer></script>
         <script src="/web/static/orb.js?v=5" defer></script>
         <script src="/web/static/memory.js?v=14" defer></script>
-        <script src="/web/static/hud.js?v=10" defer></script>
+        <script src="/web/static/hud.js?v=12" defer></script>
     </head>
     <body>
         <main class="orb-scene" data-hud="idle">
@@ -119,14 +119,19 @@ use axum::{
                         </button>
                     </header>
                     <form id="chat-form" hidden>
+                        <input id="chat-files" type="file" accept="audio/*,image/*,text/*,.txt,.md,.csv,.json,.log,.yaml,.yml" multiple hidden>
+                        <ul id="chat-attachments" aria-label="Attachments" hidden></ul>
                         <div class="chat-fields">
+                            <button id="chat-attach" type="button" aria-label="Attach audio, images, or text files" title="Attach files">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12 7-7a3 3 0 0 1 4 4L9 19a5 5 0 0 1-7-7L12 2m-7 13 10-10"/></svg>
+                            </button>
                             <span class="chat-input-field">
-                                <input id="chat-input" type="text" aria-label="Message" placeholder="Write a message…" autocomplete="off" required>
+                                <input id="chat-input" type="text" aria-label="Message" placeholder="Write a message…" autocomplete="off">
                             </span>
                             <button id="chat-send" type="submit">Send</button>
                         </div>
-                        <p id="chat-error" role="alert"></p>
                     </form>
+                    <p id="chat-error" role="alert"></p>
                     <p id="chat-status" role="status"></p>
                 </section>
                 <aside id="chat-transcript" aria-labelledby="chat-transcript-title" hidden>

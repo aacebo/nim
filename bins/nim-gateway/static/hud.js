@@ -10,6 +10,18 @@ const actionBack = document.querySelector("#action-back");
 const chatForm = document.querySelector("#chat-form");
 const chatInput = document.querySelector("#chat-input");
 const chatSend = document.querySelector("#chat-send");
+const chatAttach = document.querySelector("#chat-attach");
+const chatFiles = document.querySelector("#chat-files");
+const chatAttachments = document.querySelector("#chat-attachments");
+const pendingAttachments = [];
+// Leave room for multipart headers within the gateway's 10 MiB request limit.
+const maxAttachmentSize = 10 * 1024 * 1024 - 64 * 1024;
+const textExtensions = /\.(txt|md|csv|json|log|ya?ml)$/i;
+const attachmentPaths = {
+    image: "M3 3h18v18H3z M3 17l6-6 5 5 3-3 4 4 M16 7h.01",
+    audio: "M9 18V5l11-2v13 M9 8l11-2 M9 18c0 2-6 3-6 0s6-2 6 0 M20 16c0 2-6 3-6 0s6-2 6 0",
+    text: "M5 2h9l5 5v15H5z M14 2v6h5 M8 12h8 M8 16h8",
+};
 const chatError = document.querySelector("#chat-error");
 const chatStatus = document.querySelector("#chat-status");
 const chatTranscript = document.querySelector("#chat-transcript");
@@ -25,6 +37,7 @@ let activeAction;
 let historyLoading = false;
 let historyError = false;
 let chatStatusTimer;
+let chatErrorTimer;
 
 function setChatStatus(text, dismiss = false) {
     clearTimeout(chatStatusTimer);
@@ -39,6 +52,20 @@ function setChatStatus(text, dismiss = false) {
             }, 300);
         }, 2200);
     }
+}
+
+function setChatError(text) {
+    clearTimeout(chatErrorTimer);
+    chatError.classList.remove("is-fading");
+    chatError.textContent = text;
+    if (!text) return;
+    setChatStatus("");
+    chatErrorTimer = setTimeout(() => {
+        chatError.classList.add("is-fading");
+        chatErrorTimer = setTimeout(() => {
+            chatError.textContent = "";
+        }, 300);
+    }, 2200);
 }
 
 function isChatOpen() {
@@ -250,8 +277,84 @@ socket.addEventListener("message", (event) => {
     }
 });
 
+function renderAttachments() {
+    chatAttachments.hidden = pendingAttachments.length === 0;
+    chatAttachments.replaceChildren(...pendingAttachments.map((attachment) => {
+        const item = document.createElement("li");
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        icon.setAttribute("viewBox", "0 0 24 24");
+        icon.setAttribute("aria-hidden", "true");
+        path.setAttribute("d", attachmentPaths[attachment.kind]);
+        icon.append(path);
+        const name = document.createElement("span");
+        name.className = "attachment-name";
+        name.textContent = attachment.file.name;
+        const size = document.createElement("span");
+        size.className = "attachment-size";
+        size.textContent = attachment.file.size < 1024 * 1024
+            ? `${Math.ceil(attachment.file.size / 1024)} KB`
+            : `${(attachment.file.size / (1024 * 1024)).toFixed(1)} MB`;
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", `Remove ${attachment.file.name}`);
+        remove.disabled = chatSend.disabled;
+        remove.addEventListener("click", () => {
+            if (chatSend.disabled) return;
+            pendingAttachments.splice(pendingAttachments.indexOf(attachment), 1);
+            renderAttachments();
+            chatAttach.focus();
+        });
+        item.title = attachment.file.name;
+        item.append(icon, name, size, remove);
+        return item;
+    }));
+}
+
+chatAttach.addEventListener("click", () => chatFiles.click());
+chatFiles.addEventListener("change", () => {
+    if (chatSend.disabled) return;
+    const errors = [];
+    for (const file of chatFiles.files) {
+        const kind = file.type.startsWith("image/") ? "image"
+            : file.type.startsWith("audio/") ? "audio"
+            : file.type.startsWith("text/") || textExtensions.test(file.name) ? "text" : null;
+        if (!kind) {
+            errors.push(`${file.name}: choose an audio, image, or text file.`);
+        } else if (file.size > maxAttachmentSize) {
+            errors.push(`${file.name}: must be smaller than 10 MiB.`);
+        } else {
+            pendingAttachments.push({ file, kind, artifactId: null });
+        }
+    }
+    chatFiles.value = "";
+    setChatError(errors.join(" "));
+    renderAttachments();
+});
+
+async function uploadAttachment(attachment) {
+    if (attachment.artifactId) return;
+    // Some text extensions have an empty or application/* browser MIME type.
+    const file = attachment.kind === "text" && !attachment.file.type.startsWith("text/")
+        ? new File([attachment.file], attachment.file.name, { type: "text/plain" })
+        : attachment.file;
+    const body = new FormData();
+    body.append("files", file);
+    const response = await fetch("/artifacts", { method: "POST", body });
+    if (!response.ok) {
+        const detail = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 200);
+        throw new Error(`Upload failed for ${file.name} (${response.status}). ${detail || "Try again."}`);
+    }
+    const artifacts = await response.json();
+    if (!Array.isArray(artifacts) || artifacts.length !== 1 || typeof artifacts[0]?.id !== "string" || !artifacts[0].id) {
+        throw new Error(`Invalid upload response for ${file.name}. Try again.`);
+    }
+    attachment.artifactId = artifacts[0].id;
+}
+
 chatInput.addEventListener("input", () => {
-    chatError.textContent = "";
+    setChatError("");
 });
 
 chatForm.addEventListener("submit", async (event) => {
@@ -263,24 +366,35 @@ chatForm.addEventListener("submit", async (event) => {
 
     const text = chatInput.value.trim();
 
-    if (!text) {
-        chatError.textContent = "Enter a message.";
+    if (!text && pendingAttachments.length === 0) {
+        setChatError("Enter a message or attach a file.");
         chatInput.focus();
         return;
     }
 
-    chatError.textContent = "";
+    setChatError("");
     const restoreFocus = document.activeElement === chatSend;
     chatInput.readOnly = true;
     chatSend.disabled = true;
-    setChatStatus("Sending…");
+    chatAttach.disabled = true;
+    chatFiles.disabled = true;
+    renderAttachments();
 
     try {
+        const uploads = pendingAttachments.filter((attachment) => !attachment.artifactId);
+        for (const [index, attachment] of uploads.entries()) {
+            setChatStatus(`Uploading ${index + 1}/${uploads.length}…`);
+            await uploadAttachment(attachment);
+        }
+        const content = [];
+        if (text) content.push({ text });
+        content.push(...pendingAttachments.map(({ artifactId }) => ({ artifact_id: artifactId })));
+        setChatStatus("Sending…");
         const path = chatId ? `/chats/${encodeURIComponent(chatId)}/messages` : "/chats/messages";
         const response = await fetch(path, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ role: "user", content: { text } }),
+            body: JSON.stringify({ role: "user", content }),
         });
 
         if (!response.ok) {
@@ -296,6 +410,8 @@ chatForm.addEventListener("submit", async (event) => {
         const firstMessage = !chatId;
         chatId = message.chat_id;
         chatInput.value = "";
+        pendingAttachments.length = 0;
+        renderAttachments();
         mergeChatMessage(message);
         renderChatTranscript();
 
@@ -304,12 +420,16 @@ chatForm.addEventListener("submit", async (event) => {
         }
 
         setChatStatus("Sent", true);
-    } catch {
+    } catch (error) {
         setChatStatus("");
-        chatError.textContent = "Send failed. Try again.";
+        setChatError(error.message?.startsWith("Upload") || error.message?.startsWith("Invalid upload")
+            ? error.message : "Send failed. Try again.");
     } finally {
         chatInput.readOnly = false;
         chatSend.disabled = false;
+        chatAttach.disabled = false;
+        chatFiles.disabled = false;
+        renderAttachments();
 
         if (restoreFocus && isChatOpen() && document.activeElement === document.body) {
             chatInput.focus();

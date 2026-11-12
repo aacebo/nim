@@ -1,4 +1,4 @@
-use std::{os::unix::fs::MetadataExt, str::FromStr};
+use std::os::unix::fs::MetadataExt;
 
 use axum::response::IntoResponse;
 use tokio::io::AsyncWriteExt;
@@ -14,17 +14,20 @@ pub async fn route(
     while let Some(mut field) = multipart.next_field().await? {
         let content_type = field.content_type();
         let mime_type = content_type.and_then(|v| v.parse::<mime::Mime>().ok());
-        let ext = if let Some(content_type) = &content_type {
-            mime_guess::get_mime_extensions_str(content_type)
-                .and_then(|exts| exts.first())
-                .map(|ext| ext.to_string())
-        } else if let Some(name) = field.file_name() {
-            std::path::PathBuf::from_str(name)?
-                .extension()
-                .map(|ext| ext.display().to_string())
-        } else {
-            None
-        };
+        let ext = field
+            .file_name()
+            .and_then(|name| {
+                std::path::Path::new(name)
+                    .extension()
+                    .filter(|ext| !ext.is_empty())
+                    .map(|ext| ext.to_string_lossy().into_owned())
+            })
+            .or_else(|| {
+                content_type
+                    .and_then(mime_guess::get_mime_extensions_str)
+                    .and_then(|exts| exts.first())
+                    .map(|ext| ext.to_string())
+            });
 
         let Some(ext) = ext else {
             return Err((

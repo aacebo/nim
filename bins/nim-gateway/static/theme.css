@@ -1,0 +1,15 @@
+/* Shared atmosphere and HUD materials. */
+:root {
+    --scene-base: #04030c;
+    --scene-blue: #0b1749;
+    --scene-violet: #310c35;
+    --ui-ink: #e7f5fa;
+    --ui-muted: #b5c4dc;
+    --ui-line: rgb(176 200 235 / 24%);
+    --ui-surface: rgb(12 17 36 / 76%);
+    --ui-cyan: #00e7ff;
+    --ui-violet: #9c57ff;
+    --ui-pink: #ff58c8;
+    --ui-focus: #b9c8ff;
+    --ui-duration: 220ms;
+}

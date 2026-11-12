@@ -54,7 +54,7 @@ pub async fn route(
             path = path.join(subdir);
         }
 
-        path = path.join(&name);
+        path = path.join(format!("{}.{}", uuid::Uuid::now_v7().simple(), ext));
 
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent)

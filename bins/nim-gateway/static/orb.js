@@ -240,8 +240,19 @@ function animateOrb() {
     }
 
     function resize() {
-        size = canvas.getBoundingClientRect().width;
-        const pixels = Math.round(size * Math.min(devicePixelRatio, 2));
+        const nextSize = canvas.getBoundingClientRect().width;
+
+        if (nextSize <= 0) {
+            return;
+        }
+
+        const pixels = Math.round(nextSize * Math.min(devicePixelRatio, 2));
+
+        if (size === nextSize && canvas.width === pixels && canvas.height === pixels) {
+            return;
+        }
+
+        size = nextSize;
         canvas.width = canvas.height = pixels;
         radius = size * 0.38;
         const scale = pixels / size;
@@ -274,7 +285,21 @@ function animateOrb() {
     resize();
     syncMotion();
     trigger.addEventListener("click", startRipple);
+    // Layout changes can resize the canvas without a window resize event.
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
     window.addEventListener("resize", resize);
+
+    // Re-arm when zoom or moving between displays changes pixel density.
+    function watchPixelRatio() {
+        const resolution = matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
+        resolution.addEventListener("change", () => {
+            resize();
+            watchPixelRatio();
+        }, { once: true });
+    }
+
+    watchPixelRatio();
     document.addEventListener("visibilitychange", syncMotion);
     reducedMotion.addEventListener("change", syncMotion);
 }

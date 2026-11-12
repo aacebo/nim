@@ -62,8 +62,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Memory>) -> Result<(), Error
         .update(
             signal.content.id,
             nim::state::MemoryUpdate {
-                summary: summary.first().map(|v| v.value.as_str().map(ToString::to_string)).flatten(),
-                embedding: summary.first().map(|v| v.vector.as_ref().map(|v| v.clone().into())).flatten(),
+                summary: summary.first().and_then(|v| v.value.as_str().map(ToString::to_string)),
+                embedding: summary.first().and_then(|v| v.vector.as_ref().map(|v| v.clone().into())),
                 confidence: Some(confidence),
                 salience: Some(salience),
                 strength: Some(initial_strength),

@@ -1,6 +1,6 @@
 .orb-scene {
-    --hud-ink: #e7f5fa;
-    --hud-line: #b0c8d7;
+    --hud-ink: var(--ui-ink);
+    --hud-line: var(--ui-muted);
     --hub-top: max(18px, env(safe-area-inset-top));
     --hub-left: max(18px, env(safe-area-inset-left));
     position: relative;
@@ -200,7 +200,7 @@
 }
 
 .hub-action:enabled:is(:hover, :focus-visible) .hub-label {
-    background: #60313f;
+    background: rgb(156 87 255 / 25%);
 }
 
 #orb-hub :focus-visible,
@@ -256,7 +256,7 @@
     position: absolute;
     box-sizing: border-box;
     border: 1px solid rgb(197 222 233 / 35%);
-    background: rgb(11 21 32 / 84%);
+    background: var(--ui-surface);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     transform: translateY(8px);
@@ -472,7 +472,7 @@
 }
 
 #chat-send:is(:hover, :focus-visible) {
-    background: #60313f;
+    background: rgb(156 87 255 / 25%);
 }
 
 .chat-input-field {

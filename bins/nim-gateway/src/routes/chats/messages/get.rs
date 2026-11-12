@@ -1,4 +1,5 @@
 use axum::response::IntoResponse;
+use serde_valid::Validate;
 
 use crate::{Error, http::HttpContext};
 
@@ -22,7 +23,7 @@ pub async fn route(
     params: axum::extract::Path<Params>,
     query: axum::extract::Query<Query>,
 ) -> axum::response::Result<axum::response::Response> {
-    serde_valid::Validate::validate(&query.0).map_err(Error::from)?;
+    query.validate().map_err(Error::from)?;
     let _chat = ctx.services().chats().find_by_id(params.chat_id).await.map_err(Error::from)?;
     let items = ctx
         .services()

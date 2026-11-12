@@ -1,3 +1,4 @@
+mod content;
 mod create;
 
 use crate::Context;
@@ -5,5 +6,6 @@ use crate::Context;
 pub fn new() -> axum::Router<std::sync::Arc<Context>> {
     axum::Router::new()
         .route("/artifacts", axum::routing::post(create::route))
+        .route("/artifacts/{artifact_id}/content", axum::routing::get(content::route))
         .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024))
 }

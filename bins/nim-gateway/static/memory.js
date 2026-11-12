@@ -15,6 +15,55 @@ const memoryView = (() => {
     const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
     const view = document.querySelector("#memory-view");
+    view.querySelector(".memory-atmosphere")?.remove();
+    // Static assets can update before the compiled gateway HTML during development.
+    // Upgrade the previous shell before querying elements introduced by this design.
+    if (!view.querySelector(".memory-heading")) {
+        const title = view.querySelector("#memory-title");
+        const previousHeading = title.parentElement;
+        const brand = document.createElement("div");
+        brand.className = "memory-brand";
+        brand.innerHTML = `<svg class="memory-orb-mark" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="archive-orb"><stop stop-color="#00e7ff"/><stop offset="1" stop-color="#c45bff"/></linearGradient></defs><g fill="none" stroke="url(#archive-orb)" stroke-width=".65"><circle cx="24" cy="24" r="20"/><ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(32 24 24)"/><ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(-32 24 24)"/><ellipse cx="24" cy="24" rx="20" ry="9"/><ellipse cx="24" cy="24" rx="20" ry="15"/><ellipse cx="24" cy="24" rx="5" ry="20"/></g></svg><span>NIM</span><span class="memory-brand-archive">Archive</span>`;
+        const heading = document.createElement("div");
+        heading.className = "memory-heading";
+        const kicker = document.createElement("p");
+        kicker.className = "memory-kicker";
+        kicker.textContent = "Memory";
+        const subtitle = document.createElement("p");
+        subtitle.id = "memory-subtitle";
+        subtitle.textContent = "Your memories in time";
+        heading.append(kicker, title, subtitle);
+        previousHeading.replaceWith(brand);
+        view.append(heading);
+    }
+    if (!view.querySelector(".memory-time-axis")) {
+        const axis = document.createElement("div");
+        axis.className = "memory-time-axis";
+        axis.setAttribute("aria-hidden", "true");
+        for (const id of ["memory-axis-start", "memory-axis-end"]) {
+            const label = document.createElement("span");
+            label.id = id;
+            axis.append(label);
+        }
+        view.querySelector("#memory-timeline-stage").append(axis);
+    }
+
+    const timeAxis = view.querySelector(".memory-time-axis");
+    timeAxis.removeAttribute("aria-hidden");
+    const axisPosition = document.createElement("span");
+    axisPosition.className = "memory-axis-position";
+    const axisLabel = document.createElement("span");
+    axisLabel.className = "memory-axis-label";
+    axisLabel.setAttribute("role", "status");
+    axisPosition.append(axisLabel);
+    timeAxis.append(axisPosition);
+
+    const themeStyle = getComputedStyle(view);
+    const theme = {
+        cyan: themeStyle.getPropertyValue("--ui-cyan").trim(),
+        violet: themeStyle.getPropertyValue("--ui-violet").trim(),
+        pink: themeStyle.getPropertyValue("--ui-pink").trim(),
+    };
     const timelineStage = document.querySelector("#memory-timeline-stage");
     const timeline = document.querySelector("#memory-timeline");
     const strand = document.querySelector("#memory-strand");
@@ -38,7 +87,7 @@ const memoryView = (() => {
     const detailSummary = document.querySelector("#memory-detail-summary");
     const detailClose = document.querySelector("#memory-detail-close");
     const expand = document.querySelector("#memory-expand");
-    const timelineFocus = 0.64;
+    const timelineFocus = 0.5;
     const timelineSliceCount = 152;
     const timelineButtons = new Map();
     const graphNodes = new Map();
@@ -90,11 +139,38 @@ const memoryView = (() => {
         }
 
         selectedId = id;
+        document.querySelector(".memory-selection").hidden = false;
+        document.querySelector(".memory-time-axis").hidden = false;
         const memory = memoryById.get(id);
         selectionIndex.textContent = String(memory.index + 1).padStart(2, "0");
         selectionTitle.textContent = memory.title;
         selectionType.textContent = memory.type;
         selectionDate.textContent = dateFormat.format(new Date(memory.date));
+        detailTitle.textContent = memory.title;
+        detailMeta.replaceChildren(...[
+            dateFormat.format(new Date(memory.date)),
+            memory.type,
+            `Record ${String(memory.index + 1).padStart(3, "0")}`,
+        ].map((text) => {
+            const row = document.createElement("span");
+            row.textContent = text;
+            return row;
+        }));
+        detailSummary.textContent = memory.summary;
+        details.dataset.topology = topology;
+        details.hidden = false;
+        detailArt.hidden = true;
+        expand.hidden = topology !== "graph" || relatedIds(id).size === 0;
+        const start = Date.parse(memories[0].date);
+        const end = Date.parse(memories.at(-1).date);
+        const progress = memories.length === 1 ? 0.5
+            : end > start ? (Date.parse(memory.date) - start) / (end - start)
+            : memory.index / (memories.length - 1);
+        timeAxis.style.setProperty("--memory-progress", `${progress * 100}%`);
+        axisPosition.dataset.align = progress < 0.2 ? "start" : progress > 0.8 ? "end" : "center";
+        axisLabel.textContent = `${dateFormat.format(new Date(memory.date))} · ${memories.length === 1 ? "Only memory" : `Memory ${memory.index + 1} of ${memories.length}`}`;
+        document.querySelector("#memory-axis-start").textContent = `Beginning · ${dateFormat.format(new Date(start))}`;
+        document.querySelector("#memory-axis-end").textContent = `Latest · ${dateFormat.format(new Date(end))}`;
 
         const button = timelineButtons.get(id);
 
@@ -113,17 +189,8 @@ const memoryView = (() => {
     }
 
     function timelinePoint(progress, width, height) {
-        const left = progress < 0.52;
-        const t = left ? progress / 0.52 : (progress - 0.52) / 0.48;
-        const u = 1 - t;
-        const x = left
-            ? 0.18 * u ** 3 + 0.24 * 3 * u ** 2 * t + 0.38 * 3 * u * t ** 2 + 0.57 * t ** 3
-            : 0.57 * u ** 3 + 0.76 * 3 * u ** 2 * t + 0.78 * 3 * u * t ** 2 + 1.08 * t ** 3;
-        const y = left
-            ? 1.2 * u ** 3 + 0.72 * 3 * u ** 2 * t + 0.49 * 3 * u * t ** 2 + 0.62 * t ** 3
-            : 0.62 * u ** 3 + 0.75 * 3 * u ** 2 * t + 0.17 * 3 * u * t ** 2 - 0.12 * t ** 3;
-        const depth = 0.52 - 0.83 * progress + 1.48 * Math.max(0, 1 - progress) ** 2.5;
-        return { x: (x - 0.5) * width * (1 + depth), y: (y - 0.5) * height * (1 + depth), z: depth * width };
+        const wave = Math.sin(progress * Math.PI * 4.2);
+        return { x: (progress - 0.5) * width, y: height * (0.59 + wave * 0.035) - height / 2, z: 0 };
     }
 
     function projectTimeline({ x, y, z }, width, height) {
@@ -208,85 +275,57 @@ const memoryView = (() => {
 
             timelineSlices = slices;
 
-            const glow = timelineContext.createLinearGradient(0, height, width, 0);
-            glow.addColorStop(0, "rgb(255 255 255 / 13%)");
-            glow.addColorStop(0.38, "rgb(255 255 255 / 42%)");
-            glow.addColorStop(0.57, "rgb(255 255 255 / 9%)");
-            glow.addColorStop(1, "rgb(255 255 255 / 28%)");
-            timelineContext.beginPath();
-
-            for (let index = 0; index < slices.length; index += 2) {
-                if (Math.abs(index / timelineSliceCount - selected) > 0.04) {
-                    traceTimeline(slices[index]);
-                    timelineContext.closePath();
-                }
-            }
-
+            const glow = timelineContext.createLinearGradient(0, 0, width, 0);
+            glow.addColorStop(0, theme.cyan);
+            glow.addColorStop(0.4, "#4672ff");
+            glow.addColorStop(0.7, theme.violet);
+            glow.addColorStop(1, theme.pink);
             timelineContext.strokeStyle = glow;
-            timelineContext.lineWidth = 2.2;
-            timelineContext.shadowColor = "#fff";
-            timelineContext.shadowBlur = 11 * timelineScale;
-            timelineContext.stroke();
-            timelineContext.shadowBlur = 0;
+            timelineContext.lineWidth = 0.65;
 
-            timelineContext.beginPath();
-
-            for (const side of [0, 2, 4]) {
-                traceTimeline(slices.map((slice) => slice[side]));
-            }
-
-            timelineContext.strokeStyle = "rgb(255 255 255 / 19%)";
-            timelineContext.lineWidth = 1.4;
-            timelineContext.stroke();
-
-            for (let index = 0; index < slices.length; index++) {
-                const progress = index / timelineSliceCount;
-                const distance = Math.abs(progress - selected);
-                const active = distance < 0.039;
-                const cap = distance < 0.006;
-                const highlight = Math.abs(progress - timelineLiftAt) < 0.012 && timelineLift > 0.1;
-                const slice = slices[index];
+            // A shallow flowing mesh, with no opaque cross-section fills.
+            const ribbonPoint = (progress, lane) => {
+                const center = projectTimeline(timelinePoint(progress, width, height), width, height);
+                const phase = progress * Math.PI * 5 + time * 0.18;
+                const amplitude = Math.min(height * 0.085, 44);
+                return { x: center.x, y: center.y + Math.sin(phase + lane * 2.4) * amplitude + lane * amplitude * 0.45 };
+            };
+            for (let lane = 0; lane <= 20; lane++) {
                 timelineContext.beginPath();
-                traceTimeline(slice);
-                timelineContext.closePath();
-                timelineContext.fillStyle = active ? "rgb(57 37 14 / 19%)" : "rgb(251 248 250 / 4%)";
-
-                if (cap) {
-                    const left = Math.min(...slice.map(({ x }) => x));
-                    const right = Math.max(...slice.map(({ x }) => x));
-                    const selectionGradient = timelineContext.createLinearGradient(left, 0, right, 0);
-                    selectionGradient.addColorStop(0, "rgb(217 164 65 / 93%)");
-                    selectionGradient.addColorStop(0.47, "rgb(101 70 25 / 92%)");
-                    selectionGradient.addColorStop(1, "rgb(57 37 14 / 88%)");
-                    timelineContext.fillStyle = selectionGradient;
-                }
-
-                timelineContext.fill();
-                timelineContext.strokeStyle = cap ? "#ffe3a3" : active ? "rgb(255 227 163 / 68%)" : "rgb(255 254 255 / 52%)";
-
-                if (highlight && !active) {
-                    timelineContext.strokeStyle = `rgb(255 254 255 / ${0.52 + timelineLift * 0.45})`;
-                }
-
-                timelineContext.lineWidth = cap ? 2 : active ? 0.9 : 0.72;
+                traceTimeline(slices.map((_, index) => ribbonPoint(index / timelineSliceCount, lane / 10 - 1)));
+                timelineContext.globalAlpha = 0.3;
                 timelineContext.stroke();
             }
-
-            if (selected >= 0 && selected <= limit) {
-                const anchor = projectTimeline(timelinePoint(selected, width, height), width, height);
-                const top = anchor.y - Math.min(height * 0.23, width * 0.18);
+            for (let index = 0; index < slices.length; index += 2) {
                 timelineContext.beginPath();
-                traceTimeline([{ x: anchor.x, y: top }, { x: anchor.x, y: anchor.y - Math.min(height * 0.08, width * 0.07) }]);
-                timelineContext.strokeStyle = "#d9a441";
-                timelineContext.lineWidth = 1.15;
+                traceTimeline(Array.from({ length: 21 }, (_, lane) => ribbonPoint(index / timelineSliceCount, lane / 10 - 1)));
+                timelineContext.globalAlpha = 0.17;
                 timelineContext.stroke();
-                timelineContext.fillStyle = "#d9a441";
-                timelineContext.beginPath();
-                traceTimeline([{ x: anchor.x, y: top - 8 }, { x: anchor.x + 5, y: top - 3 }, { x: anchor.x, y: top + 2 }, { x: anchor.x - 5, y: top - 3 }]);
-                timelineContext.closePath();
-                timelineContext.fill();
             }
-
+            timelineContext.globalAlpha = 1;
+            for (const button of visibleMarkers) {
+                const progress = Number(button.dataset.progress);
+                if (progress > limit) continue;
+                const anchor = projectTimeline(timelinePoint(progress, width, height), width, height);
+                const active = button.getAttribute("aria-current") === "true";
+                timelineContext.beginPath();
+                timelineContext.arc(anchor.x, anchor.y, active ? 4.5 : 2.8, 0, Math.PI * 2);
+                timelineContext.fillStyle = active ? theme.cyan : "#d9ddff";
+                timelineContext.shadowColor = active ? theme.cyan : theme.violet;
+                timelineContext.shadowBlur = active ? 14 : 7;
+                timelineContext.fill();
+                timelineContext.shadowBlur = 0;
+                if (active) {
+                    timelineContext.beginPath();
+                    timelineContext.arc(anchor.x, anchor.y, 10, 0, Math.PI * 2);
+                    timelineContext.strokeStyle = theme.cyan;
+                    timelineContext.lineWidth = 0.8;
+                    timelineContext.stroke();
+                    const card = document.querySelector(".memory-selection");
+                    card.style.left = `${anchor.x}px`;
+                    card.style.top = `${anchor.y - 54}px`;
+                }
+            }
             lastTimelineDraw = now;
         }
 
@@ -318,62 +357,6 @@ const memoryView = (() => {
         }
 
         return element;
-    }
-
-    function drawHorizonPoints() {
-        const layer = document.querySelector("#memory-horizon-points");
-        const floor = [];
-        const lights = [];
-        let seed = 17;
-        const random = () => {
-            seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-            return seed / 4294967296;
-        };
-
-        for (let row = 0; row < 39; row++) {
-            const depth = (row + 1) / 39;
-            const y = 443 + 375 * depth ** 2.6;
-            const spacing = 7 + 44 * depth ** 1.5;
-
-            for (let column = -Math.ceil(600 / spacing); column <= Math.ceil(600 / spacing); column++) {
-                if (random() < 0.13) {
-                    continue;
-                }
-
-                floor.push(makeSvgElement("circle", {
-                    cx: 600 + column * spacing + (row % 2) * spacing / 2,
-                    cy: y,
-                    r: (0.36 + depth * 0.76).toFixed(2),
-                    opacity: (0.08 + random() * 0.55 * (1 - depth * 0.53)).toFixed(2),
-                }));
-            }
-        }
-
-        const scatteredCount = 860;
-        const horizonCount = 380;
-
-        for (let index = 0; index < scatteredCount + horizonCount; index++) {
-            const nearHorizon = index >= scatteredCount;
-            const x = random() * 1200;
-            const horizon = 440 + 6 * Math.sin(x / 150) + 3 * Math.cos(x / 55);
-            const spread = random() ** 2.25;
-            const y = horizon + (random() < 0.53 ? 1 : -1) * (spread * (nearHorizon ? 12 : 37) + random() * 2);
-            const radius = 0.34 + random() ** 3 * (nearHorizon ? 0.45 : 1.3);
-            const opacity = (0.24 + random() * 0.68) * (1 - spread * 0.57);
-            const fill = !nearHorizon && index % 5 === 0 ? "#b2d1f2" : index % 3 === 0 ? "#ffc077" : "#fff0c6";
-
-            if (radius > 0.84) {
-                lights.push(makeSvgElement("circle", {
-                    cx: x, cy: y, r: radius * 4.6, opacity: opacity * 0.68, fill: "url(#memory-horizon-bloom)",
-                }));
-            }
-
-            lights.push(makeSvgElement("circle", { cx: x, cy: y, r: radius, opacity, fill }));
-        }
-
-        const floorLayer = makeSvgElement("g", { class: "memory-floor-points" });
-        floorLayer.append(...floor);
-        layer.replaceChildren(floorLayer, ...lights);
     }
 
     function measureTimeline() {
@@ -428,7 +411,7 @@ const memoryView = (() => {
             setTimelineHover(undefined);
         }
 
-        if (followSelection && details.hidden && nearestId !== selectedId) {
+        if (followSelection && nearestId !== selectedId) {
             selectMemory(nearestId);
 
             if (focused.hidden && timeline.contains(focused)) {
@@ -446,10 +429,12 @@ const memoryView = (() => {
 
     function centerGraph(id) {
         const { x, y } = graphNodes.get(id);
+        const scale = Math.min(1, graph.clientWidth / 1040, graph.clientHeight / 620);
+        graphSurface.style.zoom = String(Math.max(0.35, scale));
         const surface = graphSurface.getBoundingClientRect();
         const viewport = graph.getBoundingClientRect();
-        graph.scrollLeft += surface.left - viewport.left + x - graph.clientWidth / 2;
-        graph.scrollTop += surface.top - viewport.top + y - graph.clientHeight / 2;
+        graph.scrollLeft += surface.left - viewport.left + x * Math.max(0.35, scale) - graph.clientWidth / 2;
+        graph.scrollTop += surface.top - viewport.top + y * Math.max(0.35, scale) - graph.clientHeight / 2;
     }
 
     function updateStatus() {
@@ -717,25 +702,9 @@ const memoryView = (() => {
             return;
         }
 
-        const inset = 12;
-        const anchor = (detailAnchor.querySelector(".memory-graph-frame") ?? detailAnchor).getBoundingClientRect();
-        const { width, height } = details.getBoundingClientRect();
-        const right = view.clientWidth - inset;
-        const bottom = view.clientHeight - inset;
-        let x = anchor.right + inset;
-        let y = anchor.top;
-
-        if (x + width > right) {
-            x = anchor.left - width - inset;
-
-            if (x < inset) {
-                x = anchor.left + (anchor.width - width) / 2;
-                y = anchor.bottom + inset + height <= bottom ? anchor.bottom + inset : anchor.top - height - inset;
-            }
-        }
-
-        details.style.left = `${Math.max(inset, Math.min(x, right - width))}px`;
-        details.style.top = `${Math.max(inset, Math.min(y, bottom - height))}px`;
+        // The inspector has a stable rail; CSS adapts it to a bottom sheet on mobile.
+        details.style.removeProperty("left");
+        details.style.removeProperty("top");
     }
 
     function showDetails(id, button) {
@@ -744,11 +713,10 @@ const memoryView = (() => {
         detailAnchor = button;
         details.dataset.topology = topology;
         detailTitle.textContent = memory.title;
-        detailMeta.textContent = `${dateFormat.format(new Date(memory.date))} · ${memory.type}`;
         detailSummary.textContent = memory.summary;
-        detailArt.hidden = topology !== "graph";
+        detailArt.hidden = true;
         detailArt.replaceChildren(...(detailArt.hidden ? [] : [makeMemoryArt(memory)]));
-        expand.hidden = detailArt.hidden || relatedIds(id).size === 0;
+        expand.hidden = topology !== "graph" || relatedIds(id).size === 0;
         details.hidden = false;
         positionDetails();
         detailClose.focus();
@@ -762,7 +730,8 @@ const memoryView = (() => {
         details.hidden = true;
 
         if (restoreFocus) {
-            detailAnchor.focus({ preventScroll: true });
+            const anchor = detailAnchor ?? (topology === "graph" ? graphNodes.get(selectedId)?.button : timelineButtons.get(selectedId));
+            anchor?.focus({ preventScroll: true });
         }
 
         return true;
@@ -772,6 +741,9 @@ const memoryView = (() => {
         dismissDetails(false);
         clearGraphFocus();
         topology = next;
+        view.dataset.topology = next;
+        document.querySelector("#memory-title").textContent = next === "timeline" ? "Timeline" : "Graph";
+        document.querySelector("#memory-subtitle").textContent = next === "timeline" ? "Your memories in time" : "Memory relations & context";
         timelineStage.hidden = next !== "timeline";
         graph.hidden = next !== "graph";
         timelineToggle.setAttribute("aria-pressed", String(!timelineStage.hidden));
@@ -799,6 +771,7 @@ const memoryView = (() => {
             centerGraph(selectedId);
         }
 
+        selectMemory(selectedId);
         updateStatus();
     }
 
@@ -939,14 +912,21 @@ const memoryView = (() => {
         }
     });
     graph.addEventListener("scroll", positionDetails);
-    window.addEventListener("resize", () => {
+    function resizeMemoryLayout() {
         if (!view.hidden && !timelineStage.hidden && memories.length) {
             measureTimeline();
             centerTimeline(selectedId);
         }
 
+        if (!view.hidden && !graph.hidden && graphNodes.has(selectedId)) {
+            centerGraph(selectedId);
+        }
         positionDetails();
-    });
+    }
+    window.addEventListener("resize", resizeMemoryLayout);
+    const layoutObserver = new ResizeObserver(resizeMemoryLayout);
+    layoutObserver.observe(timelineStage);
+    layoutObserver.observe(graph);
     reducedMotion.addEventListener("change", () => {
         moveGraphNodes();
         refreshTimeline();
@@ -999,7 +979,9 @@ const memoryView = (() => {
             relations: snapshot ? record.relations ?? current.relations ?? [] : [...new Set([...(current.relations ?? []), ...(record.relations ?? [])])],
         };
         const summary = memory.record.summary?.trim() || "Analyzing...";
-        memory.title = summary;
+        // Records have a summary rather than a separate title; show an honest excerpt.
+        const firstLine = summary.split(/\n|[.!?](?:\s|$)/)[0];
+        memory.title = firstLine.length > 80 ? `${firstLine.slice(0, 77).trimEnd()}…` : firstLine;
         memory.summary = summary;
         memory.date = memory.record.created_at;
         memory.type = memory.record.type.charAt(0).toUpperCase() + memory.record.type.slice(1);
@@ -1024,9 +1006,8 @@ const memoryView = (() => {
             selectMemory(memory.id);
 
             if (!details.hidden) {
-                detailTitle.textContent = summary;
+                detailTitle.textContent = memory.title;
                 detailSummary.textContent = summary;
-                detailMeta.textContent = `${dateFormat.format(new Date(memory.date))} · ${memory.type}`;
                 positionDetails();
             }
         }
@@ -1252,6 +1233,8 @@ const memoryView = (() => {
             dismissDetails(false);
             stopTimeline();
             timelineContext.clearRect(0, 0, timelineCanvas.width, timelineCanvas.height);
+            document.querySelector(".memory-selection").hidden = true;
+            document.querySelector(".memory-time-axis").hidden = true;
             selectionTitle.textContent = "No memories yet";
             selectionIndex.textContent = "00";
             selectionType.textContent = "";
@@ -1324,9 +1307,10 @@ const memoryView = (() => {
             refreshNeeded = pendingMemories.size > 0;
             loaded = true;
             synchronizeMemories();
-        } catch {
+        } catch (error) {
+            console.error("Unable to load or render memories", error);
             refreshNeeded = true;
-            viewStatus.textContent = "Unable to load memories. Close and reopen to retry.";
+            viewStatus.textContent = "Unable to display memories. Close and reopen to retry.";
         } finally {
             loading = false;
             timelineToggle.disabled = !memories.length;
@@ -1346,10 +1330,6 @@ const memoryView = (() => {
     return {
         async open() {
             view.hidden = false;
-
-            if (!document.querySelector("#memory-horizon-points").childElementCount) {
-                drawHorizonPoints();
-            }
 
             if (!loaded || refreshNeeded) {
                 await loadMemories();

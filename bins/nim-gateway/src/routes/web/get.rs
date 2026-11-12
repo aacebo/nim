@@ -14,12 +14,13 @@ use axum::{
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title>Nim</title>
-        <link rel="stylesheet" href="/web/static/orb.css?v=2">
-        <link rel="stylesheet" href="/web/static/hud.css?v=14">
-        <link rel="stylesheet" href="/web/static/memory.css?v=12">
+        <link rel="stylesheet" href="/web/static/theme.css?v=1">
+        <link rel="stylesheet" href="/web/static/orb.css?v=4">
+        <link rel="stylesheet" href="/web/static/hud.css?v=15">
+        <link rel="stylesheet" href="/web/static/memory.css?v=15">
         <script src="/web/static/client.js" defer></script>
-        <script src="/web/static/orb.js?v=5" defer></script>
-        <script src="/web/static/memory.js?v=16" defer></script>
+        <script src="/web/static/orb.js?v=7" defer></script>
+        <script src="/web/static/memory.js?v=19" defer></script>
         <script src="/web/static/hud.js?v=14" defer></script>
     </head>
     <body>
@@ -143,35 +144,17 @@ use axum::{
                 </aside>
             </div>
             <section id="memory-view" role="dialog" aria-modal="true" aria-labelledby="memory-title" hidden>
-                <div class="memory-atmosphere" aria-hidden="true">
-                    <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
-                        <defs>
-                            <linearGradient id="memory-floor-light" x2="0" y2="1">
-                                <stop stop-color="#506c90" stop-opacity=".04"/>
-                                <stop offset="1" stop-color="#506c90" stop-opacity=".23"/>
-                            </linearGradient>
-                            <radialGradient id="memory-horizon-bloom">
-                                <stop stop-color="#ffdd9c" stop-opacity=".58"/>
-                                <stop offset="1" stop-color="#e99b51" stop-opacity="0"/>
-                            </radialGradient>
-                        </defs>
-                        <path fill="url(#memory-floor-light)" d="M0 440h1200v360H0Z"/>
-                        <g id="memory-horizon-points"/>
-                    </svg>
-                </div>
                 <header class="memory-header">
-                    <div>
-                        <p class="memory-kicker">Nim archive</p>
-                        <h2 id="memory-title">Memory</h2>
-                    </div>
+                    <div class="memory-brand"><svg class="memory-orb-mark" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="archive-orb"><stop stop-color="#00e7ff"/><stop offset="1" stop-color="#c45bff"/></linearGradient></defs><g fill="none" stroke="url(#archive-orb)" stroke-width=".65"><circle cx="24" cy="24" r="20"/><ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(32 24 24)"/><ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(-32 24 24)"/><ellipse cx="24" cy="24" rx="20" ry="9"/><ellipse cx="24" cy="24" rx="20" ry="15"/><ellipse cx="24" cy="24" rx="5" ry="20"/></g></svg><span>NIM</span><span class="memory-brand-archive">Archive</span></div>
                     <div class="memory-controls">
                         <div class="memory-modes" role="group" aria-label="Memory view">
                             <button id="memory-timeline-toggle" type="button" aria-pressed="true" aria-controls="memory-timeline-stage">Timeline</button>
                             <button id="memory-graph-toggle" type="button" aria-pressed="false" aria-controls="memory-graph">Graph</button>
                         </div>
-                        <button id="memory-back" type="button"><span aria-hidden="true">‹</span> Back</button>
+                        <button id="memory-back" type="button"><span aria-hidden="true">←</span> Back</button>
                     </div>
                 </header>
+                <div class="memory-heading"><p class="memory-kicker">Memory</p><h2 id="memory-title">Timeline</h2><p id="memory-subtitle">Your memories in time</p></div>
                 <div id="memory-timeline-stage">
                     <canvas id="memory-timeline-strand" aria-hidden="true"></canvas>
                     <div id="memory-timeline" role="region" aria-label="Memory timeline">
@@ -186,6 +169,7 @@ use axum::{
                             <span id="memory-selection-date"></span>
                         </div>
                     </div>
+                    <div class="memory-time-axis" aria-hidden="true"><span id="memory-axis-start"></span><span id="memory-axis-end"></span></div>
                 </div>
                 <div id="memory-graph" role="region" aria-label="Memory relations graph" tabindex="0" hidden>
                     <div class="memory-graph-surface">
@@ -194,10 +178,10 @@ use axum::{
                     </div>
                 </div>
                 <footer class="memory-footer">
-                    <span>Stored memories</span>
+                    <span>◇ &nbsp; Stored memories</span>
                     <span id="memory-view-status" role="status"></span>
                 </footer>
-                <section id="memory-details" role="dialog" aria-labelledby="memory-detail-title" hidden>
+                <section id="memory-details" role="region" aria-labelledby="memory-detail-title" hidden>
                     <div class="memory-detail-header">
                         <p class="memory-kicker">Memory record</p>
                         <button id="memory-detail-close" type="button" aria-label="Close memory details">×</button>

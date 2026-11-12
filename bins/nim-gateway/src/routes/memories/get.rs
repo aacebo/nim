@@ -1,4 +1,5 @@
 use axum::response::IntoResponse;
+use serde_valid::Validate;
 
 use crate::{Error, http::HttpContext};
 
@@ -13,7 +14,7 @@ pub struct Query {
 }
 
 pub async fn route(ctx: HttpContext, query: axum::extract::Query<Query>) -> axum::response::Result<axum::response::Response> {
-    serde_valid::Validate::validate(&query.0).map_err(Error::from)?;
+    query.validate().map_err(Error::from)?;
     let items = ctx
         .services()
         .memories()

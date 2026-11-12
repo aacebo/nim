@@ -179,10 +179,30 @@ function messageText(content) {
     }
 
     if (Array.isArray(content)) {
-        return content.map(messageText).join("\n");
+        return content.map(messageText).filter(Boolean).join("\n");
     }
 
-    return content?.text ?? content?.url ?? (content?.artifact_id ? "Attachment" : "Message content");
+    return content?.text ?? content?.url ?? (content?.artifact_id ? "" : "Message content");
+}
+
+function messageArtifacts(content) {
+    if (Array.isArray(content)) return content.flatMap(messageArtifacts);
+    return content?.artifact_id ? [artifactView.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
+}
+
+async function loadChatArtifacts(id) {
+    const query = new URLSearchParams({ limit: "100" });
+    const cursors = new Set();
+    while (true) {
+        const response = await fetch(`/chats/${encodeURIComponent(id)}/artifacts?${query}`);
+        if (!response.ok) throw new Error("Unable to load attachments");
+        const page = await response.json();
+        artifactView.remember(page.data);
+        if (!page.next) break;
+        if (cursors.has(page.next)) throw new Error("Attachment cursor did not advance");
+        cursors.add(page.next);
+        query.set("cursor", page.next);
+    }
 }
 
 function messageOrder(message) {
@@ -226,7 +246,10 @@ function renderChatTranscript() {
         role.textContent = message.role === "user" ? "You" : message.role;
         text.className = "chat-message-text";
         text.textContent = messageText(message.content);
-        row.append(role, text);
+        row.append(role);
+        if (text.textContent) row.append(text);
+        const artifacts = messageArtifacts(message.content);
+        if (artifacts.length) row.append(artifactView.list(artifacts));
         rows.append(row);
     }
 
@@ -246,6 +269,7 @@ async function loadChatHistory() {
     chatHistoryStatus.textContent = "Loading history…";
 
     try {
+        await loadChatArtifacts(chatId).catch(() => { historyError = true; });
         const query = new URLSearchParams({ limit: historyLimit });
 
         while (true) {
@@ -288,6 +312,9 @@ socket.addEventListener("message", (event) => {
 
         if (mergeChatMessage(signal?.content)) {
             renderChatTranscript();
+            if (messageArtifacts(signal.content.content).length) {
+                void loadChatArtifacts(chatId).then(renderChatTranscript).catch(() => {});
+            }
         }
     } catch {
         return;
@@ -367,6 +394,7 @@ async function uploadAttachment(attachment) {
     if (!Array.isArray(artifacts) || artifacts.length !== 1 || typeof artifacts[0]?.id !== "string" || !artifacts[0].id) {
         throw new Error(`Invalid upload response for ${file.name}. Try again.`);
     }
+    artifactView.remember(artifacts);
     attachment.artifactId = artifacts[0].id;
 }
 

@@ -58,11 +58,17 @@ const memoryView = (() => {
     axisPosition.append(axisLabel);
     timeAxis.append(axisPosition);
 
+    if (!document.querySelector('link[href*="/web/static/theme.css"]')) {
+        const stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.href = "/web/static/theme.css?v=1";
+        document.head.append(stylesheet);
+    }
     const themeStyle = getComputedStyle(view);
     const theme = {
-        cyan: themeStyle.getPropertyValue("--ui-cyan").trim(),
-        violet: themeStyle.getPropertyValue("--ui-violet").trim(),
-        pink: themeStyle.getPropertyValue("--ui-pink").trim(),
+        cyan: themeStyle.getPropertyValue("--ui-cyan").trim() || "#00e7ff",
+        violet: themeStyle.getPropertyValue("--ui-violet").trim() || "#9c57ff",
+        pink: themeStyle.getPropertyValue("--ui-pink").trim() || "#ff58c8",
     };
     const timelineStage = document.querySelector("#memory-timeline-stage");
     const timeline = document.querySelector("#memory-timeline");
@@ -87,6 +93,41 @@ const memoryView = (() => {
     const detailSummary = document.querySelector("#memory-detail-summary");
     const detailClose = document.querySelector("#memory-detail-close");
     const expand = document.querySelector("#memory-expand");
+    const detailArtifacts = document.createElement("div");
+    detailArtifacts.id = "memory-detail-artifacts";
+    detailArtifacts.setAttribute("role", "region");
+    detailArtifacts.setAttribute("aria-label", "Memory artifacts");
+    detailArtifacts.tabIndex = 0;
+    detailSummary.after(detailArtifacts);
+    const selectionArt = document.createElement("div");
+    selectionArt.className = "memory-selection-art";
+    document.querySelector(".memory-selection").prepend(selectionArt);
+    detailArt.removeAttribute("aria-hidden");
+    function renderMemoryArtifacts(memory) {
+        const artifacts = memory.record.artifacts ?? [];
+        artifactView.remember(artifacts);
+        const image = artifacts.find(artifactView.isImage);
+        const key = `${memory.id}:${artifacts.map((item) => `${item.id}:${item.version}`).join(",")}`;
+        if (detailArtifacts.dataset.key === key) return;
+        detailArtifacts.dataset.key = key;
+        detailArtifacts.hidden = artifacts.length === 0;
+        detailArtifacts.replaceChildren(artifactView.list(artifacts));
+        detailArtifacts.scrollTop = 0;
+        selectionArt.replaceChildren();
+        detailArt.replaceChildren();
+        selectionArt.hidden = !image;
+        detailArt.hidden = !image;
+        if (image) {
+            selectionArt.append(artifactView.image(image));
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "memory-image-open";
+            button.setAttribute("aria-label", `View ${image.name || "memory image"}`);
+            button.append(artifactView.image(image));
+            button.onclick = () => artifactView.open(artifacts, artifacts.indexOf(image));
+            detailArt.append(button);
+        }
+    }
     const timelineFocus = 0.5;
     const timelineSliceCount = 152;
     const timelineButtons = new Map();
@@ -159,7 +200,7 @@ const memoryView = (() => {
         detailSummary.textContent = memory.summary;
         details.dataset.topology = topology;
         details.hidden = false;
-        detailArt.hidden = true;
+        renderMemoryArtifacts(memory);
         expand.hidden = topology !== "graph" || relatedIds(id).size === 0;
         const start = Date.parse(memories[0].date);
         const end = Date.parse(memories.at(-1).date);
@@ -452,6 +493,8 @@ const memoryView = (() => {
     }
 
     function makeMemoryArt(memory) {
+        const image = memory.record.artifacts?.find(artifactView.isImage);
+        if (image) return artifactView.image(image, "memory-art");
         const art = makeSvgElement("svg", {
             class: "memory-art",
             viewBox: "0 0 100 80",
@@ -714,8 +757,7 @@ const memoryView = (() => {
         details.dataset.topology = topology;
         detailTitle.textContent = memory.title;
         detailSummary.textContent = memory.summary;
-        detailArt.hidden = true;
-        detailArt.replaceChildren(...(detailArt.hidden ? [] : [makeMemoryArt(memory)]));
+        renderMemoryArtifacts(memory);
         expand.hidden = topology !== "graph" || relatedIds(id).size === 0;
         details.hidden = false;
         positionDetails();
@@ -1000,6 +1042,12 @@ const memoryView = (() => {
             node.title = summary;
             node.setAttribute("aria-label", summary);
             node.querySelector(".memory-graph-label").textContent = summary;
+            const image = memory.record.artifacts?.find(artifactView.isImage);
+            const imageKey = image ? `${image.id}:${image.version}` : "";
+            if (node.dataset.imageKey !== imageKey) {
+                node.dataset.imageKey = imageKey;
+                node.querySelector(".memory-graph-frame").replaceChildren(makeMemoryArt(memory));
+            }
         }
 
         if (selectedId === memory.id) {

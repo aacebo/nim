@@ -668,3 +668,54 @@
         animation: none;
     }
 }
+
+/* Shared artifact browser lives in the native modal top layer. */
+#artifact-view {
+    box-sizing: border-box; width: min(1100px, calc(100vw - 32px)); height: min(800px, calc(100dvh - 32px));
+    max-width: none; max-height: none; padding: 0; border: 1px solid #6676aa; border-radius: 14px;
+    background: radial-gradient(ellipse at top left, #142445, transparent 65%), #0b0c1b;
+    color: var(--ui-ink, #e7f5fa); box-shadow: 0 24px 100px #000a; font: 14px/1.5 system-ui, sans-serif;
+}
+#artifact-view[open] { display: flex; flex-direction: column; }
+#artifact-view::backdrop { background: #020410c9; backdrop-filter: blur(9px); }
+.artifact-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 24px; border-bottom: 1px solid #899ac43d; }
+.artifact-header > div { min-width: 0; }
+.artifact-kicker { margin: 0; color: var(--ui-cyan, #00e7ff); font-size: 10px; text-transform: uppercase; letter-spacing: .22em; }
+#artifact-title { margin: 5px 0; font-size: 20px; font-weight: 500; overflow-wrap: anywhere; max-height: 90px; overflow: auto; }
+#artifact-meta { margin: 0; color: #b5c4dc; font-size: 12px; }
+.artifact-body { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: center; padding: 20px; }
+.artifact-body > img, .artifact-body > video { display: block; max-width: 100%; max-height: 100%; object-fit: contain; min-height: 0; }
+.artifact-body > audio { width: min(100%, 600px); }
+.artifact-body > pre { align-self: start; justify-self: stretch; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.7 ui-monospace, monospace; }
+.artifact-footer { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; padding: 12px 20px; border-top: 1px solid #899ac43d; }
+#artifact-view button, #artifact-view a, .artifact-list .artifact-chip {
+    box-sizing: border-box; min-height: 44px; border: 1px solid #899ac466; border-radius: 6px;
+    padding: 8px 12px; background: #9c57ff14; color: inherit; font: inherit; cursor: pointer; text-decoration: none;
+}
+#artifact-view button:disabled { opacity: .35; cursor: default; }
+#artifact-view :focus-visible, .artifact-list .artifact-chip:focus-visible { outline: 2px solid #00e7ff; outline-offset: 3px; }
+#artifact-view button:enabled:hover, #artifact-view a:hover, .artifact-list .artifact-chip:hover { background: #9c57ff30; }
+#artifact-view .artifact-close { font-size: 24px; line-height: 1; flex-shrink: 0; }
+.artifact-download { margin-left: auto; text-align: center; }
+.artifact-download:not([hidden]) { display: inline-flex; align-items: center; justify-content: center; }
+.artifact-count { color: #b5c4dc; font-size: 12px; }
+.artifact-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.artifact-list:empty { display: none; }
+.artifact-list .artifact-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; overflow-wrap: anywhere; text-align: left; font-size: 12px; }
+.artifact-icon { width: 16px; height: 16px; flex: 0 0 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; color: var(--ui-muted, #b5c4dc); }
+.artifact-chip-name { min-width: 0; }
+#chat-messages .artifact-list { gap: 6px; margin-top: 8px; }
+#chat-messages .artifact-chip { min-height: 30px; padding: 5px 8px; gap: 6px; border-radius: 5px; border-color: rgb(176 200 235 / 22%); background: rgb(12 17 36 / 40%); font-size: 11px; line-height: 18px; letter-spacing: normal; text-transform: none; }
+#chat-messages .artifact-chip:hover { border-color: rgb(0 231 255 / 45%); background: rgb(0 231 255 / 7%); }
+#chat-messages .artifact-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#chat-messages .artifact-icon { width: 14px; height: 14px; flex-basis: 14px; }
+@media (pointer: coarse) { #chat-messages .artifact-chip { min-height: 44px; } }
+@media (max-width: 600px) {
+    #artifact-view { width: calc(100vw - 16px); height: calc(100dvh - 16px); border-radius: 10px; }
+    .artifact-header { padding: 14px; }
+    .artifact-body { padding: 12px; }
+    .artifact-footer { gap: 8px; padding: 10px; }
+    #artifact-view button, #artifact-view a { padding: 8px; font-size: 12px; }
+}
+
+.artifact-image-error { display: grid; place-items: center; box-sizing: border-box; width: 100%; height: 100%; min-height: 64px; padding: 8px; color: #b5c4dc; font: 11px/1.4 system-ui, sans-serif; text-align: center; letter-spacing: normal; text-transform: none; overflow: hidden; }

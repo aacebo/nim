@@ -38,18 +38,7 @@ pub async fn route(
         .await
         .map_err(Error::from)?;
 
-    let next = items
-        .last()
-        .filter(|_| items.len() == query.limit)
-        .map(|message| nim::state::Cursor {
-            id: message.id.into(),
-            timestamp: message.created_at,
-        });
-
-    Ok(match next {
-        Some(cursor) => ([("x-next-cursor", cursor.to_string())], axum::Json(items)).into_response(),
-        None => axum::Json(items).into_response(),
-    })
+    Ok(axum::Json(items).into_response())
 }
 
 mod defaults {

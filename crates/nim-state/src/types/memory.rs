@@ -26,6 +26,7 @@ pub struct Memory {
     pub summary: Option<String>,
 
     /// embedding of summary
+    #[serde(skip)]
     pub embedding: Option<Embedding>,
 
     /// ### Filter

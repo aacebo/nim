@@ -2,8 +2,15 @@ const memoryView = (() => {
     const memories = [];
     const relations = new Map();
     const memoryById = new Map();
+    const memoryByApiId = new Map();
+    const pendingMemories = new Map();
+    const deletedMemories = new Set();
+    const handledSignals = new Set();
+    let nextMemoryId = 1;
+    let refreshQueued = false;
     let loading = false;
     let loaded = false;
+    let refreshNeeded = false;
 
     const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -84,7 +91,7 @@ const memoryView = (() => {
 
         selectedId = id;
         const memory = memoryById.get(id);
-        selectionIndex.textContent = String(id).padStart(2, "0");
+        selectionIndex.textContent = String(memory.index + 1).padStart(2, "0");
         selectionTitle.textContent = memory.title;
         selectionType.textContent = memory.type;
         selectionDate.textContent = dateFormat.format(new Date(memory.date));
@@ -163,7 +170,7 @@ const memoryView = (() => {
     function drawTimeline(now) {
         timelineFrame = undefined;
 
-        if (view.hidden || timelineStage.hidden) {
+        if (view.hidden || timelineStage.hidden || !memories.length) {
             return;
         }
 
@@ -176,7 +183,7 @@ const memoryView = (() => {
             const time = still ? 0 : elapsed;
             const reveal = still ? 1 : Math.min(1, elapsed / 1.08);
             const limit = reveal * reveal * (3 - 2 * reveal);
-            const selected = timelineFocus + ((selectedId - 1) * timelinePitch - timeline.scrollLeft) / width;
+            const selected = timelineFocus + (memoryById.get(selectedId).index * timelinePitch - timeline.scrollLeft) / width;
 
             if (timelineHover) {
                 timelineLiftAt = Number(timelineHover.dataset.progress);
@@ -385,16 +392,20 @@ const memoryView = (() => {
     }
 
     function positionTimelineTiles(followSelection = false) {
+        if (!memories.length) {
+            return;
+        }
+
         const { clientWidth: width, clientHeight: height, scrollLeft } = timeline;
         const focalX = width * timelineFocus;
-        const nearestId = Math.min(memories.length, Math.max(1, Math.round(scrollLeft / timelinePitch) + 1));
+        const nearestId = memories[Math.min(memories.length - 1, Math.max(0, Math.round(scrollLeft / timelinePitch)))].id;
         const first = Math.max(0, Math.ceil((scrollLeft - focalX) / timelinePitch));
         const last = Math.min(memories.length - 1, Math.floor((scrollLeft - focalX + width) / timelinePitch));
         const markers = new Set();
         const focused = document.activeElement;
 
         for (let index = first; index <= last; index++) {
-            const button = timelineButtons.get(index + 1);
+            const button = timelineButtons.get(memories[index].id);
             const x = focalX + index * timelinePitch - scrollLeft;
             const progress = x / width;
             const position = projectTimeline(timelinePoint(progress, width, height), width, height);
@@ -429,7 +440,7 @@ const memoryView = (() => {
     }
 
     function centerTimeline(id) {
-        timeline.scrollLeft = (id - 1) * timelinePitch;
+        timeline.scrollLeft = memoryById.get(id).index * timelinePitch;
         positionTimelineTiles();
     }
 
@@ -512,6 +523,8 @@ const memoryView = (() => {
         frame.className = "memory-graph-frame";
         label.className = "memory-graph-label";
         label.textContent = memory.title;
+        button.title = memory.title;
+        button.setAttribute("aria-label", memory.title);
         frame.append(makeMemoryArt(memory));
         button.append(frame, label);
         button.style.left = `${position.x}px`;
@@ -790,9 +803,11 @@ const memoryView = (() => {
     }
 
     function buildTimeline() {
-        const items = document.createDocumentFragment();
-
         for (const memory of memories) {
+            if (timelineButtons.has(memory.id)) {
+                continue;
+            }
+
             const item = document.createElement("li");
             const button = document.createElement("button");
             const date = document.createElement("time");
@@ -802,6 +817,7 @@ const memoryView = (() => {
             button.hidden = true;
             button.className = "memory-timeline-node";
             button.title = memory.title;
+            button.setAttribute("aria-label", memory.title);
             date.className = "memory-timeline-date";
             date.dateTime = memory.date;
             date.textContent = dateFormat.format(new Date(memory.date));
@@ -813,11 +829,10 @@ const memoryView = (() => {
                 showDetails(memory.id, button);
             });
             item.append(button);
-            items.append(item);
+            strand.insertBefore(item, strand.children[memory.index] ?? null);
             timelineButtons.set(memory.id, button);
         }
 
-        strand.append(items);
         selectMemory(selectedId);
     }
 
@@ -860,8 +875,8 @@ const memoryView = (() => {
         }
 
         const offset = (hit / timelineSliceCount - timelineFocus) * timelineWidth + timeline.scrollLeft;
-        const id = Math.min(memories.length, Math.max(1, Math.round(offset / timelinePitch) + 1));
-        return timelineButtons.get(id);
+        const index = Math.min(memories.length - 1, Math.max(0, Math.round(offset / timelinePitch)));
+        return timelineButtons.get(memories[index].id);
     }
 
     function setTimelineHover(button) {
@@ -892,7 +907,7 @@ const memoryView = (() => {
         }
 
         event.preventDefault();
-        const index = selectedId - 1;
+        const index = memoryById.get(selectedId).index;
         const step = event.key === "ArrowLeft" ? -1 : 1;
         const memory = memories[index + step];
 
@@ -937,6 +952,397 @@ const memoryView = (() => {
         refreshTimeline();
     });
 
+    function validMemory(record) {
+        return record && /^mem_[0-9a-f]{32}$/i.test(record.id) &&
+            ["episodic", "semantic", "procedural", "working"].includes(record.type) &&
+            Number.isSafeInteger(record.version) && record.version >= 0 &&
+            Number.isFinite(Date.parse(record.created_at)) &&
+            (record.summary === undefined || record.summary === null || typeof record.summary === "string");
+    }
+
+    function updateMemory(record, snapshot = false) {
+        if (deletedMemories.has(record.id)) {
+            return;
+        }
+
+        let memory = memoryByApiId.get(record.id);
+
+        if (!memory) {
+            const id = nextMemoryId++;
+            memory = { id, apiId: record.id, art: (id - 1) % memoryArtPaths.length, record: {} };
+            memories.push(memory);
+            memoryById.set(id, memory);
+            memoryByApiId.set(record.id, memory);
+        }
+
+        const current = memory.record;
+        const newer = current.version === undefined || record.version > current.version;
+
+        if (!newer && !snapshot) {
+            return;
+        }
+
+        const artifacts = new Map((current.artifacts ?? []).map((artifact) => [artifact.id, artifact]));
+
+        for (const artifact of record.artifacts ?? []) {
+            const previous = artifacts.get(artifact.id);
+
+            if (!previous || artifact.version >= previous.version) {
+                artifacts.set(artifact.id, artifact);
+            }
+        }
+
+        memory.record = {
+            ...current,
+            ...(newer ? record : {}),
+            artifacts: snapshot ? record.artifacts ?? current.artifacts ?? [] : [...artifacts.values()],
+            relations: snapshot ? record.relations ?? current.relations ?? [] : [...new Set([...(current.relations ?? []), ...(record.relations ?? [])])],
+        };
+        const summary = memory.record.summary?.trim() || "Analyzing...";
+        memory.title = summary;
+        memory.summary = summary;
+        memory.date = memory.record.created_at;
+        memory.type = memory.record.type.charAt(0).toUpperCase() + memory.record.type.slice(1);
+
+        const button = timelineButtons.get(memory.id);
+
+        if (button) {
+            button.title = summary;
+            button.setAttribute("aria-label", summary);
+            button.querySelector(".memory-timeline-label").textContent = summary;
+        }
+
+        const node = graphNodes.get(memory.id)?.button;
+
+        if (node) {
+            node.title = summary;
+            node.setAttribute("aria-label", summary);
+            node.querySelector(".memory-graph-label").textContent = summary;
+        }
+
+        if (selectedId === memory.id) {
+            selectMemory(memory.id);
+
+            if (!details.hidden) {
+                detailTitle.textContent = summary;
+                detailSummary.textContent = summary;
+                detailMeta.textContent = `${dateFormat.format(new Date(memory.date))} · ${memory.type}`;
+                positionDetails();
+            }
+        }
+    }
+
+    function mergeMemory(record) {
+        if (!validMemory(record) || deletedMemories.has(record.id)) {
+            return false;
+        }
+
+        const memory = memoryByApiId.get(record.id);
+        const pending = pendingMemories.get(record.id);
+        const version = Math.max(memory?.record.version ?? -1, pending?.version ?? -1);
+
+        if (record.version <= version) {
+            return false;
+        }
+
+        if (loading || !loaded) {
+            pendingMemories.set(record.id, record);
+            refreshNeeded = true;
+        } else {
+            updateMemory(record);
+
+            if (!memory || record.relations?.length) {
+                synchronizeMemories();
+            }
+
+            if (!memory) {
+                refreshNeeded = true;
+
+                if (!view.hidden) {
+                    void loadMemories();
+                }
+            }
+        }
+
+        return true;
+    }
+
+    function removeMemory(apiId) {
+        deletedMemories.add(apiId);
+        pendingMemories.delete(apiId);
+        const memory = memoryByApiId.get(apiId);
+
+        if (!memory) {
+            return;
+        }
+
+        const button = timelineButtons.get(memory.id);
+        const node = graphNodes.get(memory.id);
+        const focused = document.activeElement;
+        const selected = selectedId === memory.id;
+        const restoreFocus = button?.contains(focused) || node?.button.contains(focused) || (selected && !details.hidden);
+
+        if (selected) {
+            dismissDetails(false);
+        }
+
+        clearGraphFocus();
+        memoryByApiId.delete(apiId);
+        memoryById.delete(memory.id);
+        memories.splice(memory.index, 1);
+        button?.parentElement.remove();
+        timelineButtons.delete(memory.id);
+        visibleMarkers.delete(button);
+
+        if (timelineHover === button) {
+            setTimelineHover(undefined);
+        }
+
+        node?.button.remove();
+        graphNodes.delete(memory.id);
+
+        if (node) {
+            graphSlots.push({ x: node.x, y: node.y });
+        }
+
+        for (const [key, edge] of graphEdges) {
+            if (edge.fromId === memory.id || edge.toId === memory.id) {
+                edge.line.remove();
+                edge.joint.remove();
+                graphEdges.delete(key);
+            }
+        }
+
+        for (const remaining of memories) {
+            remaining.record.relations = (remaining.record.relations ?? []).filter((id) => id !== apiId);
+        }
+
+        if (selected) {
+            const nearest = [...graphNodes.keys()].sort((a, b) =>
+                Math.abs(memoryById.get(a).index - memory.index) - Math.abs(memoryById.get(b).index - memory.index));
+            selectedId = topology === "graph" && nearest.length ? nearest[0] : memories[Math.min(memory.index, memories.length - 1)]?.id;
+        }
+
+        synchronizeMemories();
+
+        if (restoreFocus && !view.hidden) {
+            const target = topology === "graph" ? graphNodes.get(selectedId)?.button : timelineButtons.get(selectedId);
+            (target ?? document.querySelector("#memory-back")).focus({ preventScroll: true });
+        }
+    }
+
+    function handleSignal(signal) {
+        if (!signal || handledSignals.has(signal.id)) {
+            return false;
+        }
+
+        const record = signal.content;
+        let accepted = false;
+
+        switch (signal.subject) {
+            case "nim.memory.create":
+            case "nim.memory.analyze":
+            case "nim.memory.update":
+            case "nim.memory.encode":
+                accepted = mergeMemory(record);
+                break;
+            case "nim.memory.delete": {
+                const id = typeof record === "string" ? record : record?.id ?? record?.memory_id;
+                const memory = memoryByApiId.get(id);
+
+                if (/^mem_[0-9a-f]{32}$/i.test(id) &&
+                    !(Number.isSafeInteger(record?.version) && memory && record.version < memory.record.version)) {
+                    removeMemory(id);
+                    accepted = true;
+                }
+
+                break;
+            }
+            case "nim.memory.recall":
+                if (/^mem_[0-9a-f]{32}$/i.test(record?.memory_id) && !deletedMemories.has(record.memory_id)) {
+                    refreshNeeded = true;
+
+                    if (loading) {
+                        refreshQueued = true;
+                    } else if (loaded && !view.hidden) {
+                        void loadMemories();
+                    }
+
+                    accepted = true;
+                }
+
+                break;
+        }
+
+        if (accepted && typeof signal.id === "string") {
+            handledSignals.add(signal.id);
+
+            if (handledSignals.size > 1000) {
+                handledSignals.delete(handledSignals.values().next().value);
+            }
+        }
+
+        return accepted;
+    }
+
+    function synchronizeMemories() {
+        memories.sort((a, b) => Date.parse(a.date) - Date.parse(b.date) || a.apiId.localeCompare(b.apiId));
+
+        for (const [index, memory] of memories.entries()) {
+            memory.index = index;
+        }
+
+        relations.clear();
+
+        for (const memory of memories) {
+            for (const related of memory.record.relations ?? []) {
+                const neighbor = memoryByApiId.get(related);
+
+                if (!neighbor || memory.id === neighbor.id) {
+                    continue;
+                }
+
+                if (!relations.has(memory.id)) {
+                    relations.set(memory.id, new Set());
+                }
+
+                if (!relations.has(neighbor.id)) {
+                    relations.set(neighbor.id, new Set());
+                }
+
+                relations.get(memory.id).add(neighbor.id);
+                relations.get(neighbor.id).add(memory.id);
+            }
+        }
+
+        for (const [key, edge] of graphEdges) {
+            if (!relatedIds(edge.fromId).has(edge.toId)) {
+                edge.line.remove();
+                edge.joint.remove();
+                graphEdges.delete(key);
+            }
+        }
+
+        selectedId ??= memories.at(-1)?.id;
+
+        if (memories.length) {
+            const focus = document.activeElement;
+            buildTimeline();
+
+            if (!view.hidden) {
+                if (topology === "timeline") {
+                    timelineOpenedAt ??= performance.now();
+                    measureTimeline();
+                    centerTimeline(selectedId);
+                } else {
+                    if (!graphNodes.has(selectedId)) {
+                        resetGraph(selectedId);
+                    }
+
+                    expandGraph(selectedId);
+                }
+
+                if (focus?.isConnected && document.activeElement !== focus) {
+                    focus.focus({ preventScroll: true });
+                }
+
+                updateStatus();
+            }
+        } else {
+            dismissDetails(false);
+            stopTimeline();
+            timelineContext.clearRect(0, 0, timelineCanvas.width, timelineCanvas.height);
+            selectionTitle.textContent = "No memories yet";
+            selectionIndex.textContent = "00";
+            selectionType.textContent = "";
+            selectionDate.textContent = "";
+            viewStatus.textContent = "No memories yet.";
+        }
+
+        timelineToggle.disabled = !memories.length;
+        graphToggle.disabled = !memories.length;
+    }
+
+    async function loadMemories() {
+        if (loading) {
+            return;
+        }
+
+        loading = true;
+        refreshNeeded = false;
+        viewStatus.textContent = "Loading memories…";
+        timelineToggle.disabled = true;
+        graphToggle.disabled = true;
+
+        try {
+            const records = new Map();
+            const query = new URLSearchParams({ limit: "100" });
+            const cursors = new Set();
+
+            while (true) {
+                const response = await fetch(`/memories?${query}`);
+
+                if (!response.ok) {
+                    throw new Error("Memory request failed");
+                }
+
+                const page = await response.json();
+
+                for (const record of page.data) {
+                    if (!validMemory(record)) {
+                        throw new Error("Invalid memory record");
+                    }
+
+                    const previous = records.get(record.id);
+
+                    if (!previous || record.version > previous.version) {
+                        records.set(record.id, record);
+                    }
+                }
+
+                if (!page.next) {
+                    break;
+                }
+
+                if (cursors.has(page.next)) {
+                    throw new Error("Memory cursor did not advance");
+                }
+
+                cursors.add(page.next);
+                query.set("cursor", page.next);
+            }
+
+            for (const record of records.values()) {
+                updateMemory(record, true);
+            }
+
+            for (const [id, record] of pendingMemories) {
+                updateMemory(record);
+                pendingMemories.delete(id);
+            }
+
+            refreshNeeded = pendingMemories.size > 0;
+            loaded = true;
+            synchronizeMemories();
+        } catch {
+            refreshNeeded = true;
+            viewStatus.textContent = "Unable to load memories. Close and reopen to retry.";
+        } finally {
+            loading = false;
+            timelineToggle.disabled = !memories.length;
+            graphToggle.disabled = !memories.length;
+
+            if (refreshQueued) {
+                refreshQueued = false;
+                refreshNeeded = true;
+
+                if (!view.hidden) {
+                    void loadMemories();
+                }
+            }
+        }
+    }
+
     return {
         async open() {
             view.hidden = false;
@@ -945,105 +1351,19 @@ const memoryView = (() => {
                 drawHorizonPoints();
             }
 
-            if (!loaded && !loading) {
-                loading = true;
-                viewStatus.textContent = "Loading memories…";
-                timelineToggle.disabled = true;
-                graphToggle.disabled = true;
-
-                try {
-                    const records = [];
-                    const query = new URLSearchParams({ limit: "100" });
-                    const cursors = new Set();
-
-                    while (true) {
-                        const response = await fetch(`/memories?${query}`);
-
-                        if (!response.ok) {
-                            throw new Error("Memory request failed");
-                        }
-
-                        const page = await response.json();
-                        records.push(...page.data);
-
-                        if (!page.next) {
-                            break;
-                        }
-
-                        if (cursors.has(page.next)) {
-                            throw new Error("Memory cursor did not advance");
-                        }
-
-                        cursors.add(page.next);
-                        query.set("cursor", page.next);
-                    }
-
-                    const ids = new Map();
-
-                    for (const record of records) {
-                        if (ids.has(record.id)) {
-                            continue;
-                        }
-
-                        // The timeline uses sequential positions; retain the API identity separately.
-                        const id = memories.length + 1;
-                        ids.set(record.id, id);
-                        const artifacts = record.artifacts ?? [];
-                        const type = record.type.charAt(0).toUpperCase() + record.type.slice(1);
-                        const summary = artifacts.map((artifact) => artifact.summary || artifact.text || artifact.name).filter(Boolean).join("\n\n");
-                        const memory = {
-                            id, apiId: record.id, date: record.created_at, type,
-                            title: artifacts.find((artifact) => artifact.name)?.name || `${type} memory`,
-                            summary: summary || "No artifact content.",
-                            art: (id - 1) % memoryArtPaths.length,
-                        };
-                        memories.push(memory);
-                        memoryById.set(id, memory);
-                    }
-
-                    for (const record of records) {
-                        const from = ids.get(record.id);
-
-                        for (const related of record.relations ?? []) {
-                            const to = ids.get(related);
-
-                            if (!to || from === to) {
-                                continue;
-                            }
-
-                            if (!relations.has(from)) relations.set(from, new Set());
-                            if (!relations.has(to)) relations.set(to, new Set());
-                            relations.get(from).add(to);
-                            relations.get(to).add(from);
-                        }
-                    }
-
-                    loaded = true;
-                    selectedId = memories.at(-1)?.id;
-
-                    if (memories.length) {
-                        buildTimeline();
-                    } else {
-                        selectionTitle.textContent = "No memories yet";
-                        selectionIndex.textContent = "00";
-                        selectionType.textContent = "";
-                        selectionDate.textContent = "";
-                        viewStatus.textContent = "No memories yet.";
-                    }
-                } catch {
-                    viewStatus.textContent = "Unable to load memories. Close and reopen to retry.";
-                    return;
-                } finally {
-                    loading = false;
-                    timelineToggle.disabled = !memories.length;
-                    graphToggle.disabled = !memories.length;
-                }
+            if (!loaded || refreshNeeded) {
+                await loadMemories();
             }
 
             if (!view.hidden && memories.length) {
                 setTopology("timeline");
                 timelineButtons.get(selectedId).focus({ preventScroll: true });
             }
+        },
+        mergeMemory,
+        handleSignal,
+        hasMemories() {
+            return memories.length > 0 || pendingMemories.size > 0;
         },
         close() {
             dismissDetails(false);

@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS memories (
     type            TEXT            NOT NULL,
     sources         JSONB           NOT NULL,
     contexts        JSONB           NOT NULL,
+    summary         TEXT,
+    embedding       VECTOR(768),
     salience        REAL            NOT NULL DEFAULT 0.0,
     strength        REAL            NOT NULL DEFAULT 0.0,
     confidence      REAL            NOT NULL DEFAULT 0.0,
@@ -26,3 +28,6 @@ ON memories (type);
 
 CREATE INDEX IF NOT EXISTS memories_updated_at_idx
 ON memories (updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS memories_embedding_idx
+ON memories USING hnsw (embedding vector_cosine_ops);

@@ -20,6 +20,8 @@ impl<'a> SearchService<'a> {
                         sources: row.sources.iter().map(|v| (*v).into()).collect(),
                         artifacts: Default::default(),
                         relations: Default::default(),
+                        summary: row.summary.clone(),
+                        embedding: row.embedding.clone().map(Into::into),
                         salience: row.salience,
                         strength: row.strength,
                         confidence: row.confidence,

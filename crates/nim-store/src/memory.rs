@@ -21,6 +21,8 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                summary,
+                embedding,
                 salience,
                 strength,
                 confidence,
@@ -60,6 +62,8 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                summary,
+                embedding,
                 salience,
                 strength,
                 confidence,
@@ -86,6 +90,8 @@ impl<'a> MemoryStorage<'a> {
                 memories.type,
                 memories.sources,
                 memories.contexts,
+                memories.summary,
+                memories.embedding,
                 memories.salience,
                 memories.strength,
                 memories.confidence,
@@ -114,6 +120,8 @@ impl<'a> MemoryStorage<'a> {
                 memories.type,
                 memories.sources,
                 memories.contexts,
+                memories.summary,
+                memories.embedding,
                 memories.salience,
                 memories.strength,
                 memories.confidence,
@@ -142,6 +150,8 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                summary,
+                embedding,
                 salience,
                 strength,
                 confidence,
@@ -162,7 +172,9 @@ impl<'a> MemoryStorage<'a> {
                 $9,
                 $10,
                 $11,
-                $12
+                $12,
+                $13,
+                $14
             )
             RETURNING
                 id,
@@ -170,6 +182,8 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                summary,
+                embedding,
                 salience,
                 strength,
                 confidence,
@@ -184,6 +198,8 @@ impl<'a> MemoryStorage<'a> {
         .bind(value.ty)
         .bind(value.sources)
         .bind(value.contexts)
+        .bind(value.summary)
+        .bind(value.embedding)
         .bind(value.salience)
         .bind(value.strength)
         .bind(value.confidence)
@@ -205,19 +221,23 @@ impl<'a> MemoryStorage<'a> {
                 type = $2,
                 sources = $3,
                 contexts = $4,
-                salience = GREATEST(salience, $5),
-                strength = $6,
-                confidence = $7,
-                recalls = $8,
-                recalled_at = $9,
-                updated_at = $10
-            WHERE id = $1 AND version = $11
+                summary = $5,
+                embedding = $6,
+                salience = GREATEST(salience, $7),
+                strength = $8,
+                confidence = $9,
+                recalls = $10,
+                recalled_at = $11,
+                updated_at = $12
+            WHERE id = $1 AND version = $13
             RETURNING
                 id,
                 version,
                 type,
                 sources,
                 contexts,
+                summary,
+                embedding,
                 salience,
                 strength,
                 confidence,
@@ -231,6 +251,8 @@ impl<'a> MemoryStorage<'a> {
         .bind(value.ty)
         .bind(value.sources)
         .bind(value.contexts)
+        .bind(value.summary)
+        .bind(value.embedding)
         .bind(value.salience)
         .bind(value.strength)
         .bind(value.confidence)

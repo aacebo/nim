@@ -1,4 +1,4 @@
-use crate::{Artifact, Context, Source, Version};
+use crate::{Artifact, Context, Embedding, Source, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Memory {
@@ -21,6 +21,12 @@ pub struct Memory {
 
     /// the contexts this memory was created from.
     pub contexts: Vec<Context>,
+
+    /// summary of memory content
+    pub summary: Option<String>,
+
+    /// embedding of summary
+    pub embedding: Option<Embedding>,
 
     /// ### Filter
     ///

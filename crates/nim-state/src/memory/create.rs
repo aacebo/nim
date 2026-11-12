@@ -1,12 +1,14 @@
 use nim_store::MemoryRow;
 
-use crate::{Context, Error, Memory, MemoryService, MemoryType, Source};
+use crate::{Context, Embedding, Error, Memory, MemoryService, MemoryType, Source};
 
 #[derive(Debug)]
 pub struct MemoryCreate<'a> {
     pub ty: MemoryType,
     pub sources: &'a [Source],
     pub contexts: &'a [Context],
+    pub summary: Option<String>,
+    pub embedding: Option<Embedding>,
     pub confidence: f32,
 }
 
@@ -16,6 +18,8 @@ impl<'a> Default for MemoryCreate<'a> {
             ty: MemoryType::Working,
             sources: Default::default(),
             contexts: Default::default(),
+            summary: None,
+            embedding: None,
             confidence: 0.0,
         }
     }
@@ -36,6 +40,8 @@ impl<'a> MemoryService<'a> {
                 ty: value.ty.into(),
                 sources: nim_store::Json(sources),
                 contexts: nim_store::Json(contexts),
+                summary: value.summary,
+                embedding: value.embedding.map(Into::into),
                 salience: 0.0,
                 strength: 0.0,
                 confidence: value.confidence,
@@ -54,6 +60,8 @@ impl<'a> MemoryService<'a> {
             artifacts: Default::default(),
             contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
             relations: Default::default(),
+            summary: row.summary,
+            embedding: row.embedding.map(Into::into),
             salience: row.salience,
             strength: row.strength,
             confidence: row.confidence,

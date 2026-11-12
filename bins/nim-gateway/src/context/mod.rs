@@ -65,6 +65,7 @@ impl Context {
                             "nim.memory.create".into(),
                             "nim.memory.update".into(),
                             "nim.memory.analyze".into(),
+                            "nim.memory.encode".into(),
                             "nim.memory.delete".into(),
                             "nim.memory.recall".into(),
                         ],

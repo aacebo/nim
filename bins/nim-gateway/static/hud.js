@@ -282,6 +282,9 @@ socket.addEventListener("message", (event) => {
     try {
         const payload = typeof event.data === "string" ? event.data : signalDecoder.decode(event.data);
         const signal = JSON.parse(payload);
+        if (memoryView.handleSignal(signal)) {
+            memoryAction.disabled = !memoryView.hasMemories();
+        }
 
         if (mergeChatMessage(signal?.content)) {
             renderChatTranscript();

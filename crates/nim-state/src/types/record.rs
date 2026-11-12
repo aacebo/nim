@@ -49,6 +49,8 @@ impl TryFrom<nim_store::RecordRow> for Record {
                 sources: row.sources.iter().map(|v| (*v).into()).collect(),
                 artifacts: Default::default(),
                 relations: Default::default(),
+                summary: row.summary,
+                embedding: row.embedding.map(Into::into),
                 salience: row.salience,
                 strength: row.strength,
                 confidence: row.confidence,

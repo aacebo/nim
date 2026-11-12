@@ -56,16 +56,20 @@ async fn start(ctx: std::sync::Arc<Context>, mut shutdown: tokio::sync::watch::R
     let events = async move {
         let mut chats = ctx.signals().subscribe("nim.chat.*").await?;
         let mut messages = ctx.signals().subscribe("nim.message.*").await?;
+        let mut memories = ctx.signals().subscribe("nim.memory.*").await?;
 
         loop {
             tokio::select! {
                 biased;
                 _ = shutdown.changed() => break,
-                Some(Ok((_, signal, _span))) = chats.next() => {
-                    ctx.sockets().send(signal).await.map_err(nim::runtime::Error::custom)?;
+                Some(Ok((message, signal, _span))) = chats.next() => {
+                    ctx.sockets().send(message.subject.to_string(), signal).await.map_err(nim::runtime::Error::custom)?;
                 },
-                Some(Ok((_, signal, _span))) = messages.next() => {
-                    ctx.sockets().send(signal).await.map_err(nim::runtime::Error::custom)?;
+                Some(Ok((message, signal, _span))) = messages.next() => {
+                    ctx.sockets().send(message.subject.to_string(), signal).await.map_err(nim::runtime::Error::custom)?;
+                },
+                Some(Ok((message, signal, _span))) = memories.next() => {
+                    ctx.sockets().send(message.subject.to_string(), signal).await.map_err(nim::runtime::Error::custom)?;
                 },
             }
         }

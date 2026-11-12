@@ -1,8 +1,10 @@
-use crate::{Error, Memory, MemoryId, MemoryService, Source};
+use crate::{Embedding, Error, Memory, MemoryId, MemoryService, Source};
 
 #[derive(Debug, Default)]
 pub struct MemoryUpdate<'a> {
     pub sources: Option<&'a [Source]>,
+    pub summary: Option<String>,
+    pub embedding: Option<Embedding>,
     pub salience: Option<f32>,
     pub strength: Option<f32>,
     pub confidence: Option<f32>,
@@ -17,6 +19,14 @@ impl<'a> MemoryService<'a> {
 
         if let Some(v) = value.sources {
             row.sources = nim_store::Json(v.iter().map(|s| (*s).into()).collect());
+        }
+
+        if let Some(v) = value.summary {
+            row.summary = Some(v);
+        }
+
+        if let Some(v) = value.embedding {
+            row.embedding = Some(v.into());
         }
 
         if let Some(v) = value.salience {
@@ -50,6 +60,8 @@ impl<'a> MemoryService<'a> {
             sources: row.sources.iter().map(|v| (*v).into()).collect(),
             artifacts: artifacts.iter().map(|v| v.clone().into()).collect(),
             relations: Default::default(),
+            summary: row.summary,
+            embedding: row.embedding.map(Into::into),
             salience: row.salience,
             strength: row.strength,
             confidence: row.confidence,

@@ -25,7 +25,7 @@ impl<'a> SearchStorage<'a> {
         sqlx::query_as(
             r#"
                 SELECT
-                    (1 - LEAST(artifacts.distance, annotations.distance))::real AS similarity,
+                    (1 - LEAST(memories.embedding <=> $1::vector, artifacts.distance, annotations.distance))::real AS similarity,
                     to_jsonb(memories) AS "inner"
                 FROM memories
                 LEFT JOIN (
@@ -42,9 +42,9 @@ impl<'a> SearchStorage<'a> {
                     WHERE annotations.embedding IS NOT NULL
                     GROUP BY memories_artifacts.memory_id
                 ) AS annotations ON annotations.memory_id = memories.id
-                WHERE (artifacts.distance IS NOT NULL OR annotations.distance IS NOT NULL)
+                WHERE (memories.embedding IS NOT NULL OR artifacts.distance IS NOT NULL OR annotations.distance IS NOT NULL)
                 AND ($2::text IS NULL OR memories.type = $2)
-                AND (1 - LEAST(artifacts.distance, annotations.distance))::real >= $4
+                AND (1 - LEAST(memories.embedding <=> $1::vector, artifacts.distance, annotations.distance))::real >= $4
                 ORDER BY similarity DESC, memories.created_at DESC, memories.id
                 LIMIT $3;
             "#,
@@ -166,11 +166,11 @@ impl<'a> SearchStorage<'a> {
                 WHERE messages.embedding IS NOT NULL
                 UNION ALL
                 SELECT 'memory'::text AS record_type, memories.id, memories.created_at,
-                    (1 - MIN(artifacts.distance))::real AS similarity,
+                    (1 - LEAST(memories.embedding <=> $1::vector, MIN(artifacts.distance)))::real AS similarity,
                     to_jsonb(memories) AS "inner"
                 FROM memories
-                JOIN memories_artifacts ON memories_artifacts.memory_id = memories.id
-                JOIN artifact_distances AS artifacts ON artifacts.id = memories_artifacts.artifact_id
+                LEFT JOIN memories_artifacts ON memories_artifacts.memory_id = memories.id
+                LEFT JOIN artifact_distances AS artifacts ON artifacts.id = memories_artifacts.artifact_id
                 GROUP BY memories.id
             )
             SELECT similarity, "inner" FROM records

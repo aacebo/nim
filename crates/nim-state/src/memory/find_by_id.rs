@@ -14,6 +14,8 @@ impl<'a> MemoryService<'a> {
             sources: row.sources.iter().map(|v| (*v).into()).collect(),
             artifacts: artifacts.iter().map(|v| v.clone().into()).collect(),
             relations: Default::default(),
+            summary: row.summary,
+            embedding: row.embedding.map(Into::into),
             salience: row.salience,
             strength: row.strength,
             confidence: row.confidence,

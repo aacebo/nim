@@ -11,6 +11,9 @@ pub struct MemoryRow {
     pub ty: MemoryType,
     pub sources: sqlx::types::Json<Vec<Source>>,
     pub contexts: sqlx::types::Json<Vec<Context>>,
+    pub summary: Option<String>,
+    #[serde(skip)]
+    pub embedding: Option<pgvector::Vector>,
     pub salience: f32,
     pub strength: f32,
     pub confidence: f32,

@@ -2,9 +2,17 @@ use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::{RwLock, mpsc::UnboundedSender};
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SocketSignal {
+    pub subject: String,
+
+    #[serde(flatten)]
+    pub signal: nim::signals::RawSignal,
+}
+
 #[derive(Clone, Default)]
 pub struct Sockets {
-    inner: Arc<RwLock<HashMap<uuid::Uuid, UnboundedSender<nim::signals::RawSignal>>>>,
+    inner: Arc<RwLock<HashMap<uuid::Uuid, UnboundedSender<SocketSignal>>>>,
 }
 
 impl Sockets {
@@ -21,7 +29,8 @@ impl Sockets {
         map.remove(&subscription.id);
     }
 
-    pub async fn send(&self, signal: nim::signals::RawSignal) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send(&self, subject: String, signal: nim::signals::RawSignal) -> Result<(), Box<dyn std::error::Error>> {
+        let signal = SocketSignal { subject, signal };
         let mut map = self.inner.write().await;
         let mut dead = Vec::new();
 
@@ -44,11 +53,11 @@ impl Sockets {
 
 pub struct Subscription {
     id: uuid::Uuid,
-    receiver: tokio::sync::mpsc::UnboundedReceiver<nim::signals::RawSignal>,
+    receiver: tokio::sync::mpsc::UnboundedReceiver<SocketSignal>,
 }
 
 impl std::ops::Deref for Subscription {
-    type Target = tokio::sync::mpsc::UnboundedReceiver<nim::signals::RawSignal>;
+    type Target = tokio::sync::mpsc::UnboundedReceiver<SocketSignal>;
 
     fn deref(&self) -> &Self::Target {
         &self.receiver

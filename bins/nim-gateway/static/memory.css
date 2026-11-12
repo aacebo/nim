@@ -299,6 +299,11 @@
 }
 
 #memory-selection-title {
+    display: -webkit-box;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
     font-size: clamp(19px, 2.65vw, 37px);
     font-weight: 300;
     line-height: 1.05;
@@ -403,6 +408,9 @@
     font-size: 10px;
     letter-spacing: 0.055em;
     text-transform: uppercase;
+    max-width: min(220px, 55vw);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -499,6 +507,11 @@
 }
 
 #memory-detail-title {
+    display: -webkit-box;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
     margin: 0;
     font-size: 18px;
     font-weight: 400;
@@ -536,6 +549,8 @@
 
 #memory-detail-summary {
     margin: 12px 0 0;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
 #memory-view #memory-expand {

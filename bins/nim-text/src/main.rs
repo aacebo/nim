@@ -67,7 +67,7 @@ async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool
 
             tracing::info!("[{subject}] -> processing...");
 
-            let res = tokio::spawn(routes::artifacts::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?;
+            let res = tokio::spawn(routes::artifact::create::run(ctx.clone(), signal.to_signal()?).in_current_span()).await?;
 
             match res {
                 Ok(_) => {

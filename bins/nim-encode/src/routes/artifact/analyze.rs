@@ -46,18 +46,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
     let memories = ctx.services().memories().find_by_artifact_id(signal.content.id).await?;
 
     for memory in memories {
-        ctx.services()
-            .memories()
-            .update(
-                memory.id,
-                nim::state::MemoryUpdate {
-                    confidence: Some(confidence),
-                    salience: Some(salience),
-                    strength: Some(initial_strength),
-                    ..Default::default()
-                },
-            )
-            .await?;
+        ctx.signals().publish("nim.memory.analyze", memory).await?;
     }
 
     Ok(())

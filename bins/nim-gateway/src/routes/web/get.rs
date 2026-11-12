@@ -15,7 +15,7 @@ use axum::{
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title>Nim</title>
         <link rel="stylesheet" href="/web/static/orb.css?v=2">
-        <link rel="stylesheet" href="/web/static/hud.css?v=13">
+        <link rel="stylesheet" href="/web/static/hud.css?v=14">
         <link rel="stylesheet" href="/web/static/memory.css?v=11">
         <script src="/web/static/client.js" defer></script>
         <script src="/web/static/orb.js?v=5" defer></script>
@@ -92,7 +92,7 @@ use axum::{
                     <svg class="hub-symbol" viewBox="0 0 32 32" aria-hidden="true"><use href="#hud-cube"/></svg>
                     <span class="hub-label">Chat</span>
                 </button>
-                <button id="memory-action" class="hub-action" type="button" aria-controls="memory-view">
+                <button id="memory-action" class="hub-action" type="button" aria-controls="memory-view" disabled>
                     <svg class="hub-symbol" viewBox="0 0 32 32" aria-hidden="true"><use href="#hud-cube"/></svg>
                     <span class="hub-label">Memory</span>
                 </button>

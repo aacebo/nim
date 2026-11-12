@@ -187,13 +187,19 @@
     color: #fff;
 }
 
-.orb-scene[data-hud="hub"] .hub-action:is(:hover, :focus-visible) {
+.orb-scene[data-hud="hub"] #orb-hub > .hub-action:disabled {
+    opacity: 0.3;
+    filter: grayscale(1);
+    cursor: default;
+}
+
+.orb-scene[data-hud="hub"] .hub-action:enabled:is(:hover, :focus-visible) {
     --cube-top: #ce8088;
     --cube-left: #a45261;
     --cube-right: #763847;
 }
 
-.hub-action:is(:hover, :focus-visible) .hub-label {
+.hub-action:enabled:is(:hover, :focus-visible) .hub-label {
     background: #60313f;
 }
 

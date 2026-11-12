@@ -83,6 +83,20 @@ function setHudView(view) {
     orbTrigger.inert = view === "memory";
     orbTrigger.setAttribute("aria-expanded", String(view === "hub"));
     renderChatTranscript();
+
+    if (view === "hub") {
+        void fetch("/memories?limit=5")
+            .then((response) => {
+                if (!response.ok) throw new Error("Memory request failed");
+                return response.json();
+            })
+            .then((page) => {
+                memoryAction.disabled = !page.data?.length;
+            })
+            .catch(() => {
+                memoryAction.disabled = true;
+            });
+    }
 }
 
 function closeHub() {

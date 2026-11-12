@@ -23,7 +23,7 @@ impl<'a> MessageService<'a> {
                 parent_id: value.parent_id.map(Into::into),
                 version: 0,
                 role: value.role,
-                content: serde_json::to_value(value.content)?,
+                content: serde_json::to_value(&value.content)?,
                 summary: None,
                 embedding: None,
                 confidence: 0.0,
@@ -31,6 +31,17 @@ impl<'a> MessageService<'a> {
                 updated_at: now,
             })
             .await?;
+
+        for artifact_id in value.content.artifacts() {
+            self.storage
+                .message_artifacts()
+                .create(nim_store::MessageArtifactRow {
+                    message_id: row.id,
+                    artifact_id: artifact_id.into(),
+                    created_at: now,
+                })
+                .await?;
+        }
 
         row.try_into()
     }

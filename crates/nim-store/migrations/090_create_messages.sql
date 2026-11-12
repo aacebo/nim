@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS messages_tasks (
     PRIMARY KEY (message_id, task_id)
 );
 
+CREATE TABLE IF NOT EXISTS messages_artifacts (
+    message_id      UUID            NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    artifact_id     UUID            NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+
+    PRIMARY KEY (message_id, artifact_id)
+);
+
 ALTER TABLE chats
 ADD last_analyzed_id UUID REFERENCES messages(id) ON DELETE SET NULL,
 ADD last_analyzed_at TIMESTAMPTZ;

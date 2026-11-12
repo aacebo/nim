@@ -114,6 +114,20 @@ pub enum MessageContent {
     String(#[validate(min_length = 1)] String),
 }
 
+impl MessageContent {
+    pub fn artifacts(&self) -> Vec<ArtifactId> {
+        let mut items = Vec::new();
+
+        match self {
+            Self::Artifact { artifact_id } => items.push(*artifact_id),
+            Self::Array(content) => items.extend(content.iter().flat_map(|v| v.artifacts())),
+            _ => {}
+        };
+
+        items
+    }
+}
+
 impl std::fmt::Display for MessageContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -39,6 +39,7 @@ pub struct Storage<'a> {
     _message_annotations: MessageAnnotationStorage<'a>,
     _artifacts: ArtifactStorage<'a>,
     _memory_artifacts: MemoryArtifactsStorage<'a>,
+    _message_artifacts: MessageArtifactsStorage<'a>,
     _entities: EntityStorage<'a>,
     _entity_relations: EntityRelationsStorage<'a>,
     _entity_memories: EntityMemoriesStorage<'a>,
@@ -68,6 +69,7 @@ impl<'a> Storage<'a> {
             _message_annotations: MessageAnnotationStorage::new(pool),
             _artifacts: ArtifactStorage::new(pool),
             _memory_artifacts: MemoryArtifactsStorage::new(pool),
+            _message_artifacts: MessageArtifactsStorage::new(pool),
             _entities: EntityStorage::new(pool),
             _entity_relations: EntityRelationsStorage::new(pool),
             _entity_memories: EntityMemoriesStorage::new(pool),
@@ -120,6 +122,10 @@ impl<'a> Storage<'a> {
 
     pub fn memory_artifacts(&self) -> MemoryArtifactsStorage<'a> {
         self._memory_artifacts
+    }
+
+    pub fn message_artifacts(&self) -> MessageArtifactsStorage<'a> {
+        self._message_artifacts
     }
 
     pub fn entities(&self) -> EntityStorage<'a> {

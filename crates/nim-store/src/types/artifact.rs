@@ -21,6 +21,13 @@ pub struct MemoryArtifactRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct MessageArtifactRow {
+    pub message_id: uuid::Uuid,
+    pub artifact_id: uuid::Uuid,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ArtifactContent {

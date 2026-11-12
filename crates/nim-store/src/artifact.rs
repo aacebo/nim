@@ -527,3 +527,84 @@ impl<'a> ArtifactAnnotationStorage<'a> {
         Ok(())
     }
 }
+
+#[derive(Copy, Clone)]
+pub struct MessageArtifactsStorage<'a> {
+    pool: &'a sqlx::PgPool,
+}
+
+impl<'a> MessageArtifactsStorage<'a> {
+    pub fn new(pool: &'a sqlx::PgPool) -> Self {
+        Self { pool }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_id(
+        &self,
+        message_id: uuid::Uuid,
+        artifact_id: uuid::Uuid,
+    ) -> Result<types::MessageArtifactRow, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                message_id,
+                artifact_id,
+                created_at
+            FROM messages_artifacts
+            WHERE message_id = $1 AND artifact_id = $2
+            "#,
+        )
+        .bind(message_id)
+        .bind(artifact_id)
+        .fetch_one(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn create(&self, value: types::MessageArtifactRow) -> Result<types::MessageArtifactRow, sqlx::Error> {
+        let row = sqlx::query_as(
+            r#"
+            INSERT INTO messages_artifacts (
+                message_id,
+                artifact_id,
+                created_at
+            )
+            VALUES (
+                $1,
+                $2,
+                $3
+            )
+            ON CONFLICT DO NOTHING
+            RETURNING
+                message_id,
+                artifact_id,
+                created_at
+            "#,
+        )
+        .bind(value.message_id)
+        .bind(value.artifact_id)
+        .bind(value.created_at)
+        .fetch_optional(self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(row),
+            None => self.find_by_id(value.message_id, value.artifact_id).await,
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid)) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            DELETE FROM messages_artifacts
+            WHERE message_id = $1 AND artifact_id = $2
+            "#,
+        )
+        .bind(id.0)
+        .bind(id.1)
+        .execute(self.pool)
+        .await?;
+        Ok(())
+    }
+}

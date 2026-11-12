@@ -101,10 +101,6 @@ use axum::{
                     <svg class="hub-symbol" viewBox="0 0 32 32" aria-hidden="true"><use href="#hud-cube"/></svg>
                     <span class="hub-label">Settings</span>
                 </button>
-                <button class="hub-action" type="button" aria-controls="action-panel">
-                    <svg class="hub-symbol" viewBox="0 0 32 32" aria-hidden="true"><use href="#hud-cube"/></svg>
-                    <span class="hub-label">Action 4</span>
-                </button>
                 <button id="hub-back" type="button">Back</button>
             </nav>
             <div class="action-view">

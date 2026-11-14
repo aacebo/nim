@@ -128,29 +128,6 @@ impl MessageContent {
     }
 }
 
-impl std::fmt::Display for MessageContent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::String(v) => write!(f, "{v}"),
-            Self::Text { text } => write!(f, "{text}"),
-            Self::Url { url } => write!(f, "{url}"),
-            Self::Base64 { base64 } => write!(f, "{base64}"),
-            Self::Artifact { artifact_id } => write!(f, "{artifact_id}"),
-            Self::Array(items) => {
-                for (i, item) in items.iter().enumerate() {
-                    if i < items.len() - 1 {
-                        writeln!(f, "{item}")?;
-                    } else {
-                        write!(f, "{item}")?;
-                    }
-                }
-
-                Ok(())
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MessageAnnotation {
     pub id: AnnotationId,

@@ -1,12 +1,12 @@
 use heck::ToSnakeCase;
-use nim::{signals::Signal, state::Message};
+use nim::{runtime::Render, signals::Signal, state::Message};
 
 use crate::{Error, SignalContext};
 
 #[tracing::instrument(skip(ctx, signal))]
 pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Error> {
     let message = signal.content;
-    let content = message.content.to_string().to_lowercase();
+    let content = message.content.render(&ctx.services()).await?.to_lowercase();
     let artifacts = ctx
         .runtime()
         .pipelines()

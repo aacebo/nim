@@ -1,9 +1,11 @@
 pub mod ai;
 mod error;
 mod models;
+mod render;
 mod tasks;
 
 pub use error::*;
+pub use render::*;
 pub use tasks::*;
 
 pub struct Runtime<'a> {

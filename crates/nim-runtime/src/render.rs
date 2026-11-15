@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use nim_state::{MessageContent, Services};
+use nim_state::{Artifact, MessageContent, Services};
 use nim_store::ArtifactContent;
 
 use crate::Error;
@@ -25,7 +25,7 @@ impl Render for MessageContent {
                 Self::Base64 { base64 } => Ok(base64),
                 Self::Artifact { artifact_id } => {
                     let artifact = s.artifacts().find_by_id(artifact_id).await?;
-                    artifact.content.render(s).await
+                    artifact.render(s).await
                 }
                 Self::Array(items) => {
                     let mut f = Vec::new();
@@ -48,18 +48,21 @@ impl Render for MessageContent {
     }
 }
 
-impl Render for ArtifactContent {
+impl Render for Artifact {
     type Error = Error;
 
     fn render<'a>(&'a self, _s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Error>> {
         Box::pin(async move {
-            match self {
-                Self::Text { text } => Ok(text.clone()),
-                Self::File {
+            match &self.content {
+                ArtifactContent::Text { text } => Ok(text.clone()),
+                ArtifactContent::File {
                     path,
                     size: _,
-                    media_type: _,
-                } => tokio::fs::read_to_string(&path).await.map_err(Error::custom),
+                    media_type,
+                } => {
+                    let mime_type = media_type.as_ref().map(|t| format!(r#" "{t}""#)).unwrap_or("".into());
+                    Ok(format!("[{}](artifact://{}{})", self.name, path.display(), mime_type))
+                }
             }
         })
     }

@@ -10,10 +10,6 @@
 Create unified model config type that is configured via environment variables
 for binary containers.
 
-## Websockets
-
-Add web websockets for live activity.
-
 ## Errors
 
 Error nesting/rollup.

@@ -53,16 +53,19 @@ impl Render for Artifact {
 
     fn render<'a>(&'a self, _s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Error>> {
         Box::pin(async move {
-            match &self.content {
-                ArtifactContent::Text { text } => Ok(text.clone()),
-                ArtifactContent::File {
-                    path,
-                    size: _,
-                    media_type,
-                } => {
-                    let mime_type = media_type.as_ref().map(|t| format!(r#" "{t}""#)).unwrap_or("".into());
-                    Ok(format!("[{}](artifact://{}{})", self.name, path.display(), mime_type))
-                }
+            match &self.summary {
+                Some(summary) => Ok(summary.clone()),
+                None => match &self.content {
+                    ArtifactContent::Text { text } => Ok(text.clone()),
+                    ArtifactContent::File {
+                        path,
+                        size: _,
+                        media_type,
+                    } => {
+                        let mime_type = media_type.as_ref().map(|t| format!(r#" "{t}""#)).unwrap_or("".into());
+                        Ok(format!("[{}](artifact://{}{})", self.name, path.display(), mime_type))
+                    }
+                },
             }
         })
     }

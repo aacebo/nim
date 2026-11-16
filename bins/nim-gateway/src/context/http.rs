@@ -6,8 +6,6 @@ use axum::http::request::Parts;
 use axum::middleware::Next;
 use axum::response::Response;
 
-use crate::Error;
-
 const REQUEST_ID_HEADER: &str = "X-Request-ID";
 
 #[derive(Clone)]
@@ -39,7 +37,7 @@ impl<S> FromRequestParts<S> for HttpContext
 where
     S: Send + Sync,
 {
-    type Rejection = Error;
+    type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let ctx = parts

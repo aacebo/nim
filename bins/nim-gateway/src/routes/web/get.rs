@@ -195,7 +195,9 @@ use axum::{
 )]
 pub struct Root;
 
-pub async fn route() -> axum::response::Result<axum::response::Response> {
-    let body = Root.render().map(Html).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
-    Ok((StatusCode::OK, [(header::CACHE_CONTROL, "no-store")], Html(body)).into_response())
+pub async fn route() -> nim::error::Result<impl axum::response::IntoResponse> {
+    Ok(match Root.render() {
+        Ok(body) => (StatusCode::OK, [(header::CACHE_CONTROL, "no-store")], Html(body)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    })
 }

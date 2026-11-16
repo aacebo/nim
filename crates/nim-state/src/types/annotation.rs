@@ -1,6 +1,6 @@
 pub use nim_store::Span;
 
-use crate::{ArtifactAnnotation, Error, MessageAnnotation};
+use crate::{ArtifactAnnotation, MessageAnnotation};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AnnotationPartial {
@@ -159,7 +159,7 @@ pub enum Label {
 }
 
 impl Label {
-    pub fn try_from_classify_label(label: impl AsRef<str>) -> Result<Self, Error> {
+    pub fn try_from_classify_label(label: impl AsRef<str>) -> nim_error::Result<Self> {
         match label.as_ref() {
             "a concrete person, animal, object, or organization" => Ok(Self::Entity),
             "explicit positive or negative sentiment or emotional tone" => Ok(Self::Valence),
@@ -174,7 +174,7 @@ impl Label {
             "explicit interpersonal relationships, communication, or social interactions" => Ok(Self::SocialRelevance),
             "dates, times, durations, or the order of events" => Ok(Self::Temporal),
             "physical locations, directions, distances, or spatial relationships" => Ok(Self::Spatial),
-            v => Err(Error::custom(format!("provided label `{v}` is invalid"))),
+            v => Err(nim_error::Diagnostic::message(format!("provided label `{v}` is invalid"))),
         }
     }
 

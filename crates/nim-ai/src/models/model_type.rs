@@ -1,5 +1,3 @@
-use crate::Error;
-
 #[non_exhaustive]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -52,9 +50,9 @@ impl ModelType {
 }
 
 impl std::str::FromStr for ModelType {
-    type Err = Error;
+    type Err = nim_error::Diagnostic;
 
-    fn from_str(value: &str) -> Result<Self, Error> {
+    fn from_str(value: &str) -> nim_error::Result<Self> {
         Ok(match value.to_lowercase().as_str() {
             "bart" => Self::Bart,
             "bert" => Self::Bert,

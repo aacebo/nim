@@ -2,10 +2,7 @@ use std::time::Duration;
 
 use reqwest::blocking::Client;
 
-use crate::{
-    Error,
-    models::{ModelId, Provider},
-};
+use crate::models::{ModelId, Provider};
 
 use super::types::{ChatResponse, EmbeddingsResponse, Message};
 
@@ -33,7 +30,12 @@ impl OpenAI {
 
     /// A chat completion constrained to a JSON schema, so the model answers in a parseable shape
     /// rather than prose.
-    pub fn json<T: serde::de::DeserializeOwned>(&self, prompt: &str, input: &str, schema: serde_json::Value) -> Result<T, Error> {
+    pub fn json<T: serde::de::DeserializeOwned>(
+        &self,
+        prompt: &str,
+        input: &str,
+        schema: serde_json::Value,
+    ) -> nim_error::Result<T> {
         let body = serde_json::json!({
             "model": self.model.to_string(),
             "messages": [Message::system(prompt), Message::user(input)],
@@ -49,14 +51,14 @@ impl OpenAI {
             .into_iter()
             .next()
             .map(|choice| choice.message.content)
-            .ok_or_else(|| Error::custom("ai", "no completion returned"))?;
+            .ok_or_else(|| nim_error::Diagnostic::message("no completion returned"))?;
 
         Ok(serde_json::from_str(&content)?)
     }
 
     /// A plain chat completion. Generation returns prose, so unlike `json` it is not constrained
     /// to a schema -- wrapping a summary in a JSON envelope only to unwrap it buys nothing.
-    pub fn complete(&self, prompt: &str, input: &str, max_len: Option<usize>) -> Result<String, Error> {
+    pub fn complete(&self, prompt: &str, input: &str, max_len: Option<usize>) -> nim_error::Result<String> {
         let mut body = serde_json::json!({
             "model": self.model.to_string(),
             "messages": [Message::system(prompt), Message::user(input)],
@@ -73,10 +75,10 @@ impl OpenAI {
             .into_iter()
             .next()
             .map(|choice| choice.message.content.trim().to_string())
-            .ok_or_else(|| Error::custom("ai", "no completion returned"))
+            .ok_or_else(|| nim_error::Diagnostic::message("no completion returned"))
     }
 
-    pub fn embeddings(&self, text: &[&str]) -> Result<Vec<Vec<f32>>, Error> {
+    pub fn embeddings(&self, text: &[&str]) -> nim_error::Result<Vec<Vec<f32>>> {
         let body = serde_json::json!({
             "model": self.model.to_string(),
             "input": text,
@@ -86,17 +88,18 @@ impl OpenAI {
         let mut data = response.data;
 
         if data.len() != text.len() {
-            return Err(Error::custom(
-                "ai",
-                format!("expected {} embeddings, got {}", text.len(), data.len()),
-            ));
+            return Err(nim_error::Diagnostic::message(format!(
+                "expected {} embeddings, got {}",
+                text.len(),
+                data.len()
+            )));
         }
 
         data.sort_by_key(|entry| entry.index);
         Ok(data.into_iter().map(|entry| entry.embedding).collect())
     }
 
-    fn post<T: serde::de::DeserializeOwned>(&self, path: &str, body: &serde_json::Value) -> Result<T, Error> {
+    fn post<T: serde::de::DeserializeOwned>(&self, path: &str, body: &serde_json::Value) -> nim_error::Result<T> {
         let url = format!("{}/{path}", self.base_url.trim_end_matches('/'));
         let mut request = self.client.post(&url).json(body);
 

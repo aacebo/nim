@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::Error;
 use crate::models::ModelRef;
 
 /// The api key is fingerprinted rather than stored, so credentials never sit in a long-lived map
@@ -52,7 +51,7 @@ impl<T: ?Sized> Cache<T> {
         self.len() == 0
     }
 
-    pub fn get_or_build(&self, key: Key, build: impl FnOnce() -> Result<Arc<T>, Error>) -> Result<Arc<T>, Error> {
+    pub fn get_or_build(&self, key: Key, build: impl FnOnce() -> nim_error::Result<Arc<T>>) -> nim_error::Result<Arc<T>> {
         if let Ok(entries) = self.entries.read()
             && let Some(entry) = entries.get(&key)
         {

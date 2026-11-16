@@ -1,6 +1,6 @@
 use nim_store::ArtifactAnnotationRow;
 
-use crate::{ArtifactAnnotation, ArtifactId, ArtifactService, Error, Label, Span};
+use crate::{ArtifactAnnotation, ArtifactId, ArtifactService, Label, Span};
 
 #[derive(Debug)]
 pub struct ArtifactAnnotationCreate<'a> {
@@ -17,7 +17,7 @@ impl<'a> ArtifactService<'a> {
         &self,
         artifact_id: ArtifactId,
         value: ArtifactAnnotationCreate<'b>,
-    ) -> Result<ArtifactAnnotation, Error> {
+    ) -> nim_error::Result<ArtifactAnnotation> {
         let now = chrono::Utc::now();
         let row = self
             .storage

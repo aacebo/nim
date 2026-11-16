@@ -3,7 +3,7 @@ use opentelemetry::propagation::TextMapPropagator;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::{Error, RawSignal, headers::NatsExtractor};
+use crate::{RawSignal, headers::NatsExtractor};
 
 pub struct Stream {
     inner: jetstream::consumer::pull::Stream,
@@ -19,7 +19,7 @@ impl Stream {
 impl Unpin for Stream {}
 
 impl futures_util::Stream for Stream {
-    type Item = Result<(jetstream::Message, RawSignal, tracing::Span), Error>;
+    type Item = nim_error::Result<(jetstream::Message, RawSignal, tracing::Span)>;
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, ctx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
         let pin = std::pin::pin!(&mut self.inner);
@@ -29,7 +29,7 @@ impl futures_util::Stream for Stream {
             let res = v?;
 
             let message = match res {
-                Err(err) => return Some(Err(Error::Nats(err.into()))),
+                Err(err) => return Some(Err(err.into())),
                 Ok(v) => v,
             };
 

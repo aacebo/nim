@@ -3,7 +3,6 @@ use std::io::Cursor;
 use candle_core::{Device, Tensor};
 use image::{GenericImageView, ImageReader, imageops::FilterType};
 
-use crate::Error;
 use crate::types::BoundingBox;
 
 #[derive(serde::Deserialize)]
@@ -24,16 +23,12 @@ struct Size {
 }
 
 impl Processor {
-    pub fn tensor(&self, bytes: &[u8], device: &Device) -> Result<(Tensor, BoundingBox), Error> {
-        let image = ImageReader::new(Cursor::new(bytes))
-            .with_guessed_format()
-            .map_err(|e| Error::custom("ai::image", e))?
-            .decode()
-            .map_err(|e| Error::custom("ai::image", e))?;
+    pub fn tensor(&self, bytes: &[u8], device: &Device) -> nim_error::Result<(Tensor, BoundingBox)> {
+        let image = ImageReader::new(Cursor::new(bytes)).with_guessed_format()?.decode()?;
         let shortest = self
             .size
             .shortest_edge
-            .ok_or_else(|| Error::custom("ai::image", "missing shortest_edge"))?;
+            .ok_or_else(|| nim_error::Diagnostic::message("missing shortest_edge"))?;
         let (source_width, source_height) = image.dimensions();
         let scale = shortest as f64 / source_width.min(source_height) as f64;
         let image = image.resize_exact(
@@ -44,11 +39,11 @@ impl Processor {
         let width = self
             .crop_size
             .width
-            .ok_or_else(|| Error::custom("ai::image", "missing crop width"))? as u32;
+            .ok_or_else(|| nim_error::Diagnostic::message("missing crop width"))? as u32;
         let height = self
             .crop_size
             .height
-            .ok_or_else(|| Error::custom("ai::image", "missing crop height"))? as u32;
+            .ok_or_else(|| nim_error::Diagnostic::message("missing crop height"))? as u32;
         let image = image
             .crop_imm((image.width() - width) / 2, (image.height() - height) / 2, width, height)
             .to_rgb8();

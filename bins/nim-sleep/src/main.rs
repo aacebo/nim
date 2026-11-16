@@ -1,15 +1,13 @@
 mod config;
 mod context;
-mod error;
 
 pub use config::*;
 pub use context::*;
-pub use error::*;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> nim::error::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().json())
         .with(nim::signals::trace::layer("nim-sleep"))
@@ -34,13 +32,13 @@ async fn main() -> Result<(), Error> {
 }
 
 #[tracing::instrument]
-async fn start() -> Result<(), Error> {
+async fn start() -> nim::error::Result<()> {
     tracing::info!("started");
     Ok(())
 }
 
 #[tracing::instrument]
-async fn stop() -> Result<(), Error> {
+async fn stop() -> nim::error::Result<()> {
     tracing::info!("complete");
     Ok(())
 }

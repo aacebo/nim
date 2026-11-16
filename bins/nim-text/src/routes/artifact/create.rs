@@ -1,10 +1,10 @@
 use heck::ToSnakeCase;
 use nim::{signals::Signal, state::Artifact};
 
-use crate::{Error, SignalContext};
+use crate::SignalContext;
 
 #[tracing::instrument(skip(ctx, signal))]
-pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Error> {
+pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Result<()> {
     let text = match &signal.content.content {
         nim::state::ArtifactContent::Text { text } => text.to_lowercase(),
         nim::state::ArtifactContent::File {
@@ -41,7 +41,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         .await?;
 
     let Some(summary) = artifacts.first() else {
-        return Err(Error::custom(format!(
+        return Err(nim::error::Diagnostic::message(format!(
             "summary could not be generated from artifact `{}`",
             signal.content.id
         )));

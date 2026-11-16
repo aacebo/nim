@@ -11,18 +11,17 @@ pub use format::Format;
 pub use resource::Resource;
 pub use uri::Uri;
 
-use crate::Error;
 use crate::models::ModelId;
 
 pub trait Repository: Send + Sync {
     fn exists(&self, path: &Path) -> bool;
-    fn get(&self, path: &Path) -> Result<Asset, Error>;
-    fn read(&self, path: &Path) -> Result<AssetData, Error>;
-    fn resolve(&self, path: &Path) -> Result<Resource, Error>;
+    fn get(&self, path: &Path) -> nim_error::Result<Asset>;
+    fn read(&self, path: &Path) -> nim_error::Result<AssetData>;
+    fn resolve(&self, path: &Path) -> nim_error::Result<Resource>;
 }
 
 pub trait DataSource: Send + Sync {
     type Repository: Repository;
 
-    fn load(&self, id: &ModelId) -> Result<Self::Repository, Error>;
+    fn load(&self, id: &ModelId) -> nim_error::Result<Self::Repository>;
 }

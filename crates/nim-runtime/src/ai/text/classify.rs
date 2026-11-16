@@ -1,6 +1,6 @@
 use nim_ai::{models::ModelRef, types::Annotation};
 
-use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines, task_run};
+use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct TextClassifyOptions {
@@ -43,7 +43,7 @@ impl From<TextClassifyOptions> for nim_ai::pipelines::text::classify::Options {
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn classify<T>(&self, input: &[T], options: TextClassifyOptions) -> Result<Vec<Vec<Annotation>>, Error>
+    pub async fn classify<T>(&self, input: &[T], options: TextClassifyOptions) -> nim_error::Result<Vec<Vec<Annotation>>>
     where
         T: AsRef<str>,
     {

@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use crate::Error;
-
 use super::format::Format;
 use super::uri::Uri;
 
@@ -29,7 +27,7 @@ impl Resource {
         }
     }
 
-    pub(crate) fn from_path(path: PathBuf) -> Result<Self, Error> {
+    pub(crate) fn from_path(path: PathBuf) -> nim_error::Result<Self> {
         let metadata = std::fs::metadata(&path)?;
         let size = match metadata.is_dir() {
             true => directory_size(&path)?,
@@ -44,10 +42,10 @@ impl Resource {
         Ok(resource)
     }
 
-    pub fn local_path(&self) -> Result<&Path, Error> {
+    pub fn local_path(&self) -> nim_error::Result<&Path> {
         self.path
             .as_deref()
-            .ok_or_else(|| Error::custom("ai::resource", format!("{self} has no resolved local path")))
+            .ok_or_else(|| nim_error::Diagnostic::message(format!("{self} has no resolved local path")))
     }
 
     pub fn name(&self) -> &str {
@@ -73,7 +71,7 @@ impl std::fmt::Display for Resource {
     }
 }
 
-fn directory_size(path: &Path) -> Result<u64, Error> {
+fn directory_size(path: &Path) -> nim_error::Result<u64> {
     let mut size = 0u64;
 
     for entry in std::fs::read_dir(path)? {
@@ -92,7 +90,7 @@ fn directory_size(path: &Path) -> Result<u64, Error> {
 
         size = size
             .checked_add(bytes)
-            .ok_or_else(|| Error::custom("ai::resource", "directory size overflow"))?;
+            .ok_or_else(|| nim_error::Diagnostic::message("directory size overflow"))?;
     }
 
     Ok(size)

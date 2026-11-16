@@ -8,7 +8,7 @@ use crate::http::HttpContext;
 pub async fn route(
     ctx: HttpContext,
     mut multipart: axum::extract::Multipart,
-) -> axum::response::Result<axum::response::Response> {
+) -> nim::error::Result<impl axum::response::IntoResponse> {
     let mut artifacts = vec![];
 
     while let Some(mut field) = multipart.next_field().await? {
@@ -30,11 +30,11 @@ pub async fn route(
             });
 
         let Some(ext) = ext else {
-            return Err((
+            return Ok((
                 axum::http::StatusCode::BAD_REQUEST,
                 "file extension or content type are needed to infer file extension",
             )
-                .into());
+                .into_response());
         };
 
         let name = field
@@ -57,26 +57,16 @@ pub async fn route(
         path = path.join(format!("{}.{}", uuid::Uuid::now_v7().simple(), ext));
 
         if let Some(parent) = path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+            tokio::fs::create_dir_all(parent).await?;
         }
 
-        let mut file = tokio::fs::File::create(&path)
-            .await
-            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+        let mut file = tokio::fs::File::create(&path).await?;
 
         while let Some(chunk) = field.chunk().await? {
-            file.write_all(&chunk)
-                .await
-                .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+            file.write_all(&chunk).await?;
         }
 
-        let size = file
-            .metadata()
-            .await
-            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?
-            .size();
+        let size = file.metadata().await?.size();
 
         let artifact = ctx
             .services()
@@ -94,8 +84,7 @@ pub async fn route(
                 salience: None,
                 strength: None,
             })
-            .await
-            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+            .await?;
 
         let media_path = mime_type
             .map(|v| match v.type_() {
@@ -109,8 +98,7 @@ pub async fn route(
 
         ctx.signals()
             .publish(format!("nim.{media_path}.artifact.create"), artifact.clone())
-            .await
-            .map_err(|err| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+            .await?;
 
         artifacts.push(artifact);
     }

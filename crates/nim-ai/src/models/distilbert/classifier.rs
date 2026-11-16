@@ -1,7 +1,6 @@
 use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, Module, VarBuilder, ops};
 
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::{aggregation, classification, decode_entities};
 use crate::types::Annotation;
@@ -18,7 +17,7 @@ pub struct Classifier {
 }
 
 impl Classifier {
-    pub fn new(vars: VarBuilder, config: &Config, mode: ClassifyMode) -> Result<Self, Error> {
+    pub fn new(vars: VarBuilder, config: &Config, mode: ClassifyMode) -> nim_error::Result<Self> {
         let hidden = config.hidden_size();
         let labels = config.labels()?;
         let pre_classifier = vars
@@ -35,7 +34,7 @@ impl Classifier {
         })
     }
 
-    fn text(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn text(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
         if text.is_empty() {
             return Ok(Vec::new());
         }
@@ -53,14 +52,14 @@ impl Classifier {
                     .iter()
                     .enumerate()
                     .max_by(|(_, left), (_, right)| left.total_cmp(right))
-                    .ok_or_else(|| Error::custom("ai::invalid", "empty classification output"))?;
+                    .ok_or_else(|| nim_error::Diagnostic::message("empty classification output"))?;
 
                 Ok(vec![classification(&self.labels, index, *score as f64, text)])
             })
             .collect()
     }
 
-    fn spans(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn spans(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
         text.iter()
             .map(|text| {
                 let encoding = ctx.encode_one(text)?;
@@ -88,7 +87,7 @@ impl Forward for Classifier {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
-    fn forward(&self, (ids, padding): Self::Input) -> Result<Self::Output, Error> {
+    fn forward(&self, (ids, padding): Self::Input) -> nim_error::Result<Self::Output> {
         let hidden = self.distilbert.forward(&ids, &padding)?;
         let hidden = match &self.pre_classifier {
             Some(layer) => layer.forward(&hidden)?.relu()?,
@@ -100,10 +99,10 @@ impl Forward for Classifier {
 }
 
 impl Classify for Classifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
@@ -111,17 +110,18 @@ impl Classify for Classifier {
             || options.multi_label
             || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
         {
-            return Err(Error::custom(
-                "ai::invalid",
-                format!("{} only supports fixed labels", ctx.name()),
-            ));
+            return Err(nim_error::Diagnostic::message(format!(
+                "{} only supports fixed labels",
+                ctx.name()
+            )));
         }
 
         if options.mode != self.mode {
-            return Err(Error::custom(
-                "ai::invalid",
-                format!("{} cannot classify in {:?} mode", ctx.name(), options.mode),
-            ));
+            return Err(nim_error::Diagnostic::message(format!(
+                "{} cannot classify in {:?} mode",
+                ctx.name(),
+                options.mode
+            )));
         }
 
         let out = match options.mode {

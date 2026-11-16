@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use crate::{Error, ParseError};
-
 use super::format::Format;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -20,19 +18,19 @@ impl Uri {
         Self::Http(url)
     }
 
-    pub fn parse(uri: &str) -> Result<Self, Error> {
+    pub fn parse(uri: &str) -> nim_error::Result<Self> {
         let Some((scheme, rest)) = uri.split_once("://") else {
             // A bare path is local: `./models/bart`, `/abs/path`.
             return match uri.is_empty() {
-                true => Err(Error::custom("url::parse", "empty uri")),
+                true => Err(nim_error::Diagnostic::message("empty uri")),
                 false => Ok(Self::local(uri)),
             };
         };
 
         match scheme {
             "file" => Ok(Self::local(rest)),
-            "http" | "https" => Ok(url::Url::parse(uri).map(Self::Http).map_err(ParseError::from)?),
-            _ => Err(Error::custom("url::parse", format!("unsupported uri scheme: {scheme:?}"))),
+            "http" | "https" => Ok(url::Url::parse(uri).map(Self::Http)?),
+            _ => Err(nim_error::Diagnostic::message(format!("unsupported uri scheme: {scheme:?}"))),
         }
     }
 
@@ -52,16 +50,16 @@ impl Uri {
         self.ext().map(Format::from_ext).unwrap_or_default()
     }
 
-    pub fn join(&self, file: &str) -> Result<Self, Error> {
+    pub fn join(&self, file: &str) -> nim_error::Result<Self> {
         match self {
             Self::Local(dir) => Ok(Self::Local(dir.join(file))),
             Self::Http(base) => {
                 let base = match base.as_str().ends_with('/') {
                     true => base.clone(),
-                    false => url::Url::parse(&format!("{base}/")).map_err(ParseError::from)?,
+                    false => url::Url::parse(&format!("{base}/"))?,
                 };
 
-                Ok(base.join(file).map(Self::Http).map_err(ParseError::from)?)
+                Ok(base.join(file).map(Self::Http)?)
             }
         }
     }
@@ -72,9 +70,9 @@ impl Uri {
 }
 
 impl FromStr for Uri {
-    type Err = Error;
+    type Err = nim_error::Diagnostic;
 
-    fn from_str(value: &str) -> Result<Self, Error> {
+    fn from_str(value: &str) -> nim_error::Result<Self> {
         Self::parse(value)
     }
 }

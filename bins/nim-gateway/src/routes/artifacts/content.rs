@@ -1,20 +1,18 @@
 use axum::response::IntoResponse;
 use tokio_util::io::ReaderStream;
 
-use crate::{Error, http::HttpContext};
+use crate::http::HttpContext;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Params {
     pub artifact_id: nim::state::ArtifactId,
 }
 
-pub async fn route(ctx: HttpContext, params: axum::extract::Path<Params>) -> axum::response::Result<axum::response::Response> {
-    let artifact = ctx
-        .services()
-        .artifacts()
-        .find_by_id(params.artifact_id)
-        .await
-        .map_err(Error::from)?;
+pub async fn route(
+    ctx: HttpContext,
+    params: axum::extract::Path<Params>,
+) -> nim::error::Result<impl axum::response::IntoResponse> {
+    let artifact = ctx.services().artifacts().find_by_id(params.artifact_id).await?;
 
     match artifact.content {
         nim::state::ArtifactContent::Text { text } => Ok(text.into_response()),
@@ -25,7 +23,9 @@ pub async fn route(ctx: HttpContext, params: axum::extract::Path<Params>) -> axu
         } => {
             let file = match tokio::fs::File::open(&path).await {
                 Ok(file) => file,
-                Err(err) => return Err((axum::http::StatusCode::NOT_FOUND, format!("file not found: {}", err)).into()),
+                Err(err) => {
+                    return Ok((axum::http::StatusCode::NOT_FOUND, format!("file not found: {}", err)).into_response());
+                }
             };
 
             let stream = ReaderStream::new(file);

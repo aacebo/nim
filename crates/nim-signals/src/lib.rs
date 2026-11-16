@@ -1,6 +1,5 @@
 mod client;
 mod endpoint;
-mod error;
 mod headers;
 mod request;
 mod service;
@@ -10,7 +9,6 @@ mod types;
 
 pub use client::*;
 pub use endpoint::*;
-pub use error::*;
 pub use request::*;
 pub use service::*;
 pub use stream::*;
@@ -30,12 +28,12 @@ pub struct ConnectOptions {
 }
 
 #[tracing::instrument]
-pub async fn connect(name: &str, addr: &str) -> Result<Client, Error> {
+pub async fn connect(name: &str, addr: &str) -> nim_error::Result<Client> {
     connect_with(name, addr, Default::default()).await
 }
 
 #[tracing::instrument]
-pub async fn connect_with(name: &str, addr: &str, options: ConnectOptions) -> Result<Client, Error> {
+pub async fn connect_with(name: &str, addr: &str, options: ConnectOptions) -> nim_error::Result<Client> {
     let client = async_nats::connect_with_options(addr, options.connect).await?;
     let context = async_nats::jetstream::new(client);
 

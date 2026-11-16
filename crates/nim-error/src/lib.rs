@@ -15,3 +15,9 @@ impl<T: Send + Sync + std::error::Error + 'static> IntoDiagnostic for T {
         Diagnostic::error(self)
     }
 }
+
+impl IntoDiagnostic for Diagnostic {
+    fn into_diagnostic(self) -> Diagnostic {
+        self
+    }
+}

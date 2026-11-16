@@ -1,8 +1,8 @@
-use crate::{AnnotationId, ArtifactAnnotation, ArtifactId, ArtifactService, Error};
+use crate::{AnnotationId, ArtifactAnnotation, ArtifactId, ArtifactService};
 
 impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn find_annotation(&self, artifact_id: ArtifactId, id: AnnotationId) -> Result<ArtifactAnnotation, Error> {
+    pub async fn find_annotation(&self, artifact_id: ArtifactId, id: AnnotationId) -> nim_error::Result<ArtifactAnnotation> {
         Ok(self
             .storage
             .artifact_annotations()

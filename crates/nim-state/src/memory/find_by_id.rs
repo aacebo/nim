@@ -1,8 +1,8 @@
-use crate::{Error, Memory, MemoryId, MemoryService};
+use crate::{Memory, MemoryId, MemoryService};
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_id(&self, id: MemoryId) -> Result<Memory, Error> {
+    pub async fn find_by_id(&self, id: MemoryId) -> nim_error::Result<Memory> {
         let row = self.storage.memories().find_by_id(id.into()).await?;
         let artifacts = self.storage.artifacts().find_by_memory_id(id.into()).await?;
 

@@ -1,13 +1,13 @@
 use axum::response::IntoResponse;
 
-use crate::{Error, http::HttpContext};
+use crate::http::HttpContext;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Body {
     pub text: String,
 }
 
-pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::response::Result<axum::response::Response> {
+pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> nim::error::Result<impl axum::response::IntoResponse> {
     let artifacts = ctx
         .runtime()
         .pipelines()
@@ -20,19 +20,18 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
                     dimensions: Some(768),
                     ..Default::default()
                 },
-                model: nim::ai::models::refer("unsloth/embeddinggemma-300m").map_err(Error::from)?,
+                model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
                 ..Default::default()
             },
         )
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
     let Some(artifact) = artifacts.first() else {
-        return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR.into());
+        return Ok(axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
     let Some(embedding) = &artifact.vector else {
-        return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR.into());
+        return Ok(axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response());
     };
 
     let results = ctx
@@ -46,8 +45,7 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
                 ..Default::default()
             },
         )
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
     let recall = ctx
         .services()
@@ -57,18 +55,12 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> axum::r
             source: nim::state::RecallSource::User,
             query: Some(body.text.clone()),
         })
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
     for item in &results {
-        let link = ctx
-            .services()
-            .recalls()
-            .link(item.id, recall.id, item.score)
-            .await
-            .map_err(Error::from)?;
+        let link = ctx.services().recalls().link(item.id, recall.id, item.score).await?;
 
-        ctx.signals().publish("nim.memory.recall", link).await.map_err(Error::from)?;
+        ctx.signals().publish("nim.memory.recall", link).await?;
     }
 
     Ok((axum::http::StatusCode::CREATED, axum::Json(results)).into_response())

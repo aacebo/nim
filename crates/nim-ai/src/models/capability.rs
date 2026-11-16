@@ -1,7 +1,6 @@
 use candle_core::Device;
 use tokenizers::Tokenizer;
 
-use crate::Error;
 use crate::types::{Annotation, Span};
 
 use super::Batch;
@@ -13,7 +12,7 @@ pub struct Generation {
 }
 
 pub trait Generate: Send + Sync {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error>;
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>>;
 }
 
 /// A sentence vector per input.
@@ -33,9 +32,9 @@ pub struct EmbedOptions {
 }
 
 impl EmbedOptions {
-    pub fn validate(&self) -> Result<(), Error> {
+    pub fn validate(&self) -> nim_error::Result<()> {
         if self.instruction.is_some() && self.mode != EmbedMode::Query {
-            return Err(Error::custom("ai::config", "embedding instructions require query mode"));
+            return Err(nim_error::Diagnostic::message("embedding instructions require query mode"));
         }
 
         Ok(())
@@ -43,13 +42,13 @@ impl EmbedOptions {
 }
 
 pub trait Embed: Send + Sync {
-    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error>;
+    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>>;
 
-    fn embed_with(&self, ctx: &Context, input: &[&[u8]], options: &EmbedOptions) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed_with(&self, ctx: &Context, input: &[&[u8]], options: &EmbedOptions) -> nim_error::Result<Vec<Vec<f32>>> {
         options.validate()?;
 
         if options != &EmbedOptions::default() {
-            return Err(Error::custom("ai::config", "model does not support embedding options"));
+            return Err(nim_error::Diagnostic::message("model does not support embedding options"));
         }
 
         self.embed(ctx, input)
@@ -57,7 +56,7 @@ pub trait Embed: Send + Sync {
 }
 
 pub trait Classify: Send + Sync {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error>;
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>>;
 }
 
 /// Borrows what a model needs to turn text into tensors. A loaded model owns its weights; the
@@ -85,23 +84,21 @@ impl<'a> Context<'a> {
         self.device
     }
 
-    pub fn tokenizer(&self) -> Result<&Tokenizer, Error> {
+    pub fn tokenizer(&self) -> nim_error::Result<&Tokenizer> {
         self.tokenizer
-            .ok_or_else(|| Error::custom("ai", format!("{} has no tokenizer", self.name)))
+            .ok_or_else(|| nim_error::Diagnostic::message(format!("{} has no tokenizer", self.name)))
     }
 
-    pub fn encode(&self, text: &[&str]) -> Result<Batch, Error> {
+    pub fn encode(&self, text: &[&str]) -> nim_error::Result<Batch> {
         let encodings = self
             .tokenizer()?
             .encode_batch(text.to_vec(), true)
-            .map_err(|err| Error::custom("ai::encoding", err))?;
+            .map_err(nim_error::Diagnostic::message)?;
         Batch::new(encodings, self.device)
     }
 
-    pub fn encode_one(&self, text: &str) -> Result<tokenizers::Encoding, Error> {
-        self.tokenizer()?
-            .encode(text, true)
-            .map_err(|err| Error::custom("ai::encode", err))
+    pub fn encode_one(&self, text: &str) -> nim_error::Result<tokenizers::Encoding> {
+        self.tokenizer()?.encode(text, true).map_err(nim_error::Diagnostic::message)
     }
 }
 
@@ -145,21 +142,22 @@ impl Default for ClassifyOptions<'_> {
 }
 
 impl ClassifyOptions<'_> {
-    pub fn validate(&self) -> Result<(), Error> {
+    pub fn validate(&self) -> nim_error::Result<()> {
         if !self.min_score.is_finite() || !(0.0..=1.0).contains(&self.min_score) {
-            return Err(Error::custom("ai::config", "min_score must be finite and between 0 and 1"));
+            return Err(nim_error::Diagnostic::message("min_score must be finite and between 0 and 1"));
         }
 
         if self.hypothesis_template.matches("{}").count() != 1 {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "hypothesis_template must contain exactly one {} placeholder",
             ));
         }
 
         if let Some(labels) = self.labels {
             if labels.is_empty() || labels.iter().any(|label| label.trim().is_empty()) {
-                return Err(Error::custom("ai::config", "labels must contain at least one nonblank label"));
+                return Err(nim_error::Diagnostic::message(
+                    "labels must contain at least one nonblank label",
+                ));
             }
 
             if labels
@@ -167,14 +165,14 @@ impl ClassifyOptions<'_> {
                 .enumerate()
                 .any(|(index, label)| labels[..index].contains(label))
             {
-                return Err(Error::custom("ai::config", "labels must be unique"));
+                return Err(nim_error::Diagnostic::message("labels must be unique"));
             }
         }
 
         Ok(())
     }
 
-    pub fn apply(&self, mut annotations: Vec<Annotation>) -> Result<Vec<Annotation>, Error> {
+    pub fn apply(&self, mut annotations: Vec<Annotation>) -> nim_error::Result<Vec<Annotation>> {
         self.validate()?;
 
         if annotations.iter().any(|annotation| {
@@ -182,8 +180,7 @@ impl ClassifyOptions<'_> {
                 || !(0.0..=1.0).contains(&annotation.score)
                 || self.labels.is_some_and(|labels| !labels.contains(&annotation.label))
         }) {
-            return Err(Error::custom(
-                "ai::invalid",
+            return Err(nim_error::Diagnostic::message(
                 "classification returned an invalid label or score",
             ));
         }
@@ -216,9 +213,9 @@ pub struct GenerateOptions<'a> {
 }
 
 impl GenerateOptions<'_> {
-    pub fn validate(&self) -> Result<(), Error> {
+    pub fn validate(&self) -> nim_error::Result<()> {
         if self.beams == Some(0) || self.max_len == Some(0) {
-            return Err(Error::custom("ai::config", "beams and max_len must be greater than zero"));
+            return Err(nim_error::Diagnostic::message("beams and max_len must be greater than zero"));
         }
 
         Ok(())

@@ -4,7 +4,6 @@ use candle_nn::{Conv2d, LayerNorm, Linear, Module, VarBuilder, conv2d, layer_nor
 use super::Config;
 use super::backbone::Backbone;
 use super::transformer::{DecoderLayer, EncoderLayer};
-use crate::Error;
 
 pub struct Model {
     backbone: Backbone,
@@ -19,7 +18,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         config.validate()?;
         let model = vars.pp("model");
 
@@ -47,11 +46,11 @@ impl Model {
         })
     }
 
-    pub fn forward(&self, input: &Tensor) -> Result<(Tensor, Tensor), Error> {
+    pub fn forward(&self, input: &Tensor) -> nim_error::Result<(Tensor, Tensor)> {
         let (batch, channels, height, width) = input.dims4()?;
 
         if batch != 1 || channels != 3 || height == 0 || width == 0 {
-            return Err(Error::custom("ai::image", "DETR expects one nonempty RGB image"));
+            return Err(nim_error::Diagnostic::message("DETR expects one nonempty RGB image"));
         }
 
         let features = self.backbone.forward(input)?;

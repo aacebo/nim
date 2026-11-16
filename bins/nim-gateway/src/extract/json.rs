@@ -1,7 +1,5 @@
 use axum::extract::{FromRequest, Request};
 
-use crate::Error;
-
 #[derive(Debug)]
 pub struct Json<T>(T);
 
@@ -31,11 +29,14 @@ where
     T: serde::de::DeserializeOwned + serde_valid::Validate + Send,
     S: Send + Sync,
 {
-    type Rejection = Error;
+    type Rejection = axum::response::Response;
 
     async fn from_request(request: Request, state: &S) -> Result<Self, Self::Rejection> {
-        let axum::Json(body) = axum::Json::<T>::from_request(request, state).await?;
-        body.validate()?;
+        let axum::Json(body) = axum::Json::<T>::from_request(request, state)
+            .await
+            .map_err(axum::response::IntoResponse::into_response)?;
+        body.validate()
+            .map_err(|err| axum::response::IntoResponse::into_response((axum::http::StatusCode::BAD_REQUEST, axum::Json(err))))?;
         Ok(Self(body))
     }
 }

@@ -1,6 +1,6 @@
 use async_nats::service;
 
-use crate::{Error, Request};
+use crate::Request;
 
 pub struct Endpoint {
     inner: service::endpoint::Endpoint,
@@ -8,7 +8,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     #[tracing::instrument(skip(self))]
-    pub async fn stop(&mut self) -> Result<(), Error> {
+    pub async fn stop(&mut self) -> nim_error::Result<()> {
         self.inner.stop().await?;
         Ok(())
     }
@@ -23,7 +23,7 @@ impl From<service::endpoint::Endpoint> for Endpoint {
 impl Unpin for Endpoint {}
 
 impl futures_util::Stream for Endpoint {
-    type Item = Result<Request, Error>;
+    type Item = nim_error::Result<Request>;
 
     fn poll_next(mut self: std::pin::Pin<&mut Self>, ctx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
         let pin = std::pin::pin!(&mut self.inner);

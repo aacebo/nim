@@ -1,4 +1,4 @@
-use crate::{Error, Model, ModelId, ModelService, ModelSource};
+use crate::{Model, ModelId, ModelService, ModelSource};
 
 #[derive(Debug, Default)]
 pub struct ModelUpdate {
@@ -11,7 +11,7 @@ pub struct ModelUpdate {
 
 impl<'a> ModelService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, id: ModelId, value: ModelUpdate) -> Result<Model, Error> {
+    pub async fn update(&self, id: ModelId, value: ModelUpdate) -> nim_error::Result<Model> {
         let mut row = self.storage.models().find_by_id(id.into()).await?;
 
         if let Some(value) = value.ty {

@@ -1,5 +1,3 @@
-mod error;
-pub use error::*;
 #[cfg(feature = "ai")]
 pub use nim_ai as ai;
 pub use nim_error as error;

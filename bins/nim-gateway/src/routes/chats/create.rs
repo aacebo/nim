@@ -1,6 +1,6 @@
 use axum::response::IntoResponse;
 
-use crate::{Error, extract, http::HttpContext};
+use crate::{extract, http::HttpContext};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 pub struct Body {
@@ -11,8 +11,8 @@ pub struct Body {
     pub content: nim::state::MessageContent,
 }
 
-pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> axum::response::Result<axum::response::Response> {
-    let chat = ctx.services().chats().create().await.map_err(Error::from)?;
+pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> nim::error::Result<impl axum::response::IntoResponse> {
+    let chat = ctx.services().chats().create().await?;
     let message = ctx
         .services()
         .messages()
@@ -22,14 +22,10 @@ pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> axum::respons
             role: body.role,
             content: body.content.clone(),
         })
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
-    ctx.signals().publish("nim.chat.create", chat).await.map_err(Error::from)?;
-    ctx.signals()
-        .publish("nim.message.create", message.clone())
-        .await
-        .map_err(Error::from)?;
+    ctx.signals().publish("nim.chat.create", chat).await?;
+    ctx.signals().publish("nim.message.create", message.clone()).await?;
 
     Ok((axum::http::StatusCode::CREATED, axum::Json(message)).into_response())
 }

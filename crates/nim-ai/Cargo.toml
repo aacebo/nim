@@ -21,6 +21,8 @@ audio = ["dep:hound", "dep:rustfft"]
 vision = ["dep:image"]
 
 [dependencies]
+nim-error = { workspace = true }
+
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "charset", "default-tls", "http2", "json", "system-proxy"] }

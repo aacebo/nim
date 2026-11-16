@@ -1,6 +1,6 @@
 use nim_store::RecallRow;
 
-use crate::{Error, Recall, RecallService, RecallSource, RecallTrigger};
+use crate::{Recall, RecallService, RecallSource, RecallTrigger};
 
 #[derive(Debug)]
 pub struct RecallCreate {
@@ -11,7 +11,7 @@ pub struct RecallCreate {
 
 impl<'a> RecallService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self, value: RecallCreate) -> Result<Recall, Error> {
+    pub async fn create(&self, value: RecallCreate) -> nim_error::Result<Recall> {
         let now = chrono::Utc::now();
         let row = self
             .storage

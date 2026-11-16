@@ -2,8 +2,8 @@ use crate::models::GenerateOptions;
 use crate::models::{ModelRef, load};
 use crate::pipelines::text;
 use crate::pipelines::text::embeddings::Options as EmbeddingOptions;
+use crate::tasks;
 use crate::types::Artifact;
-use crate::{Error, tasks};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
@@ -31,12 +31,12 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[&[u8]]) -> Result<Vec<Artifact>, Error> {
+pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Artifact>> {
     run_with(input, Default::default())
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Error> {
+pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Artifact>> {
     let model = load(&options.model)?;
     let capable = model.as_generate().ok_or_else(|| model.cannot("generate"))?;
     let generation_options = GenerateOptions {

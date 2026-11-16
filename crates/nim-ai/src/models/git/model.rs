@@ -1,8 +1,6 @@
 use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, VarBuilder, linear};
 
-use crate::Error;
-
 use super::config::Config;
 use super::decoder::Decoder;
 use super::vision::{Projection, Vision};
@@ -15,7 +13,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         let git = vars.pp("git");
 
         Ok(Self {
@@ -30,14 +28,14 @@ impl Model {
         })
     }
 
-    pub fn vision(&mut self, image: &Tensor) -> Result<Tensor, Error> {
+    pub fn vision(&mut self, image: &Tensor) -> nim_error::Result<Tensor> {
         self.vision
             .forward(image)
             .map_err(Into::into)
             .and_then(|xs| self.projection.forward(&xs).map_err(Into::into))
     }
 
-    pub fn logits(&mut self, visual: &Tensor, tokens: &[u32]) -> Result<Tensor, Error> {
+    pub fn logits(&mut self, visual: &Tensor, tokens: &[u32]) -> nim_error::Result<Tensor> {
         self.text
             .forward(visual, tokens)
             .and_then(|xs| xs.apply(&self.output).map_err(Into::into))

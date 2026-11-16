@@ -1,8 +1,8 @@
-use crate::{Error, ModelId, Task, TaskService};
+use crate::{ModelId, Task, TaskService};
 
 impl<'a> TaskService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_model_id(&self, model_id: ModelId) -> Result<Vec<Task>, Error> {
+    pub async fn find_by_model_id(&self, model_id: ModelId) -> nim_error::Result<Vec<Task>> {
         let rows = self.storage.tasks().find_by_model_id(model_id.into()).await?;
         rows.into_iter().map(TryInto::try_into).collect()
     }

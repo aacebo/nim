@@ -1,7 +1,7 @@
 use axum::response::IntoResponse;
 
+use crate::extract;
 use crate::http::HttpContext;
-use crate::{Error, extract};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Params {
@@ -21,8 +21,8 @@ pub async fn route(
     ctx: HttpContext,
     params: axum::extract::Path<Params>,
     body: extract::Json<Body>,
-) -> axum::response::Result<axum::response::Response> {
-    let chat = ctx.services().chats().find_by_id(params.chat_id).await.map_err(Error::from)?;
+) -> nim::error::Result<impl axum::response::IntoResponse> {
+    let chat = ctx.services().chats().find_by_id(params.chat_id).await?;
     let message = ctx
         .services()
         .messages()
@@ -32,13 +32,9 @@ pub async fn route(
             role: body.role,
             content: body.content.clone(),
         })
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
-    ctx.signals()
-        .publish("nim.message.create", message.clone())
-        .await
-        .map_err(Error::from)?;
+    ctx.signals().publish("nim.message.create", message.clone()).await?;
 
     Ok((axum::http::StatusCode::CREATED, axum::Json(message)).into_response())
 }

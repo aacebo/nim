@@ -1,13 +1,13 @@
 mod config;
 mod context;
-mod error;
+mod diagnose;
 mod extract;
 mod routes;
 mod sockets;
 
 pub use config::*;
 pub use context::*;
-pub use error::*;
+pub use diagnose::diagnose;
 pub use sockets::*;
 
 use futures_util::StreamExt;
@@ -15,7 +15,7 @@ use tower::Layer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> nim::error::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().json())
         .with(nim::signals::trace::layer("nim-gateway"))
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Error> {
 }
 
 #[tracing::instrument(skip_all)]
-async fn start(ctx: std::sync::Arc<Context>, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
+async fn start(ctx: std::sync::Arc<Context>, mut shutdown: tokio::sync::watch::Receiver<bool>) -> nim::error::Result<()> {
     let app = axum::Router::new()
         .merge(routes::new())
         .layer(axum::middleware::from_fn_with_state(ctx.clone(), context::http::middleware))
@@ -63,13 +63,13 @@ async fn start(ctx: std::sync::Arc<Context>, mut shutdown: tokio::sync::watch::R
                 biased;
                 _ = shutdown.changed() => break,
                 Some(Ok((message, signal, _span))) = chats.next() => {
-                    ctx.sockets().send(message.subject.to_string(), signal).await.map_err(nim::runtime::Error::custom)?;
+                    ctx.sockets().send(message.subject.to_string(), signal).await?;
                 },
                 Some(Ok((message, signal, _span))) = messages.next() => {
-                    ctx.sockets().send(message.subject.to_string(), signal).await.map_err(nim::runtime::Error::custom)?;
+                    ctx.sockets().send(message.subject.to_string(), signal).await?;
                 },
                 Some(Ok((message, signal, _span))) = memories.next() => {
-                    ctx.sockets().send(message.subject.to_string(), signal).await.map_err(nim::runtime::Error::custom)?;
+                    ctx.sockets().send(message.subject.to_string(), signal).await?;
                 },
             }
         }

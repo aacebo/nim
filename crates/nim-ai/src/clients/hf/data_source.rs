@@ -1,4 +1,3 @@
-use crate::Error;
 use crate::models::ModelId;
 use crate::resources::DataSource;
 
@@ -9,7 +8,7 @@ pub struct HuggingFace;
 impl DataSource for HuggingFace {
     type Repository = HuggingFaceRepository;
 
-    fn load(&self, id: &ModelId) -> Result<Self::Repository, Error> {
+    fn load(&self, id: &ModelId) -> nim_error::Result<Self::Repository> {
         HuggingFaceRepository::new(id)
     }
 }

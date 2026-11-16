@@ -3,7 +3,7 @@ use opentelemetry::propagation::TextMapPropagator;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::{Error, Service, ServiceError, Signal, Stream, ToSignal, headers::NatsInjector};
+use crate::{Service, ServiceError, Signal, Stream, ToSignal, headers::NatsInjector};
 
 #[derive(Clone)]
 pub struct Client {
@@ -29,8 +29,14 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn service(&self, name: &str, version: &str) -> Result<Service, Error> {
-        let service = self.context.client().service_builder().start(name, version).await?;
+    pub async fn service(&self, name: &str, version: &str) -> nim_error::Result<Service> {
+        let service = self
+            .context
+            .client()
+            .service_builder()
+            .start(name, version)
+            .await
+            .map_err(nim_error::Diagnostic::message)?;
         Ok(service.into())
     }
 
@@ -39,7 +45,7 @@ impl Client {
         skip(self, signal),
         fields(otel.kind = "producer", messaging.system = "nats"),
     )]
-    pub async fn publish<S, T>(&self, subject: S, signal: T) -> Result<(), Error>
+    pub async fn publish<S, T>(&self, subject: S, signal: T) -> nim_error::Result<()>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
         T: std::fmt::Debug + serde::Serialize,
@@ -66,7 +72,7 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn subscribe<S>(&self, subject: S) -> Result<Stream, Error>
+    pub async fn subscribe<S>(&self, subject: S) -> nim_error::Result<Stream>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
     {
@@ -93,7 +99,7 @@ impl Client {
         skip(self, signal),
         fields(otel.kind = "client", messaging.system = "nats"),
     )]
-    pub async fn request<S, T, R>(&self, subject: S, signal: T) -> Result<Signal<R>, Error>
+    pub async fn request<S, T, R>(&self, subject: S, signal: T) -> nim_error::Result<Signal<R>>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
         T: std::fmt::Debug + serde::Serialize,
@@ -102,7 +108,7 @@ impl Client {
         self.request_signal(subject, Signal::from(signal)).await
     }
 
-    async fn request_signal<S, T, R>(&self, subject: S, signal: Signal<T>) -> Result<Signal<R>, Error>
+    async fn request_signal<S, T, R>(&self, subject: S, signal: Signal<T>) -> nim_error::Result<Signal<R>>
     where
         S: async_nats::ToSubject,
         T: serde::Serialize,
@@ -150,7 +156,7 @@ impl SourceClient {
         skip(self, signal),
         fields(otel.kind = "producer", messaging.system = "nats"),
     )]
-    pub async fn publish<S, T>(&self, subject: S, signal: T) -> Result<(), Error>
+    pub async fn publish<S, T>(&self, subject: S, signal: T) -> nim_error::Result<()>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
         T: std::fmt::Debug + serde::Serialize,
@@ -183,7 +189,7 @@ impl SourceClient {
         skip(self, signal),
         fields(otel.kind = "client", messaging.system = "nats"),
     )]
-    pub async fn request<S, T, R>(&self, subject: S, signal: T) -> Result<Signal<R>, Error>
+    pub async fn request<S, T, R>(&self, subject: S, signal: T) -> nim_error::Result<Signal<R>>
     where
         S: std::fmt::Debug + async_nats::ToSubject,
         T: std::fmt::Debug + serde::Serialize,

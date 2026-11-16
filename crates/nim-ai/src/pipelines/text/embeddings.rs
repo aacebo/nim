@@ -1,6 +1,6 @@
 use crate::models::{EmbedOptions, ModelRef, load};
+use crate::tasks;
 use crate::types::{Artifact, ArtifactContent};
-use crate::{Error, tasks};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
@@ -19,15 +19,15 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[&[u8]]) -> Result<Vec<Artifact>, Error> {
+pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Artifact>> {
     run_with(input, Default::default())
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Error> {
+pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Artifact>> {
     let text = input
         .iter()
-        .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+        .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
         .collect::<Result<Vec<_>, _>>()?;
     let model = load(&options.model)?;
     let capable = model.as_embed().ok_or_else(|| model.cannot("embed"))?;

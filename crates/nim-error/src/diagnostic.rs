@@ -48,7 +48,7 @@ impl Diagnostic {
         &self._source
     }
 
-    pub fn location(&self) -> &std::panic::Location {
+    pub fn location(&self) -> &std::panic::Location<'_> {
         self._location
     }
 
@@ -84,7 +84,6 @@ impl std::fmt::Debug for Diagnostic {
 
 impl std::fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        #[cfg(feature = "color")]
         let (headline_style, location_style, cause_style, trace_style, reset) = {
             if std::env::var("NIM_ERROR_COLOR").as_deref() == Ok("true") {
                 let headline = anstyle::Style::new().fg_color(Some(anstyle::AnsiColor::Red.into())).bold();
@@ -103,8 +102,6 @@ impl std::fmt::Display for Diagnostic {
             }
         };
 
-        #[cfg(not(feature = "color"))]
-        let (headline_style, location_style, cause_style, trace_style, reset) = ("", "", "", "", "");
         let message = self._source.to_string();
         let headline = message.lines().next().unwrap_or("error");
         writeln!(f, "{headline_style}× {headline}{reset}")?;
@@ -133,7 +130,7 @@ impl std::fmt::Display for Diagnostic {
 
         writeln!(
             f,
-            "╭─[{}:{}:{}]",
+            "{location_style}╭─[{}:{}:{}]{reset}",
             self._location.file(),
             self._location.line(),
             self._location.column(),

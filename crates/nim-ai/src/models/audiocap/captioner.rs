@@ -2,7 +2,6 @@ use std::sync::Mutex;
 
 use candle_nn::VarBuilder;
 
-use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
@@ -18,18 +17,18 @@ pub struct Captioner {
 }
 
 impl Captioner {
-    pub fn new(config: Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: Config, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Model::new(&config, vars)?),
             config,
         })
     }
 
-    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> nim_error::Result<String> {
         let model = self
             .model
             .lock()
-            .map_err(|_| Error::custom("ai", "audio-to-text model lock poisoned"))?;
+            .map_err(|_| nim_error::Diagnostic::message("audio-to-text model lock poisoned"))?;
         let chunks = model.chunks(bytes, &self.config)?;
         let mut captions = Vec::with_capacity(chunks.len());
 
@@ -49,7 +48,7 @@ impl Captioner {
         audio: &candle_core::Tensor,
         beams: usize,
         max_len: usize,
-    ) -> Result<String, Error> {
+    ) -> nim_error::Result<String> {
         let mut live = vec![(0f64, vec![BOS])];
         let mut done = Vec::new();
 
@@ -87,17 +86,16 @@ impl Captioner {
         ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|caption| caption.trim().to_string())
-            .map_err(|err| Error::custom("ai::decoding", err))
+            .map_err(nim_error::Diagnostic::message)
     }
 }
 
 impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "this generator does not support the supplied prompt or language",
             ));
         }

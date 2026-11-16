@@ -1,11 +1,9 @@
 mod config;
 mod context;
-mod error;
 mod routes;
 
 pub use config::*;
 pub use context::*;
-pub use error::*;
 
 use futures_util::StreamExt;
 use nim::signals::ToSignal;
@@ -13,7 +11,7 @@ use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> nim::error::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().json())
         .with(nim::signals::trace::layer("nim-text"))
@@ -46,7 +44,7 @@ async fn main() -> Result<(), Error> {
 }
 
 #[tracing::instrument(skip(ctx, shutdown))]
-async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), Error> {
+async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool>) -> nim::error::Result<()> {
     let mut artifacts = ctx.signals().subscribe("nim.text.artifact.create").await?;
 
     loop {
@@ -61,7 +59,7 @@ async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool
         };
 
         let (message, signal, span) = req?;
-        let res: Result<(), Error> = async {
+        let res: nim::error::Result<()> = async {
             let subject = message.subject.to_string();
             let ctx = ctx.clone().into_signal(signal.id, message);
 
@@ -97,13 +95,13 @@ async fn artifacts(ctx: Context, mut shutdown: tokio::sync::watch::Receiver<bool
 }
 
 #[tracing::instrument]
-async fn start() -> Result<(), Error> {
+async fn start() -> nim::error::Result<()> {
     tracing::info!("listening...");
     Ok(())
 }
 
 #[tracing::instrument]
-async fn stop() -> Result<(), Error> {
+async fn stop() -> nim::error::Result<()> {
     let ctrl_c = async {
         if let Err(error) = tokio::signal::ctrl_c().await {
             tracing::error!(%error, "failed to listen for Ctrl-C");

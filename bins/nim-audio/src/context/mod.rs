@@ -2,7 +2,7 @@ mod signal;
 
 pub use signal::*;
 
-use crate::{Config, Error};
+use crate::Config;
 
 #[derive(Clone)]
 pub struct Context {
@@ -36,7 +36,7 @@ impl Context {
 
 impl Context {
     #[tracing::instrument]
-    pub async fn connect(span: tracing::Span, config: Config) -> Result<Self, Error> {
+    pub async fn connect(span: tracing::Span, config: Config) -> nim::error::Result<Self> {
         let pool = std::sync::Arc::new(
             sqlx::postgres::PgPoolOptions::new()
                 .max_connections(5)

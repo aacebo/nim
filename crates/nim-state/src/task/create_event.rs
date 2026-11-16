@@ -1,10 +1,10 @@
 use nim_store::TaskEventRow;
 
-use crate::{Error, TaskEvent, TaskEventContent, TaskId, TaskService};
+use crate::{TaskEvent, TaskEventContent, TaskId, TaskService};
 
 impl<'a> TaskService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create_event(&self, task_id: TaskId, content: TaskEventContent) -> Result<TaskEvent, Error> {
+    pub async fn create_event(&self, task_id: TaskId, content: TaskEventContent) -> nim_error::Result<TaskEvent> {
         let row = self
             .storage
             .task_events()

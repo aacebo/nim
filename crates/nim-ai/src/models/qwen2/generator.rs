@@ -5,7 +5,6 @@ use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::{quantized_qwen2, qwen2};
 
-use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::Config;
@@ -35,7 +34,7 @@ impl Runtime {
         }
     }
 
-    fn forward(&mut self, input: &Tensor, offset: usize) -> Result<Tensor, Error> {
+    fn forward(&mut self, input: &Tensor, offset: usize) -> nim_error::Result<Tensor> {
         let logits = match self {
             Self::Safetensors(model) => model.forward(input, offset)?,
             Self::Quantized(model) => model.forward(input, offset)?,
@@ -46,14 +45,14 @@ impl Runtime {
 }
 
 impl Generator {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Runtime::Safetensors(qwen2::ModelForCausalLM::new(config, vars)?)),
             context_limit: CONTEXT_LIMIT.min(config.max_position_embeddings),
         })
     }
 
-    pub fn quantized(config: &Config, path: impl AsRef<Path>, device: &Device) -> Result<Self, Error> {
+    pub fn quantized(config: &Config, path: impl AsRef<Path>, device: &Device) -> nim_error::Result<Self> {
         let mut file = std::fs::File::open(path)?;
         let content = gguf_file::Content::read(&mut file)?;
         let model = quantized_qwen2::ModelWeights::from_gguf(content, &mut file, device)?;
@@ -64,24 +63,19 @@ impl Generator {
         })
     }
 
-    fn one(&self, ctx: &Context, text: &str, options: &GenerateOptions<'_>) -> Result<Generation, Error> {
+    fn one(&self, ctx: &Context, text: &str, options: &GenerateOptions<'_>) -> nim_error::Result<Generation> {
         let tokenizer = ctx.tokenizer()?;
         let prompt = options.prompt.unwrap_or(PROMPT);
         let text = format!("<|im_start|>system\n{prompt}<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n");
-        let encoding = tokenizer
-            .encode(text, false)
-            .map_err(|err| Error::custom("ai::encoding", err))?;
+        let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_len = options.max_len.unwrap_or(MAX_LEN);
 
         if ids.len().saturating_add(max_len) > self.context_limit {
-            return Err(Error::custom(
-                "ai::config",
-                format!(
-                    "Qwen prompt and output allowance exceed the {}-token context limit",
-                    self.context_limit
-                ),
-            ));
+            return Err(nim_error::Diagnostic::message(format!(
+                "Qwen prompt and output allowance exceed the {}-token context limit",
+                self.context_limit
+            )));
         }
 
         let stops = ["<|im_end|>", "<|endoftext|>"]
@@ -89,13 +83,13 @@ impl Generator {
             .map(|token| {
                 tokenizer
                     .token_to_id(token)
-                    .ok_or_else(|| Error::custom("ai::config", format!("Qwen tokenizer is missing {token}")))
+                    .ok_or_else(|| nim_error::Diagnostic::message(format!("Qwen tokenizer is missing {token}")))
             })
             .collect::<Result<Vec<_>, _>>()?;
         let mut model = self
             .model
             .lock()
-            .map_err(|_| Error::custom("ai", "Qwen model lock poisoned"))?;
+            .map_err(|_| nim_error::Diagnostic::message("Qwen model lock poisoned"))?;
 
         model.clear_kv_cache();
 
@@ -126,9 +120,7 @@ impl Generator {
                 let value = (sum / tokens.len() as f64).exp();
                 value.is_finite().then(|| value.clamp(0.0, 1.0))
             };
-            let text = tokenizer
-                .decode(&tokens, true)
-                .map_err(|err| Error::custom("ai::decoding", err))?;
+            let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
 
             Ok(Generation {
                 text: text.trim().to_string(),
@@ -142,19 +134,18 @@ impl Generator {
 }
 
 impl Generate for Generator {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
         options.validate()?;
 
         if options.language.is_some() || options.beams.is_some_and(|beams| beams != 1) {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "Qwen generation supports one beam and no language option",
             ));
         }
 
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         text.iter().map(|text| self.one(ctx, text, &options)).collect()
     }

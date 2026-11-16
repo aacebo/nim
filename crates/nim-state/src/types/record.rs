@@ -1,4 +1,4 @@
-use crate::{Artifact, Chat, Error, Memory, Message};
+use crate::{Artifact, Chat, Memory, Message};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -34,7 +34,7 @@ impl From<Memory> for Record {
 }
 
 impl TryFrom<nim_store::RecordRow> for Record {
-    type Error = Error;
+    type Error = nim_error::Diagnostic;
 
     fn try_from(value: nim_store::RecordRow) -> Result<Self, Self::Error> {
         Ok(match value {

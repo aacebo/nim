@@ -2,7 +2,6 @@ mod model;
 
 use candle_core::Tensor;
 
-use crate::Error;
 use crate::models::{Context, Embed, EmbedMode, EmbedOptions, Loader};
 
 pub struct Embedder {
@@ -11,7 +10,7 @@ pub struct Embedder {
 }
 
 impl Embedder {
-    pub fn new(loader: &Loader) -> Result<Self, Error> {
+    pub fn new(loader: &Loader) -> nim_error::Result<Self> {
         let config = loader.config()?;
         let vars = loader.vars()?;
         let vars = if vars.contains_tensor("embed_tokens.weight") {
@@ -45,27 +44,27 @@ impl Embedder {
                         vars.pp("linear"),
                     )?)
                 })
-                .collect::<Result<Vec<_>, Error>>()?,
+                .collect::<nim_error::Result<Vec<_>>>()?,
         })
     }
 }
 
 impl Embed for Embedder {
-    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
         self.embed_with(ctx, input, &EmbedOptions::default())
     }
 
-    fn embed_with(&self, ctx: &Context, input: &[&[u8]], options: &EmbedOptions) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed_with(&self, ctx: &Context, input: &[&[u8]], options: &EmbedOptions) -> nim_error::Result<Vec<Vec<f32>>> {
         options.validate()?;
         let dimensions = options.dimensions.unwrap_or(768);
 
         if ![128, 256, 512, 768].contains(&dimensions) {
-            return Err(Error::custom("ai::config", "unsupported embedding dimensions"));
+            return Err(nim_error::Diagnostic::message("unsupported embedding dimensions"));
         }
 
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         let mut tokenizer = ctx.tokenizer()?.clone();
 
@@ -75,7 +74,7 @@ impl Embed for Embedder {
                 max_length: 2048,
                 ..Default::default()
             }))
-            .map_err(|err| Error::custom("ai::encoding", err))?;
+            .map_err(nim_error::Diagnostic::message)?;
 
         let mut output = Vec::with_capacity(text.len());
 
@@ -89,13 +88,11 @@ impl Embed for Embedder {
                 EmbedMode::Document => format!("title: none | text: {text}"),
             };
 
-            let encoding = tokenizer
-                .encode(text, true)
-                .map_err(|err| Error::custom("ai::encoding", err))?;
+            let encoding = tokenizer.encode(text, true).map_err(nim_error::Diagnostic::message)?;
             let length = encoding.get_ids().len();
 
             if length == 0 {
-                return Err(Error::custom("ai::encoding", "embedding input has no tokens"));
+                return Err(nim_error::Diagnostic::message("embedding input has no tokens"));
             }
 
             let ids = Tensor::new(encoding.get_ids(), ctx.device())?.unsqueeze(0)?;
@@ -113,7 +110,7 @@ impl Embed for Embedder {
             let norm = vector.iter().map(|v| v * v).sum::<f32>().sqrt();
 
             if !norm.is_finite() || norm == 0.0 {
-                return Err(Error::custom("ai::invalid", "invalid embedding norm"));
+                return Err(nim_error::Diagnostic::message("invalid embedding norm"));
             }
 
             for value in &mut vector {

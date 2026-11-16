@@ -1,8 +1,8 @@
-use crate::{ArtifactId, ArtifactTask, ChatId, ChatTask, Error, MessageId, MessageTask, ModelId, ModelTask, TaskId, TaskService};
+use crate::{ArtifactId, ArtifactTask, ChatId, ChatTask, MessageId, MessageTask, ModelId, ModelTask, TaskId, TaskService};
 
 impl<'a> TaskService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn link_model(&self, model_id: ModelId, task_id: TaskId) -> Result<ModelTask, Error> {
+    pub async fn link_model(&self, model_id: ModelId, task_id: TaskId) -> nim_error::Result<ModelTask> {
         let row = self
             .storage
             .model_tasks()
@@ -17,7 +17,7 @@ impl<'a> TaskService<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn link_artifact(&self, artifact_id: ArtifactId, task_id: TaskId) -> Result<ArtifactTask, Error> {
+    pub async fn link_artifact(&self, artifact_id: ArtifactId, task_id: TaskId) -> nim_error::Result<ArtifactTask> {
         let row = self
             .storage
             .artifact_tasks()
@@ -32,7 +32,7 @@ impl<'a> TaskService<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn link_chat(&self, chat_id: ChatId, task_id: TaskId) -> Result<ChatTask, Error> {
+    pub async fn link_chat(&self, chat_id: ChatId, task_id: TaskId) -> nim_error::Result<ChatTask> {
         let row = self
             .storage
             .chat_tasks()
@@ -47,7 +47,7 @@ impl<'a> TaskService<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn link_message(&self, message_id: MessageId, task_id: TaskId) -> Result<MessageTask, Error> {
+    pub async fn link_message(&self, message_id: MessageId, task_id: TaskId) -> nim_error::Result<MessageTask> {
         let row = self
             .storage
             .message_tasks()

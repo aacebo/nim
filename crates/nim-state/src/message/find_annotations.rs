@@ -1,8 +1,8 @@
-use crate::{Error, MessageAnnotation, MessageId, MessageService};
+use crate::{MessageAnnotation, MessageId, MessageService};
 
 impl<'a> MessageService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn find_annotations(&self, message_id: MessageId) -> Result<Vec<MessageAnnotation>, Error> {
+    pub async fn find_annotations(&self, message_id: MessageId) -> nim_error::Result<Vec<MessageAnnotation>> {
         Ok(self
             .storage
             .message_annotations()

@@ -3,7 +3,6 @@ use std::sync::Mutex;
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
@@ -30,7 +29,7 @@ struct GenerationConfig {
 }
 
 impl Transcriber {
-    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
         let generation = GenerationConfig {
             start: config.decoder_start_token_id,
             eos: config.eos_token_id,
@@ -47,12 +46,19 @@ impl Transcriber {
         })
     }
 
-    fn one(&self, ctx: &Context, bytes: &[u8], language: Option<&str>, beams: usize, max_len: usize) -> Result<String, Error> {
+    fn one(
+        &self,
+        ctx: &Context,
+        bytes: &[u8],
+        language: Option<&str>,
+        beams: usize,
+        max_len: usize,
+    ) -> nim_error::Result<String> {
         let chunks = self.processor.tensors(bytes, &self.model_config, ctx.device())?;
         let mut model = self
             .model
             .lock()
-            .map_err(|_| Error::custom("ai", "transcription model lock poisoned"))?;
+            .map_err(|_| nim_error::Diagnostic::message("transcription model lock poisoned"))?;
         let first = model.encode(&chunks[0])?;
         let language = match language {
             Some(language) => language_token(ctx, language)?,
@@ -69,12 +75,12 @@ impl Transcriber {
         Ok(transcripts.join(" "))
     }
 
-    fn detect_language(&self, model: &mut Model, audio: &Tensor) -> Result<u32, Error> {
+    fn detect_language(&self, model: &mut Model, audio: &Tensor) -> nim_error::Result<u32> {
         let logits = model.logits(audio, &[self.config.start])?.to_vec1::<f32>()?;
 
         (FIRST_LANGUAGE_TOKEN..=LAST_LANGUAGE_TOKEN)
             .max_by(|left, right| logits[*left as usize].total_cmp(&logits[*right as usize]))
-            .ok_or_else(|| Error::custom("ai::audio", "Whisper has no language tokens"))
+            .ok_or_else(|| nim_error::Diagnostic::message("Whisper has no language tokens"))
     }
 
     fn decode(
@@ -85,7 +91,7 @@ impl Transcriber {
         language: u32,
         beams: usize,
         max_len: usize,
-    ) -> Result<String, Error> {
+    ) -> nim_error::Result<String> {
         let transcribe = token(ctx, "<|transcribe|>")?;
         let no_timestamps = token(ctx, "<|notimestamps|>")?;
         let limit = max_len.min(self.config.max_len).max(4);
@@ -141,17 +147,16 @@ impl Transcriber {
         ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|text| text.trim().to_string())
-            .map_err(|err| Error::custom("ai::decoding", err))
+            .map_err(nim_error::Diagnostic::message)
     }
 }
 
 impl Generate for Transcriber {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
         options.validate()?;
 
         if options.prompt.is_some() {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "this generator does not support the supplied prompt or language",
             ));
         }
@@ -175,16 +180,17 @@ impl Generate for Transcriber {
     }
 }
 
-fn language_token(ctx: &Context, language: &str) -> Result<u32, Error> {
+fn language_token(ctx: &Context, language: &str) -> nim_error::Result<u32> {
     if language.len() != 2 || !language.bytes().all(|byte| byte.is_ascii_lowercase()) {
-        return Err(Error::custom("ai::audio", format!("unsupported language `{language}`")));
+        return Err(nim_error::Diagnostic::message(format!("unsupported language `{language}`")));
     }
 
-    token(ctx, &format!("<|{language}|>")).map_err(|_| Error::custom("ai::audio", format!("unsupported language `{language}`")))
+    token(ctx, &format!("<|{language}|>"))
+        .map_err(|_| nim_error::Diagnostic::message(format!("unsupported language `{language}`")))
 }
 
-fn token(ctx: &Context, value: &str) -> Result<u32, Error> {
+fn token(ctx: &Context, value: &str) -> nim_error::Result<u32> {
     ctx.tokenizer()?
         .token_to_id(value)
-        .ok_or_else(|| Error::custom("ai::audio", format!("Whisper tokenizer is missing {value}")))
+        .ok_or_else(|| nim_error::Diagnostic::message(format!("Whisper tokenizer is missing {value}")))
 }

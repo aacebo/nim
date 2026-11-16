@@ -9,23 +9,21 @@ use tokenizers::pre_tokenizers::byte_level::ByteLevel;
 use tokenizers::processors::bert::BertProcessing;
 use tokenizers::{AddedToken, Model, Tokenizer};
 
-use crate::Error;
-
-pub fn from_file(path: impl AsRef<Path>) -> Result<Tokenizer, Error> {
-    Tokenizer::from_file(path.as_ref()).map_err(|err| Error::custom("unknown", err))
+pub fn from_file(path: impl AsRef<Path>) -> nim_error::Result<Tokenizer> {
+    Tokenizer::from_file(path.as_ref()).map_err(nim_error::Diagnostic::message)
 }
 
 /// The SST-2 and CoNLL-03 checkpoints ship a WordPiece `vocab.txt` and no `tokenizer.json`.
-pub fn from_vocab(path: impl AsRef<Path>, lowercase: bool) -> Result<Tokenizer, Error> {
+pub fn from_vocab(path: impl AsRef<Path>, lowercase: bool) -> nim_error::Result<Tokenizer> {
     let wordpiece = WordPiece::from_file(&path.as_ref().to_string_lossy())
         .build()
-        .map_err(|err| Error::custom("unknown", err))?;
+        .map_err(nim_error::Diagnostic::message)?;
     let cls = wordpiece
         .token_to_id("[CLS]")
-        .ok_or_else(|| Error::custom("ai::invalid", "vocab is missing [CLS]"))?;
+        .ok_or_else(|| nim_error::Diagnostic::message("vocab is missing [CLS]"))?;
     let sep = wordpiece
         .token_to_id("[SEP]")
-        .ok_or_else(|| Error::custom("ai::invalid", "vocab is missing [SEP]"))?;
+        .ok_or_else(|| nim_error::Diagnostic::message("vocab is missing [SEP]"))?;
 
     let mut tokenizer = Tokenizer::new(wordpiece);
 
@@ -40,10 +38,10 @@ pub fn from_vocab(path: impl AsRef<Path>, lowercase: bool) -> Result<Tokenizer, 
     Ok(tokenizer)
 }
 
-pub fn from_bpe(vocab: impl AsRef<Path>, merges: impl AsRef<Path>, added: impl AsRef<Path>) -> Result<Tokenizer, Error> {
+pub fn from_bpe(vocab: impl AsRef<Path>, merges: impl AsRef<Path>, added: impl AsRef<Path>) -> nim_error::Result<Tokenizer> {
     let bpe = BPE::from_file(&vocab.as_ref().to_string_lossy(), &merges.as_ref().to_string_lossy())
         .build()
-        .map_err(|err| Error::custom("unknown", err))?;
+        .map_err(nim_error::Diagnostic::message)?;
     let mut tokenizer = Tokenizer::new(bpe);
     let mut added: Vec<(String, u32)> = serde_json::from_slice::<HashMap<String, u32>>(&std::fs::read(added)?)?
         .into_iter()

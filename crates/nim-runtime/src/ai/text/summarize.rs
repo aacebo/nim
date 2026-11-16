@@ -1,6 +1,6 @@
 use nim_ai::{models::ModelRef, types::Artifact};
 
-use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines, task_run};
+use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct TextSummarizeOptions {
@@ -37,7 +37,7 @@ impl From<TextSummarizeOptions> for nim_ai::pipelines::text::summarize::Options 
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn summarize<T>(&self, input: &[T], options: TextSummarizeOptions) -> Result<Vec<Artifact>, Error>
+    pub async fn summarize<T>(&self, input: &[T], options: TextSummarizeOptions) -> nim_error::Result<Vec<Artifact>>
     where
         T: AsRef<str>,
     {

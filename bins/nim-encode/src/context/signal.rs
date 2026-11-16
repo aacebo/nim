@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::Context;
 
 #[derive(Clone)]
 pub struct SignalContext {
@@ -39,20 +39,23 @@ impl SignalContext {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn ack(&self) -> Result<(), Error> {
-        Ok(self.message.ack().await?)
+    pub async fn ack(&self) -> nim::error::Result<()> {
+        self.message.ack().await.map_err(nim::error::Diagnostic::message)
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn ack_progress(&self) -> Result<(), Error> {
-        Ok(self.message.ack_with(nim::signals::AckKind::Progress).await?)
+    pub async fn ack_progress(&self) -> nim::error::Result<()> {
+        self.message
+            .ack_with(nim::signals::AckKind::Progress)
+            .await
+            .map_err(nim::error::Diagnostic::message)
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn nack(&self) -> Result<(), Error> {
-        Ok(self
-            .message
+    pub async fn nack(&self) -> nim::error::Result<()> {
+        self.message
             .ack_with(nim::signals::AckKind::Nak(Some(std::time::Duration::from_millis(1000 * 5))))
-            .await?)
+            .await
+            .map_err(nim::error::Diagnostic::message)
     }
 }

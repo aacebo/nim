@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 
-use crate::Error;
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub backbone: String,
@@ -38,7 +36,7 @@ fn default_timm() -> bool {
 }
 
 impl Config {
-    pub fn validate(&self) -> Result<(), Error> {
+    pub fn validate(&self) -> nim_error::Result<()> {
         if self.backbone != "resnet50"
             || self.dilation
             || !self.use_timm_backbone
@@ -52,8 +50,7 @@ impl Config {
             || self.activation_function != "relu"
             || self.auxiliary_loss
         {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "DETR supports the ResNet-50 backbone, sine positions, ReLU, and inference without auxiliary outputs",
             ));
         }
@@ -74,7 +71,7 @@ impl Config {
                 .last_key_value()
                 .is_some_and(|(id, _)| id.checked_add(2).is_none())
         {
-            return Err(Error::custom("ai::config", "invalid DETR dimensions or label map"));
+            return Err(nim_error::Diagnostic::message("invalid DETR dimensions or label map"));
         }
         Ok(())
     }

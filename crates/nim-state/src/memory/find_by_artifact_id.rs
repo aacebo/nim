@@ -1,8 +1,8 @@
-use crate::{ArtifactId, Error, Memory, MemoryService};
+use crate::{ArtifactId, Memory, MemoryService};
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_artifact_id(&self, artifact_id: ArtifactId) -> Result<Vec<Memory>, Error> {
+    pub async fn find_by_artifact_id(&self, artifact_id: ArtifactId) -> nim_error::Result<Vec<Memory>> {
         let rows = self.storage.memories().find_by_artifact_id(artifact_id.into()).await?;
         let mut memories = Vec::with_capacity(rows.len());
 

@@ -1,6 +1,6 @@
 use async_nats::service;
 
-use crate::{Endpoint, Error};
+use crate::Endpoint;
 
 #[derive(Debug)]
 pub struct Service {
@@ -9,16 +9,21 @@ pub struct Service {
 
 impl Service {
     #[tracing::instrument(skip(self))]
-    pub async fn endpoint<S>(&self, subject: S) -> Result<Endpoint, Error>
+    pub async fn endpoint<S>(&self, subject: S) -> nim_error::Result<Endpoint>
     where
         S: std::fmt::Debug + ToString,
     {
-        Ok(self.inner.endpoint(subject).await?.into())
+        Ok(self
+            .inner
+            .endpoint(subject)
+            .await
+            .map_err(nim_error::Diagnostic::message)?
+            .into())
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn stop(self) -> Result<(), Error> {
-        self.inner.stop().await?;
+    pub async fn stop(self) -> nim_error::Result<()> {
+        self.inner.stop().await.map_err(nim_error::Diagnostic::message)?;
         Ok(())
     }
 

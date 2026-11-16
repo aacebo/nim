@@ -1,4 +1,4 @@
-use crate::{ArtifactAnnotation, ArtifactId, ArtifactService, Error, Label};
+use crate::{ArtifactAnnotation, ArtifactId, ArtifactService, Label};
 
 impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self))]
@@ -7,7 +7,7 @@ impl<'a> ArtifactService<'a> {
         artifact_id: ArtifactId,
         label: Label,
         text: &str,
-    ) -> Result<Option<ArtifactAnnotation>, Error> {
+    ) -> nim_error::Result<Option<ArtifactAnnotation>> {
         Ok(self
             .storage
             .artifact_annotations()

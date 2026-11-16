@@ -1,4 +1,4 @@
-use crate::{Error, Source, Task, TaskId, TaskService, TaskStatus};
+use crate::{Source, Task, TaskId, TaskService, TaskStatus};
 
 #[derive(Debug, Default)]
 pub struct TaskUpdate {
@@ -10,7 +10,7 @@ pub struct TaskUpdate {
 
 impl<'a> TaskService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, id: TaskId, value: TaskUpdate) -> Result<Task, Error> {
+    pub async fn update(&self, id: TaskId, value: TaskUpdate) -> nim_error::Result<Task> {
         let mut row = self.storage.tasks().find_by_id(id.into()).await?;
 
         if let Some(value) = value.parent_id {

@@ -1,10 +1,10 @@
 use nim_store::ChatRow;
 
-use crate::{Chat, ChatService, Error};
+use crate::{Chat, ChatService};
 
 impl<'a> ChatService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self) -> Result<Chat, Error> {
+    pub async fn create(&self) -> nim_error::Result<Chat> {
         let now = chrono::Utc::now();
         let row = self
             .storage

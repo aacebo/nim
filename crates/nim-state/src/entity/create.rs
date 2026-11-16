@@ -1,6 +1,6 @@
 use nim_store::EntityRow;
 
-use crate::{Entity, EntityService, EntityType, Error};
+use crate::{Entity, EntityService, EntityType};
 
 #[derive(Debug)]
 pub struct EntityCreate {
@@ -10,7 +10,7 @@ pub struct EntityCreate {
 
 impl<'a> EntityService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self, value: EntityCreate) -> Result<Entity, Error> {
+    pub async fn create(&self, value: EntityCreate) -> nim_error::Result<Entity> {
         let now = chrono::Utc::now();
         let row = self
             .storage

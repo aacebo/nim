@@ -1,8 +1,8 @@
-use crate::{Error, Memory, MemoryService, Page, PageResponse};
+use crate::{Memory, MemoryService, Page, PageResponse};
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn find(&self, page: Page) -> Result<PageResponse<Memory>, Error> {
+    pub async fn find(&self, page: Page) -> nim_error::Result<PageResponse<Memory>> {
         let rows = self.storage.memories().find(page).await?;
         let ids: Vec<_> = rows.iter().map(|row| row.id).collect();
         let relations = self.storage.memory_relations().find_by_memory_ids(&ids).await?;

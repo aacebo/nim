@@ -53,6 +53,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anstyle"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000"
+
+[[package]]
 name = "anyhow"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2455,6 +2461,7 @@ dependencies = [
  "hf-hub",
  "hound",
  "image",
+ "nim-error",
  "reqwest 0.13.5",
  "rustfft",
  "serde",
@@ -2500,6 +2507,7 @@ dependencies = [
 name = "nim-error"
 version = "0.0.0"
 dependencies = [
+ "anstyle",
  "tracing",
 ]
 
@@ -2548,6 +2556,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "nim-ai",
+ "nim-error",
  "nim-signals",
  "nim-state",
  "nim-store",
@@ -2563,6 +2572,7 @@ dependencies = [
  "bytes",
  "chrono",
  "futures-util",
+ "nim-error",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
@@ -2592,6 +2602,7 @@ name = "nim-state"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "nim-error",
  "nim-store",
  "serde",
  "serde_json",

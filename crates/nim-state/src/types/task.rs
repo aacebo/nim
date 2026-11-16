@@ -67,7 +67,7 @@ impl<'de> serde::Deserialize<'de> for TaskId {
 }
 
 impl TryFrom<nim_store::TaskRow> for Task {
-    type Error = crate::Error;
+    type Error = nim_error::Diagnostic;
 
     fn try_from(value: nim_store::TaskRow) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -244,7 +244,7 @@ impl<'de> serde::Deserialize<'de> for TaskEventId {
 }
 
 impl TryFrom<nim_store::TaskEventRow> for TaskEvent {
-    type Error = crate::Error;
+    type Error = nim_error::Diagnostic;
 
     fn try_from(value: nim_store::TaskEventRow) -> Result<Self, Self::Error> {
         Ok(Self {

@@ -1,7 +1,6 @@
 use candle_core::Tensor;
 use candle_nn::{Linear, Module, VarBuilder, linear, ops};
 
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::types::{Annotation, Span};
 
@@ -17,7 +16,7 @@ pub struct Classifier {
 }
 
 impl Classifier {
-    pub fn new(vars: VarBuilder, config: Config, processor: Processor) -> Result<Self, Error> {
+    pub fn new(vars: VarBuilder, config: Config, processor: Processor) -> nim_error::Result<Self> {
         let labels: Vec<String> = config.id2label.clone().into_values().collect();
         let model = MobileNetV2::new(vars.clone(), &config)?;
 
@@ -34,13 +33,13 @@ impl Forward for Classifier {
     type Input = Tensor;
     type Output = Tensor;
 
-    fn forward(&self, input: Self::Input) -> Result<Self::Output, Error> {
+    fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output> {
         Ok(self.classifier.forward(&self.model.features(&input)?)?)
     }
 }
 
 impl Classify for Classifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         options.validate()?;
 
         if options.mode != ClassifyMode::Whole
@@ -48,8 +47,7 @@ impl Classify for Classifier {
             || options.multi_label
             || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
         {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "this classifier only supports whole-input classification with fixed labels",
             ));
         }

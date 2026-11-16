@@ -3,10 +3,10 @@ use nim::{
     state::{Cursor, Message, Page},
 };
 
-use crate::{Error, SignalContext};
+use crate::SignalContext;
 
 #[tracing::instrument(skip(ctx, signal))]
-pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Error> {
+pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Result<()> {
     let chat = ctx.services().chats().find_by_id(signal.content.chat_id).await?;
     let cursor = chat
         .last_analyzed_id
@@ -68,7 +68,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> Result<(), Erro
         .await?;
 
     let Some(artifact) = artifacts.first() else {
-        return Err(Error::custom(format!(
+        return Err(nim::error::Diagnostic::message(format!(
             "summary could be generated from artifact `{}`",
             signal.content.id
         )));

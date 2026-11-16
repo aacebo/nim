@@ -4,8 +4,6 @@ use candle_nn::{
     linear,
 };
 
-use crate::Error;
-
 use super::config::Config;
 use super::processor::Processor;
 
@@ -52,7 +50,7 @@ struct Gru {
 }
 
 impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         let filter = vars.get((513, 64), "melspec_extractor.mel_scale.fb")?.to_vec2::<f32>()?;
         let window = vars.get(1024, "melspec_extractor.spectrogram.window")?.to_vec1::<f32>()?;
         let cnn = Cnn::new(vars.pp("cap_model.encoder.cnn"))?;
@@ -74,11 +72,11 @@ impl Model {
         })
     }
 
-    pub fn chunks(&self, bytes: &[u8], config: &Config) -> Result<Vec<Vec<Vec<f32>>>, Error> {
+    pub fn chunks(&self, bytes: &[u8], config: &Config) -> nim_error::Result<Vec<Vec<Vec<f32>>>> {
         self.processor.chunks(bytes, config)
     }
 
-    pub fn encode(&self, features: Vec<Vec<f32>>, device: &candle_core::Device) -> Result<Tensor, Error> {
+    pub fn encode(&self, features: Vec<Vec<f32>>, device: &candle_core::Device) -> nim_error::Result<Tensor> {
         let frames = features.len();
         let values = features.into_iter().flatten().collect::<Vec<_>>();
         let input = Tensor::from_vec(values, (1, frames, 64), device)?.transpose(1, 2)?;
@@ -93,7 +91,7 @@ impl Model {
         Ok(output)
     }
 
-    pub fn logits(&self, audio: &Tensor, tokens: &[u32]) -> Result<Tensor, Error> {
+    pub fn logits(&self, audio: &Tensor, tokens: &[u32]) -> nim_error::Result<Tensor> {
         let mut state = None;
         let mut output = None;
 
@@ -108,7 +106,7 @@ impl Model {
             output = Some(logits);
         }
 
-        output.ok_or_else(|| Error::custom("ai::audio", "caption decoder received no tokens"))
+        output.ok_or_else(|| nim_error::Diagnostic::message("caption decoder received no tokens"))
     }
 }
 

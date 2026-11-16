@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use crate::Error;
 use crate::models::ModelId;
 use crate::resources::DataSource;
 
@@ -19,7 +18,7 @@ impl FileSystem {
 impl DataSource for FileSystem {
     type Repository = FileSystemRepository;
 
-    fn load(&self, id: &ModelId) -> Result<Self::Repository, Error> {
+    fn load(&self, id: &ModelId) -> nim_error::Result<Self::Repository> {
         Ok(FileSystemRepository::new(self.root.join(id.to_string())))
     }
 }

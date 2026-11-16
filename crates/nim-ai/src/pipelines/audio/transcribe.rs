@@ -1,4 +1,3 @@
-use crate::Error;
 use crate::models::{GenerateOptions, ModelRef, load};
 use crate::pipelines::text;
 use crate::tasks;
@@ -30,12 +29,12 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[&[u8]]) -> Result<Vec<Artifact>, Error> {
+pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Artifact>> {
     run_with(input, Default::default())
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[&[u8]], options: Options) -> Result<Vec<Artifact>, Error> {
+pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Artifact>> {
     let model = load(&options.model)?;
     let capable = model.as_generate().ok_or_else(|| model.cannot("generate"))?;
     let generation_options = GenerateOptions {

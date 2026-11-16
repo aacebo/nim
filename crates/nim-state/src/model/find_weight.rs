@@ -1,8 +1,8 @@
-use crate::{Error, ModelId, ModelService, ModelWeight, ModelWeightId};
+use crate::{ModelId, ModelService, ModelWeight, ModelWeightId};
 
 impl<'a> ModelService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn find_weight(&self, model_id: ModelId, id: ModelWeightId) -> Result<ModelWeight, Error> {
+    pub async fn find_weight(&self, model_id: ModelId, id: ModelWeightId) -> nim_error::Result<ModelWeight> {
         self.storage
             .model_weights()
             .find_by_id(model_id.into(), id.into())

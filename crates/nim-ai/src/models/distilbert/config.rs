@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use candle_transformers::models::distilbert;
 
-use crate::{Error, models::ModelType};
+use crate::models::ModelType;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
@@ -61,14 +61,14 @@ impl Config {
         self
     }
 
-    pub fn labels(&self) -> Result<Vec<String>, Error> {
+    pub fn labels(&self) -> nim_error::Result<Vec<String>> {
         let mut labels = vec![String::new(); self.id2label.len()];
 
         for (index, label) in &self.id2label {
-            let index: usize = index.parse().map_err(crate::ParseError::from)?;
+            let index: usize = index.parse()?;
             let slot = labels
                 .get_mut(index)
-                .ok_or_else(|| Error::custom("invalid", format!("label index out of range: {index}")))?;
+                .ok_or_else(|| nim_error::Diagnostic::message(format!("label index out of range: {index}")))?;
 
             *slot = label.clone();
         }
@@ -76,7 +76,7 @@ impl Config {
         Ok(labels)
     }
 
-    pub fn to_candle(&self) -> Result<distilbert::Config, Error> {
+    pub fn to_candle(&self) -> nim_error::Result<distilbert::Config> {
         let json = serde_json::to_value(self)?;
         Ok(serde_json::from_value(json)?)
     }

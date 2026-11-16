@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use candle_nn::{VarBuilder, ops};
 
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{Annotation, BoundingBox, Span};
 
@@ -15,7 +14,7 @@ pub struct Detector {
 }
 
 impl Detector {
-    pub fn new(vars: VarBuilder, config: Config, processor: Processor) -> Result<Self, Error> {
+    pub fn new(vars: VarBuilder, config: Config, processor: Processor) -> nim_error::Result<Self> {
         Ok(Self {
             model: Model::new(&config, vars)?,
             processor,
@@ -23,7 +22,7 @@ impl Detector {
         })
     }
 
-    fn regions(&self, ctx: &Context, input: &[u8], min_score: f64) -> Result<Vec<Annotation>, Error> {
+    fn regions(&self, ctx: &Context, input: &[u8], min_score: f64) -> nim_error::Result<Vec<Annotation>> {
         let (input, width, height) = self.processor.tensor(input, ctx.device())?;
         let (logits, boxes) = self.model.forward(&input)?;
         let probabilities = ops::softmax_last_dim(&logits)?.squeeze(0)?.to_vec2::<f32>()?;
@@ -47,7 +46,7 @@ impl Detector {
                 continue;
             };
             let [center_x, center_y, w, h] =
-                <[f32; 4]>::try_from(bbox).map_err(|_| Error::custom("ai::image", "invalid DETR box shape"))?;
+                <[f32; 4]>::try_from(bbox).map_err(|_| nim_error::Diagnostic::message("invalid DETR box shape"))?;
 
             annotations.push(Annotation {
                 name: String::from("detection"),
@@ -68,14 +67,14 @@ impl Detector {
 }
 
 impl Classify for Detector {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         options.validate()?;
 
         if options.labels.is_some()
             || options.multi_label
             || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
         {
-            return Err(Error::custom("ai::config", "DETR only supports fixed labels"));
+            return Err(nim_error::Diagnostic::message("DETR only supports fixed labels"));
         }
 
         input

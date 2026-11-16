@@ -1,9 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{
-    Error,
-    resources::{Asset, AssetData, Repository, Resource},
-};
+use crate::resources::{Asset, AssetData, Repository, Resource};
 
 pub struct FileSystemRepository {
     root: PathBuf,
@@ -20,7 +17,7 @@ impl Repository for FileSystemRepository {
         self.root.join(path).exists()
     }
 
-    fn get(&self, path: &Path) -> Result<Asset, Error> {
+    fn get(&self, path: &Path) -> nim_error::Result<Asset> {
         let resource = self.resolve(path)?;
         let path = resource.local_path()?;
 
@@ -30,7 +27,7 @@ impl Repository for FileSystemRepository {
         }
     }
 
-    fn read(&self, path: &Path) -> Result<AssetData, Error> {
+    fn read(&self, path: &Path) -> nim_error::Result<AssetData> {
         let resource = self.resolve(path)?;
         let path = resource.local_path()?;
 
@@ -53,12 +50,12 @@ impl Repository for FileSystemRepository {
         Ok(AssetData::Directory(assets))
     }
 
-    fn resolve(&self, path: &Path) -> Result<Resource, Error> {
+    fn resolve(&self, path: &Path) -> nim_error::Result<Resource> {
         let path = self.root.join(path);
 
         match path.exists() {
             true => Resource::from_path(path),
-            false => Err(Error::IO(std::io::Error::new(
+            false => Err(nim_error::Diagnostic::from(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 format!("{} not found", path.display()),
             ))),

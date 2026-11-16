@@ -1,4 +1,4 @@
-use crate::{Error, Label, MessageAnnotation, MessageId, MessageService};
+use crate::{Label, MessageAnnotation, MessageId, MessageService};
 
 impl<'a> MessageService<'a> {
     #[tracing::instrument(skip(self))]
@@ -7,7 +7,7 @@ impl<'a> MessageService<'a> {
         message_id: MessageId,
         label: Label,
         text: &str,
-    ) -> Result<Option<MessageAnnotation>, Error> {
+    ) -> nim_error::Result<Option<MessageAnnotation>> {
         Ok(self
             .storage
             .message_annotations()

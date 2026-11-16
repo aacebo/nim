@@ -6,7 +6,7 @@ mod processor;
 pub use captioner::*;
 pub use config::*;
 
-pub fn tokenizer() -> Result<tokenizers::Tokenizer, crate::Error> {
+pub fn tokenizer() -> nim_error::Result<tokenizers::Tokenizer> {
     use std::path::Path;
 
     use crate::clients::hf::HuggingFace;

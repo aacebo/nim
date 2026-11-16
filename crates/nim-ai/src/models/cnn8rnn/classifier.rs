@@ -2,7 +2,6 @@ use std::sync::Mutex;
 
 use candle_nn::VarBuilder;
 
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{Annotation, Span, TimeSpan};
 
@@ -16,7 +15,7 @@ pub struct Classifier {
 }
 
 impl Classifier {
-    pub fn new(config: Config, labels: Vec<String>, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: Config, labels: Vec<String>, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Model::new(&config, vars)?),
             config,
@@ -26,7 +25,7 @@ impl Classifier {
 }
 
 impl Classify for Classifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         options.validate()?;
 
         if options.mode != ClassifyMode::Whole
@@ -34,8 +33,7 @@ impl Classify for Classifier {
             || options.multi_label
             || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
         {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "this classifier only supports whole-input classification with fixed labels",
             ));
         }
@@ -50,7 +48,7 @@ impl Classify for Classifier {
                 let model = self
                     .model
                     .lock()
-                    .map_err(|_| Error::custom("ai", "audio classification model lock poisoned"))?;
+                    .map_err(|_| nim_error::Diagnostic::message("audio classification model lock poisoned"))?;
                 let (probabilities, duration) = model.forward(input, &self.config, ctx.device())?;
                 let probabilities = probabilities.to_vec2::<f32>()?;
                 let mut labels: Vec<_> = probabilities[0]

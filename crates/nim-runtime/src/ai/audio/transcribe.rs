@@ -1,6 +1,6 @@
 use nim_ai::{models::ModelRef, types::Artifact};
 
-use crate::{Error, TaskOptions, TaskSource, ai::AudioPipelines, task_run};
+use crate::{TaskOptions, TaskSource, ai::AudioPipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct AudioTranscribeOptions {
@@ -37,7 +37,7 @@ impl From<AudioTranscribeOptions> for nim_ai::pipelines::audio::transcribe::Opti
 }
 
 impl<'a> AudioPipelines<'a> {
-    pub async fn transcribe<T>(&self, input: &[T], options: AudioTranscribeOptions) -> Result<Vec<Artifact>, Error>
+    pub async fn transcribe<T>(&self, input: &[T], options: AudioTranscribeOptions) -> nim_error::Result<Vec<Artifact>>
     where
         T: AsRef<[u8]>,
     {

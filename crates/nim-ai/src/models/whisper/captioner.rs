@@ -3,7 +3,6 @@ use std::sync::Mutex;
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
@@ -27,7 +26,7 @@ struct GenerationConfig {
 }
 
 impl Captioner {
-    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
         let mut forced = config.forced_decoder_ids.clone();
         forced.sort_by_key(|(index, _)| *index);
         let prefix = std::iter::once(config.decoder_start_token_id)
@@ -49,12 +48,12 @@ impl Captioner {
         })
     }
 
-    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> nim_error::Result<String> {
         let chunks = self.processor.tensors(bytes, &self.model_config, ctx.device())?;
         let mut model = self
             .model
             .lock()
-            .map_err(|_| Error::custom("ai", "audio-to-text model lock poisoned"))?;
+            .map_err(|_| nim_error::Diagnostic::message("audio-to-text model lock poisoned"))?;
         let mut captions = Vec::with_capacity(chunks.len());
 
         for chunk in chunks {
@@ -66,7 +65,14 @@ impl Captioner {
         Ok(captions.join(" "))
     }
 
-    fn decode(&self, ctx: &Context, model: &mut Model, audio: &Tensor, beams: usize, max_len: usize) -> Result<String, Error> {
+    fn decode(
+        &self,
+        ctx: &Context,
+        model: &mut Model,
+        audio: &Tensor,
+        beams: usize,
+        max_len: usize,
+    ) -> nim_error::Result<String> {
         let limit = max_len.min(self.config.max_len).max(self.config.prefix.len());
         let mut live = vec![(0f64, self.config.prefix.clone())];
         let mut done = Vec::new();
@@ -123,7 +129,7 @@ impl Captioner {
         ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|text| text.trim().to_string())
-            .map_err(|err| Error::custom("ai::decoding", err))
+            .map_err(nim_error::Diagnostic::message)
     }
 }
 
@@ -143,12 +149,11 @@ fn repeats(tokens: &[u32], token: u32) -> bool {
 }
 
 impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "this generator does not support the supplied prompt or language",
             ));
         }

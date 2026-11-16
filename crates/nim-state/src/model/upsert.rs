@@ -1,10 +1,10 @@
 use nim_store::ModelRow;
 
-use crate::{Error, Model, ModelCreate, ModelService};
+use crate::{Model, ModelCreate, ModelService};
 
 impl<'a> ModelService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn upsert(&self, value: ModelCreate) -> Result<Model, Error> {
+    pub async fn upsert(&self, value: ModelCreate) -> nim_error::Result<Model> {
         let now = chrono::Utc::now();
         let row = self
             .storage

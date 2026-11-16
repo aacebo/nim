@@ -3,8 +3,8 @@ use futures_util::SinkExt;
 
 use crate::http::HttpContext;
 
-pub async fn route(ctx: HttpContext, ws: WebSocketUpgrade) -> axum::response::Response {
-    ws.on_upgrade(async move |mut socket| {
+pub async fn route(ctx: HttpContext, ws: WebSocketUpgrade) -> nim::error::Result<impl axum::response::IntoResponse> {
+    Ok(ws.on_upgrade(async move |mut socket| {
         let mut subscription = ctx.sockets().open().await;
 
         loop {
@@ -34,5 +34,5 @@ pub async fn route(ctx: HttpContext, ws: WebSocketUpgrade) -> axum::response::Re
         }
 
         ctx.sockets().close(subscription).await;
-    })
+    }))
 }

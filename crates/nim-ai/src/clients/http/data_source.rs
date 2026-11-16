@@ -1,4 +1,3 @@
-use crate::Error;
 use crate::models::ModelId;
 use crate::resources::{DataSource, Uri};
 
@@ -17,7 +16,7 @@ impl Http {
 impl DataSource for Http {
     type Repository = HttpRepository;
 
-    fn load(&self, id: &ModelId) -> Result<Self::Repository, Error> {
+    fn load(&self, id: &ModelId) -> nim_error::Result<Self::Repository> {
         Ok(HttpRepository::new(self.base.join(&id.to_string())?))
     }
 }

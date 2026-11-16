@@ -1,6 +1,6 @@
 use nim_ai::{models::ModelRef, types::Annotation};
 
-use crate::{Error, TaskOptions, TaskSource, ai::ImagePipelines, task_run};
+use crate::{TaskOptions, TaskSource, ai::ImagePipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct ImageClassifyOptions {
@@ -43,7 +43,7 @@ impl From<ImageClassifyOptions> for nim_ai::pipelines::images::classify::Options
 }
 
 impl<'a> ImagePipelines<'a> {
-    pub async fn classify<T>(&self, input: &[T], options: ImageClassifyOptions) -> Result<Vec<Vec<Annotation>>, Error>
+    pub async fn classify<T>(&self, input: &[T], options: ImageClassifyOptions) -> nim_error::Result<Vec<Vec<Annotation>>>
     where
         T: AsRef<[u8]>,
     {

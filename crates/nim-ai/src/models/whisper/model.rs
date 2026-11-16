@@ -2,8 +2,6 @@ use candle_core::{IndexOp, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::model::Whisper;
 
-use crate::Error;
-
 use super::Config;
 
 pub struct Model {
@@ -11,17 +9,17 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             whisper: Whisper::load(&vars, config.model().clone())?,
         })
     }
 
-    pub fn encode(&mut self, input: &Tensor) -> Result<Tensor, Error> {
+    pub fn encode(&mut self, input: &Tensor) -> nim_error::Result<Tensor> {
         Ok(self.whisper.encoder.forward(input, true)?)
     }
 
-    pub fn logits(&mut self, audio: &Tensor, tokens: &[u32]) -> Result<Tensor, Error> {
+    pub fn logits(&mut self, audio: &Tensor, tokens: &[u32]) -> nim_error::Result<Tensor> {
         self.whisper.decoder.reset_kv_cache();
 
         let input = Tensor::from_slice(tokens, (1, tokens.len()), audio.device())?;

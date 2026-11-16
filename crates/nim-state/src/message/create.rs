@@ -1,6 +1,6 @@
 use nim_store::MessageRow;
 
-use crate::{ChatId, Error, Message, MessageContent, MessageId, MessageService, Role};
+use crate::{ChatId, Message, MessageContent, MessageId, MessageService, Role};
 
 #[derive(Debug)]
 pub struct MessageCreate {
@@ -12,7 +12,7 @@ pub struct MessageCreate {
 
 impl<'a> MessageService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self, value: MessageCreate) -> Result<Message, Error> {
+    pub async fn create(&self, value: MessageCreate) -> nim_error::Result<Message> {
         let now = chrono::Utc::now();
         let row = self
             .storage

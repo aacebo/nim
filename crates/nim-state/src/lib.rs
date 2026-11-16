@@ -1,7 +1,6 @@
 mod artifact;
 mod chat;
 mod entity;
-mod error;
 mod memory;
 mod message;
 mod model;
@@ -13,7 +12,6 @@ mod types;
 pub use artifact::*;
 pub use chat::*;
 pub use entity::*;
-pub use error::*;
 pub use memory::*;
 pub use message::*;
 pub use model::*;

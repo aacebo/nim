@@ -1,10 +1,10 @@
 use nim_store::MemoryRecallRow;
 
-use crate::{Error, MemoryId, MemoryRecall, RecallId, RecallService};
+use crate::{MemoryId, MemoryRecall, RecallId, RecallService};
 
 impl<'a> RecallService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn link(&self, memory_id: MemoryId, recall_id: RecallId, score: f32) -> Result<MemoryRecall, Error> {
+    pub async fn link(&self, memory_id: MemoryId, recall_id: RecallId, score: f32) -> nim_error::Result<MemoryRecall> {
         let row = self
             .storage
             .memory_recalls()

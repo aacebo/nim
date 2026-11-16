@@ -1,10 +1,10 @@
 use nim_store::EntityMemoryRow;
 
-use crate::{EntityId, EntityMemory, EntityService, Error, MemoryId};
+use crate::{EntityId, EntityMemory, EntityService, MemoryId};
 
 impl<'a> EntityService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn link(&self, memory_id: MemoryId, entity_id: EntityId) -> Result<EntityMemory, Error> {
+    pub async fn link(&self, memory_id: MemoryId, entity_id: EntityId) -> nim_error::Result<EntityMemory> {
         let row = self
             .storage
             .entity_memories()

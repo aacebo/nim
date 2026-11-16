@@ -1,4 +1,3 @@
-use crate::Error;
 use crate::tasks::{anchor, zero_shot};
 use crate::types::{Annotation, Offset, Span};
 
@@ -43,10 +42,10 @@ struct Item {
 /// chat completion, generation through a plain completion, and embeddings through their own
 /// endpoint. This is the full remote row of the capability matrix.
 impl Embed for RemoteModel {
-    fn embed(&self, _ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed(&self, _ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         if text.is_empty() {
             return Ok(Vec::new());
@@ -57,10 +56,10 @@ impl Embed for RemoteModel {
 }
 
 impl Classify for RemoteModel {
-    fn classify(&self, _ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, _ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
@@ -85,7 +84,7 @@ impl Classify for RemoteModel {
 }
 
 impl RemoteModel {
-    fn text(&self, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn text(&self, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
         text.iter()
             .map(|text| {
                 let out: Classified = self.client().json(CLASSIFY, text, classify_schema())?;
@@ -101,10 +100,10 @@ impl RemoteModel {
             .collect()
     }
 
-    fn custom_text(&self, text: &[&str], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn custom_text(&self, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let candidates = options
             .labels
-            .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
+            .ok_or_else(|| nim_error::Diagnostic::message("custom labels are required"))?;
         let hypotheses: Vec<String> = candidates
             .iter()
             .map(|label| options.hypothesis_template.replace("{}", label))
@@ -138,8 +137,7 @@ impl RemoteModel {
                         !candidates.contains(&label.label) || !label.score.is_finite() || !(0.0..=1.0).contains(&label.score)
                     })
                 {
-                    return Err(Error::custom(
-                        "ai::invalid",
+                    return Err(nim_error::Diagnostic::message(
                         "hosted classification returned invalid labels or scores",
                     ));
                 }
@@ -150,8 +148,7 @@ impl RemoteModel {
                     let matching: Vec<&Classified> = out.labels.iter().filter(|item| &item.label == label).collect();
 
                     if matching.len() != 1 {
-                        return Err(Error::custom(
-                            "ai::invalid",
+                        return Err(nim_error::Diagnostic::message(
                             "hosted classification must return each label exactly once",
                         ));
                     }
@@ -169,8 +166,7 @@ impl RemoteModel {
                     let total: f64 = labels.iter().map(|label| label.score).sum();
 
                     if total <= 0.0 {
-                        return Err(Error::custom(
-                            "ai::invalid",
+                        return Err(nim_error::Diagnostic::message(
                             "hosted classification returned zero total confidence",
                         ));
                     }
@@ -185,10 +181,10 @@ impl RemoteModel {
             .collect()
     }
 
-    fn custom_spans(&self, text: &[&str], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn custom_spans(&self, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let candidates = options
             .labels
-            .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
+            .ok_or_else(|| nim_error::Diagnostic::message("custom labels are required"))?;
         let prompt = format!(
             "Extract verbatim spans from the input using only these categories: {}. \
              Interpret each category with this hypothesis template: {}. \
@@ -211,8 +207,7 @@ impl RemoteModel {
 
                 for item in found.entities {
                     if !candidates.contains(&item.label) || !item.score.is_finite() || !(0.0..=1.0).contains(&item.score) {
-                        return Err(Error::custom(
-                            "ai::invalid",
+                        return Err(nim_error::Diagnostic::message(
                             "hosted extraction returned an invalid label or score",
                         ));
                     }
@@ -233,7 +228,7 @@ impl RemoteModel {
             .collect()
     }
 
-    fn spans(&self, text: &str) -> Result<Vec<Annotation>, Error> {
+    fn spans(&self, text: &str) -> nim_error::Result<Vec<Annotation>> {
         let found: Found = self.client().json(TOKENS, text, tokens_schema())?;
 
         Ok(found
@@ -258,19 +253,18 @@ impl RemoteModel {
 /// Generation is a plain completion, not a schema-constrained one: the output is prose, and
 /// wrapping it in a JSON envelope buys nothing.
 impl Generate for RemoteModel {
-    fn generate(&self, _ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
+    fn generate(&self, _ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
         options.validate()?;
 
         if options.language.is_some() || options.beams.is_some() {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "hosted text generation does not support language or beams",
             ));
         }
 
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         let prompt = options.prompt.unwrap_or(
             "Summarize the text the user gives you. Be concise and factual; use only information present in the text.",

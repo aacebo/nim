@@ -1,4 +1,4 @@
-use crate::{Entity, EntityId, EntityService, EntityType, Error};
+use crate::{Entity, EntityId, EntityService, EntityType};
 
 #[derive(Debug, Default)]
 pub struct EntityUpdate {
@@ -13,7 +13,7 @@ pub struct EntityUpdate {
 
 impl<'a> EntityService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, id: EntityId, value: EntityUpdate) -> Result<Entity, Error> {
+    pub async fn update(&self, id: EntityId, value: EntityUpdate) -> nim_error::Result<Entity> {
         let mut row = self.storage.entities().find_by_id(id.into()).await?;
 
         if let Some(value) = value.ty {

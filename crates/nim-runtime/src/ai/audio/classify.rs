@@ -1,6 +1,6 @@
 use nim_ai::{models::ModelRef, types::Annotation};
 
-use crate::{Error, TaskOptions, TaskSource, ai::AudioPipelines, task_run};
+use crate::{TaskOptions, TaskSource, ai::AudioPipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct AudioClassifyOptions {
@@ -43,7 +43,7 @@ impl From<AudioClassifyOptions> for nim_ai::pipelines::audio::classify::Options 
 }
 
 impl<'a> AudioPipelines<'a> {
-    pub async fn classify<T>(&self, input: &[T], options: AudioClassifyOptions) -> Result<Vec<Vec<Annotation>>, Error>
+    pub async fn classify<T>(&self, input: &[T], options: AudioClassifyOptions) -> nim_error::Result<Vec<Vec<Annotation>>>
     where
         T: AsRef<[u8]>,
     {

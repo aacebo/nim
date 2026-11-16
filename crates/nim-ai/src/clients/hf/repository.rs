@@ -4,7 +4,6 @@ use hf_hub::api::Progress;
 use hf_hub::api::sync::{ApiBuilder, ApiRepo};
 use hf_hub::{Cache, CacheRepo, Repo};
 
-use crate::Error;
 use crate::clients::download::Download;
 use crate::models::ModelId;
 use crate::resources::{Asset, AssetData, Repository, Resource, Uri, cache};
@@ -16,7 +15,7 @@ pub struct HuggingFaceRepository {
 }
 
 impl HuggingFaceRepository {
-    pub fn new(id: &ModelId) -> Result<Self, Error> {
+    pub fn new(id: &ModelId) -> nim_error::Result<Self> {
         let cache = cache::dir().map(Cache::new).unwrap_or_default();
         let api = ApiBuilder::from_cache(cache.clone())
             .with_token(std::env::var("HF_TOKEN").ok())
@@ -37,19 +36,19 @@ impl Repository for HuggingFaceRepository {
         self.resolve(path).is_ok()
     }
 
-    fn get(&self, path: &Path) -> Result<Asset, Error> {
+    fn get(&self, path: &Path) -> nim_error::Result<Asset> {
         Ok(Asset::file(self.resolve(path)?.local_path()?))
     }
 
-    fn read(&self, path: &Path) -> Result<AssetData, Error> {
+    fn read(&self, path: &Path) -> nim_error::Result<AssetData> {
         let path = self.resolve(path)?;
         Ok(AssetData::File(std::fs::read(path.local_path()?)?))
     }
 
-    fn resolve(&self, path: &Path) -> Result<Resource, Error> {
+    fn resolve(&self, path: &Path) -> nim_error::Result<Resource> {
         if path.as_os_str().is_empty() {
             let cached = self.cache.get("").ok_or_else(|| {
-                Error::IO(std::io::Error::new(
+                nim_error::Diagnostic::from(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     format!("{} has no cached repository", self.id),
                 ))
@@ -60,7 +59,7 @@ impl Repository for HuggingFaceRepository {
 
         let path = path
             .to_str()
-            .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
+            .ok_or_else(|| nim_error::Diagnostic::message(format!("{path:?} is not utf-8")))?;
         let uri = Uri::parse(&self.repo.url(path))?;
         let mut progress = Download::new(&self.id, path);
 

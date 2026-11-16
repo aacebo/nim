@@ -70,7 +70,7 @@ impl<'de> serde::Deserialize<'de> for MessageId {
 }
 
 impl TryFrom<nim_store::MessageRow> for Message {
-    type Error = crate::Error;
+    type Error = nim_error::Diagnostic;
 
     fn try_from(value: nim_store::MessageRow) -> Result<Self, Self::Error> {
         Ok(Self {

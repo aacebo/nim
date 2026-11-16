@@ -1,4 +1,4 @@
-use crate::{Chat, ChatId, ChatService, Error, MessageId};
+use crate::{Chat, ChatId, ChatService, MessageId};
 
 #[derive(Debug, Default)]
 pub struct ChatUpdate {
@@ -11,7 +11,7 @@ pub struct ChatUpdate {
 
 impl<'a> ChatService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, id: ChatId, value: ChatUpdate) -> Result<Chat, Error> {
+    pub async fn update(&self, id: ChatId, value: ChatUpdate) -> nim_error::Result<Chat> {
         let mut row = self.storage.chats().find_by_id(id.into()).await?;
 
         if let Some(value) = value.summary {

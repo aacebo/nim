@@ -13,6 +13,6 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
         .merge(memories::new())
         .merge(chats::new())
         .nest("/web", web::new())
-        .route("/health", axum::routing::get(health::route))
-        .route("/search", axum::routing::get(search::route))
+        .route("/health", axum::routing::get(crate::diagnose(health::route)))
+        .route("/search", axum::routing::get(crate::diagnose(search::route)))
 }

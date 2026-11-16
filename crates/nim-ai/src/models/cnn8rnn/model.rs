@@ -1,8 +1,6 @@
 use candle_core::{DType, IndexOp, Tensor};
 use candle_nn::{BatchNorm, Conv2d, Conv2dConfig, Linear, VarBuilder, batch_norm, conv2d_no_bias, linear};
 
-use crate::Error;
-
 use super::config::Config;
 use super::processor::Processor;
 
@@ -31,7 +29,7 @@ struct Gru {
 }
 
 impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         let filter = vars.get((513, 64), "melspec_extractor.mel_scale.fb")?.to_vec2::<f32>()?;
         let window = vars.get(1024, "melspec_extractor.spectrogram.window")?.to_vec1::<f32>()?;
 
@@ -50,7 +48,7 @@ impl Model {
         })
     }
 
-    pub fn forward(&self, bytes: &[u8], config: &Config, device: &candle_core::Device) -> Result<(Tensor, f64), Error> {
+    pub fn forward(&self, bytes: &[u8], config: &Config, device: &candle_core::Device) -> nim_error::Result<(Tensor, f64)> {
         let (features, duration) = self.processor.features(bytes, config)?;
         let frames = features.len();
         let values = features.into_iter().flatten().collect::<Vec<_>>();

@@ -1,10 +1,10 @@
 use nim_store::{MessageFilter, SearchItem};
 
-use crate::{Error, Message, SearchService};
+use crate::{Message, SearchService};
 
 impl<'a> SearchService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn messages(&self, embedding: &[f32], filter: MessageFilter) -> Result<Vec<SearchItem<Message>>, Error> {
+    pub async fn messages(&self, embedding: &[f32], filter: MessageFilter) -> nim_error::Result<Vec<SearchItem<Message>>> {
         let rows = self.storage.search().messages(embedding, filter).await?;
 
         rows.into_iter()

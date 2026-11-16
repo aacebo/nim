@@ -1,6 +1,6 @@
 use nim_store::MessageAnnotationRow;
 
-use crate::{Error, Label, MessageAnnotation, MessageId, MessageService, Span};
+use crate::{Label, MessageAnnotation, MessageId, MessageService, Span};
 
 #[derive(Debug)]
 pub struct MessageAnnotationCreate<'a> {
@@ -17,7 +17,7 @@ impl<'a> MessageService<'a> {
         &self,
         message_id: MessageId,
         value: MessageAnnotationCreate<'b>,
-    ) -> Result<MessageAnnotation, Error> {
+    ) -> nim_error::Result<MessageAnnotation> {
         let now = chrono::Utc::now();
         let row = self
             .storage

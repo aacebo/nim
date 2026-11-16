@@ -1,5 +1,3 @@
-use crate::Error;
-
 use super::{BoundingBox, Offset, TimeSpan};
 
 #[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -32,11 +30,11 @@ impl Span {
         }
     }
 
-    pub fn text<'a>(&self, input: &'a [u8]) -> Result<Option<&'a str>, Error> {
+    pub fn text<'a>(&self, input: &'a [u8]) -> nim_error::Result<Option<&'a str>> {
         let Self::Text(offset) = self else {
             return Ok(None);
         };
-        let text = std::str::from_utf8(input).map_err(|err| Error::custom("ai::encoding", err))?;
+        let text = std::str::from_utf8(input)?;
         let boundary = |index: u32| {
             text.char_indices()
                 .map(|(index, _)| index)
@@ -48,7 +46,7 @@ impl Span {
 
         match (start, end) {
             (Some(start), Some(end)) if start <= end => Ok(Some(&text[start..end])),
-            _ => Err(Error::custom("ai::invalid", "text span is outside the input")),
+            _ => Err(nim_error::Diagnostic::message("text span is outside the input")),
         }
     }
 }

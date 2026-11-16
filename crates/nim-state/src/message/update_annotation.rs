@@ -1,4 +1,4 @@
-use crate::{AnnotationId, Error, Label, MessageAnnotation, MessageId, MessageService, Span};
+use crate::{AnnotationId, Label, MessageAnnotation, MessageId, MessageService, Span};
 
 #[derive(Debug, Default)]
 pub struct MessageAnnotationUpdate {
@@ -16,7 +16,7 @@ impl<'a> MessageService<'a> {
         message_id: MessageId,
         id: AnnotationId,
         value: MessageAnnotationUpdate,
-    ) -> Result<MessageAnnotation, Error> {
+    ) -> nim_error::Result<MessageAnnotation> {
         let mut row = self
             .storage
             .message_annotations()

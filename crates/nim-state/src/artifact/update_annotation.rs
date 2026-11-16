@@ -1,4 +1,4 @@
-use crate::{AnnotationId, ArtifactAnnotation, ArtifactId, ArtifactService, Error, Label, Span};
+use crate::{AnnotationId, ArtifactAnnotation, ArtifactId, ArtifactService, Label, Span};
 
 #[derive(Debug, Default)]
 pub struct ArtifactAnnotationUpdate {
@@ -16,7 +16,7 @@ impl<'a> ArtifactService<'a> {
         artifact_id: ArtifactId,
         id: AnnotationId,
         value: ArtifactAnnotationUpdate,
-    ) -> Result<ArtifactAnnotation, Error> {
+    ) -> nim_error::Result<ArtifactAnnotation> {
         let mut row = self
             .storage
             .artifact_annotations()

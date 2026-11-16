@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use candle_transformers::models::bert;
 
-use crate::{Error, ParseError, models::ModelType};
+use crate::models::ModelType;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
@@ -68,14 +68,14 @@ impl Config {
     }
 
     /// `id2label` is keyed by stringified index; flatten it into a dense, ordered Vec.
-    pub fn labels(&self) -> Result<Vec<String>, Error> {
+    pub fn labels(&self) -> nim_error::Result<Vec<String>> {
         let mut labels = vec![String::new(); self.id2label.len()];
 
         for (index, label) in &self.id2label {
-            let index: usize = index.parse().map_err(ParseError::from)?;
+            let index: usize = index.parse()?;
             let slot = labels
                 .get_mut(index)
-                .ok_or_else(|| Error::custom("invalid", format!("label index out of range: {index}")))?;
+                .ok_or_else(|| nim_error::Diagnostic::message(format!("label index out of range: {index}")))?;
 
             *slot = label.clone();
         }

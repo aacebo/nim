@@ -44,7 +44,6 @@ pub use provider::*;
 
 use candle_core::{DType, Device};
 
-use crate::Error;
 use crate::resources::Repository;
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
@@ -54,18 +53,18 @@ static LOAD_CALLBACKS: std::sync::LazyLock<std::sync::RwLock<std::collections::H
     std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashMap::new()));
 static NEXT_SUBSCRIPTION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-pub fn id(value: impl AsRef<str>) -> Result<ModelId, Error> {
+pub fn id(value: impl AsRef<str>) -> nim_error::Result<ModelId> {
     value.as_ref().parse::<ModelId>()
 }
 
-pub fn refer(value: impl AsRef<str>) -> Result<ModelRef, Error> {
+pub fn refer(value: impl AsRef<str>) -> nim_error::Result<ModelRef> {
     value.as_ref().parse::<ModelRef>()
 }
 
 /// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
 /// for two routines now loads its weights once.
 #[tracing::instrument]
-pub fn load(model: &ModelRef) -> Result<std::sync::Arc<crate::models::Model>, Error> {
+pub fn load(model: &ModelRef) -> nim_error::Result<std::sync::Arc<crate::models::Model>> {
     use candle_core::{DType, Device};
 
     MODELS.get_or_build(Key::new(model), || {
@@ -73,7 +72,12 @@ pub fn load(model: &ModelRef) -> Result<std::sync::Arc<crate::models::Model>, Er
             return Ok(std::sync::Arc::new(Model::new(model, Device::Cpu, DType::F32)?));
         }
 
-        let callbacks = LOAD_CALLBACKS.read()?.values().cloned().collect::<Vec<_>>();
+        let callbacks = LOAD_CALLBACKS
+            .read()
+            .map_err(|error| nim_error::Diagnostic::message(error.to_string()))?
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
         let loaded = Model::new(model, Device::Cpu, DType::F32)?;
 
         if let Some(config) = &loaded.config {
@@ -86,9 +90,12 @@ pub fn load(model: &ModelRef) -> Result<std::sync::Arc<crate::models::Model>, Er
     })
 }
 
-pub fn on_load(callback: impl Fn(&ModelRef, &ModelConfig) + Send + Sync + 'static) -> Result<crate::Subscription, Error> {
+pub fn on_load(callback: impl Fn(&ModelRef, &ModelConfig) + Send + Sync + 'static) -> nim_error::Result<crate::Subscription> {
     let id = NEXT_SUBSCRIPTION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    LOAD_CALLBACKS.write()?.insert(id, std::sync::Arc::new(callback));
+    LOAD_CALLBACKS
+        .write()
+        .map_err(|error| nim_error::Diagnostic::message(error.to_string()))?
+        .insert(id, std::sync::Arc::new(callback));
 
     Ok(crate::Subscription::new(move || {
         LOAD_CALLBACKS
@@ -102,7 +109,7 @@ pub trait Forward: Send + Sync {
     type Input;
     type Output;
 
-    fn forward(&self, input: Self::Input) -> Result<Self::Output, Error>;
+    fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output>;
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -157,7 +164,7 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new(model: &ModelRef, device: Device, dtype: DType) -> Result<Self, Error> {
+    pub fn new(model: &ModelRef, device: Device, dtype: DType) -> nim_error::Result<Self> {
         let name = model.to_string();
 
         match model {
@@ -172,7 +179,7 @@ impl Model {
         }
     }
 
-    pub fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> Result<Self, Error> {
+    pub fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> nim_error::Result<Self> {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
 
@@ -217,15 +224,17 @@ impl Model {
                 )
             }) =>
             {
-                return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
+                return Err(nim_error::Diagnostic::message(format!("{name} requires the `audio` feature")));
             }
             #[cfg(not(feature = "vision"))]
             ModelType::MobileNetV2 | ModelType::Git | ModelType::Detr => {
-                return Err(Error::custom("ai::config", format!("{name} requires the `vision` feature")));
+                return Err(nim_error::Diagnostic::message(format!(
+                    "{name} requires the `vision` feature"
+                )));
             }
             #[cfg(not(feature = "audio"))]
             ModelType::Whisper => {
-                return Err(Error::custom("ai::config", format!("{name} requires the `audio` feature")));
+                return Err(nim_error::Diagnostic::message(format!("{name} requires the `audio` feature")));
             }
             ModelType::Qwen3 => AnyModel::QwenEmbedder(qwen3::Embedder::new(&repo)?),
             ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::Embedder::new(&repo)?),
@@ -268,10 +277,9 @@ impl Model {
                         ClassifyMode::Regions,
                     )?),
                     _ => {
-                        return Err(Error::custom(
-                            "ai::invalid",
-                            format!("{name} has no compatible classification head"),
-                        ));
+                        return Err(nim_error::Diagnostic::message(format!(
+                            "{name} has no compatible classification head"
+                        )));
                     }
                 }
             }
@@ -323,10 +331,9 @@ impl Model {
                 }
             }
             other => {
-                return Err(Error::custom(
-                    "ai::invalid",
-                    format!("{name} has unsupported architecture `{other}`"),
-                ));
+                return Err(nim_error::Diagnostic::message(format!(
+                    "{name} has unsupported architecture `{other}`"
+                )));
             }
         };
         let tokenizer = match &model {
@@ -366,7 +373,7 @@ impl Model {
         }
     }
 
-    pub(crate) fn classify_mode(&self, media: ClassifyMedia) -> Result<ClassifyMode, Error> {
+    pub(crate) fn classify_mode(&self, media: ClassifyMedia) -> nim_error::Result<ClassifyMode> {
         match (media, &self.model) {
             (ClassifyMedia::Text, AnyModel::BartSequenceClassifier(_))
             | (ClassifyMedia::Text, AnyModel::BertSequenceClassifier(_))
@@ -383,10 +390,10 @@ impl Model {
             (ClassifyMedia::Image, AnyModel::ObjectDetector(_)) => Ok(ClassifyMode::Regions),
             #[cfg(feature = "audio")]
             (ClassifyMedia::Audio, AnyModel::AudioClassifier(_)) => Ok(ClassifyMode::Whole),
-            _ => Err(Error::custom(
-                "ai::invalid",
-                format!("{} cannot classify {media:?} input", self.name),
-            )),
+            _ => Err(nim_error::Diagnostic::message(format!(
+                "{} cannot classify {media:?} input",
+                self.name
+            ))),
         }
     }
 
@@ -425,8 +432,8 @@ impl Model {
         }
     }
 
-    pub fn cannot(&self, capability: &str) -> Error {
-        Error::custom("ai::invalid", format!("{} cannot {capability}", self.name))
+    pub fn cannot(&self, capability: &str) -> nim_error::Diagnostic {
+        nim_error::Diagnostic::message(format!("{} cannot {capability}", self.name))
     }
 }
 

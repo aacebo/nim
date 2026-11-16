@@ -5,8 +5,6 @@ use candle_core::{DType, Device};
 use candle_nn::VarBuilder;
 use tokenizers::Tokenizer;
 
-use crate::Error;
-
 use super::{Repository, tokenizer};
 
 pub struct Loader {
@@ -24,11 +22,11 @@ impl Loader {
         &self.device
     }
 
-    pub fn config<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
+    pub fn config<T: serde::de::DeserializeOwned>(&self) -> nim_error::Result<T> {
         self.json("config.json")
     }
 
-    pub fn tokenizer(&self) -> Result<Tokenizer, Error> {
+    pub fn tokenizer(&self) -> nim_error::Result<Tokenizer> {
         if let Ok(path) = self.resolve(Path::new("tokenizer.json")) {
             return tokenizer::from_file(path);
         }
@@ -45,7 +43,7 @@ impl Loader {
         tokenizer::from_vocab(path, self.lowercase()?)
     }
 
-    pub fn vars(&self) -> Result<VarBuilder<'static>, Error> {
+    pub fn vars(&self) -> nim_error::Result<VarBuilder<'static>> {
         let paths = if self.repo.exists(Path::new("model.safetensors.index.json")) {
             #[derive(serde::Deserialize)]
             struct Index {
@@ -56,7 +54,7 @@ impl Loader {
             let files = index.weight_map.into_values().collect::<std::collections::BTreeSet<_>>();
 
             if files.is_empty() {
-                return Err(Error::custom("ai::config", "safetensors index contains no weights"));
+                return Err(nim_error::Diagnostic::message("safetensors index contains no weights"));
             }
 
             files
@@ -70,23 +68,23 @@ impl Loader {
         Ok(unsafe { VarBuilder::from_mmaped_safetensors(&paths, self.dtype, &self.device) }?)
     }
 
-    pub fn json<T: serde::de::DeserializeOwned>(&self, file: &str) -> Result<T, Error> {
+    pub fn json<T: serde::de::DeserializeOwned>(&self, file: &str) -> nim_error::Result<T> {
         let path = self.resolve(Path::new(file))?;
         let bytes = std::fs::read(path)?;
 
         Ok(serde_json::from_slice(&bytes)?)
     }
 
-    pub fn string(&self, file: &str) -> Result<String, Error> {
+    pub fn string(&self, file: &str) -> nim_error::Result<String> {
         Ok(std::fs::read_to_string(self.resolve(Path::new(file))?)?)
     }
 
-    pub(crate) fn resolve(&self, path: &Path) -> Result<PathBuf, Error> {
+    pub(crate) fn resolve(&self, path: &Path) -> nim_error::Result<PathBuf> {
         Ok(self.repo.resolve(path)?.local_path()?.to_path_buf())
     }
 
     /// ModelRef-specific: SST-2 is uncased, CoNLL-03 is cased. Lowercasing a cased model wrecks it.
-    fn lowercase(&self) -> Result<bool, Error> {
+    fn lowercase(&self) -> nim_error::Result<bool> {
         #[derive(serde::Deserialize)]
         struct Config {
             #[serde(default)]

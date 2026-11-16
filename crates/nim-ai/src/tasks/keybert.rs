@@ -1,4 +1,3 @@
-use crate::Error;
 use crate::models::{Context, Embed};
 use crate::types::Keyword;
 
@@ -7,15 +6,20 @@ use super::{candidates, scorer};
 /// KeyBERT: embed the document, embed each candidate phrase, rank candidates by cosine similarity
 /// to the document. Any embedder will do -- which is the point of taking `&dyn Embed` rather than
 /// a concrete model.
-pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
+pub fn keywords<E: Embed + ?Sized>(
+    model: &E,
+    ctx: &Context,
+    input: &[&[u8]],
+    top_n: usize,
+) -> nim_error::Result<Vec<Vec<Keyword>>> {
     let text = input
         .iter()
-        .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+        .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
         .collect::<Result<Vec<_>, _>>()?;
     text.iter().map(|text| one(model, ctx, text, top_n)).collect()
 }
 
-fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) -> Result<Vec<Keyword>, Error> {
+fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) -> nim_error::Result<Vec<Keyword>> {
     let candidates = candidates::extract(text);
 
     if candidates.is_empty() {
@@ -30,7 +34,7 @@ fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) ->
 
     let vectors = model.embed(ctx, &batch)?;
     if vectors.len() != batch.len() {
-        return Err(Error::custom("ai::invalid", "keyword embeddings do not match input count"));
+        return Err(nim_error::Diagnostic::message("keyword embeddings do not match input count"));
     }
 
     let document = &vectors[0];
@@ -40,14 +44,14 @@ fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) ->
             .iter()
             .any(|vector| vector.len() != document.len() || vector.iter().any(|value| !value.is_finite()))
     {
-        return Err(Error::custom("ai::invalid", "invalid keyword embeddings"));
+        return Err(nim_error::Diagnostic::message("invalid keyword embeddings"));
     }
 
     let mut keywords = scorer::rank(candidates, document, &vectors[1..], usize::MAX);
 
     for keyword in &mut keywords {
         if !keyword.score.is_finite() || !(-1.000001..=1.000001).contains(&keyword.score) {
-            return Err(Error::custom("ai::invalid", "invalid keyword cosine score"));
+            return Err(nim_error::Diagnostic::message("invalid keyword cosine score"));
         }
 
         keyword.score = keyword.score.clamp(-1.0, 1.0);

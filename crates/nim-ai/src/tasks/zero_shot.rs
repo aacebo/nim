@@ -1,6 +1,5 @@
 use unicode_categories::UnicodeCategories;
 
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{Annotation, Offset, Span};
 
@@ -31,7 +30,7 @@ pub fn entities<C: Classify + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: ClassifyOptions<'_>,
-) -> Result<Vec<Vec<Annotation>>, Error> {
+) -> nim_error::Result<Vec<Vec<Annotation>>> {
     let options = ClassifyOptions {
         mode: ClassifyMode::Whole,
         min_score: 0.0,
@@ -41,7 +40,7 @@ pub fn entities<C: Classify + ?Sized>(
 
     let text = input
         .iter()
-        .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+        .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
         .collect::<Result<Vec<_>, _>>()?;
 
     text.iter()
@@ -54,7 +53,7 @@ pub fn entities<C: Classify + ?Sized>(
                 let scores = classify(model, ctx, &input, options.clone())?;
 
                 if scores.len() != chunk.len() {
-                    return Err(Error::custom("ai::invalid", "NLI output does not match candidate count"));
+                    return Err(nim_error::Diagnostic::message("NLI output does not match candidate count"));
                 }
 
                 for ((start, end), labels) in chunk.iter().zip(scores) {
@@ -75,16 +74,15 @@ pub fn entities<C: Classify + ?Sized>(
         .collect()
 }
 
-pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_score: f64) -> Result<Vec<Annotation>, Error> {
+pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_score: f64) -> nim_error::Result<Vec<Annotation>> {
     let labels = options
         .labels
-        .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
+        .ok_or_else(|| nim_error::Diagnostic::message("custom labels are required"))?;
 
     if annotations.iter().any(|annotation| {
         !labels.contains(&annotation.label) || !annotation.score.is_finite() || !(0.0..=1.0).contains(&annotation.score)
     }) {
-        return Err(Error::custom(
-            "ai::invalid",
+        return Err(nim_error::Diagnostic::message(
             "custom classification returned an invalid label or score",
         ));
     }
@@ -94,7 +92,7 @@ pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_sc
     for annotation in annotations.into_iter().filter(|annotation| annotation.score >= min_score) {
         for span in &annotation.spans {
             let Span::Text(offset) = span else {
-                return Err(Error::custom("ai::invalid", "text extraction requires text spans"));
+                return Err(nim_error::Diagnostic::message("text extraction requires text spans"));
             };
 
             if offset.begin < offset.end {

@@ -1,4 +1,4 @@
-use crate::{Artifact, ArtifactContent, ArtifactId, ArtifactService, Embedding, Error};
+use crate::{Artifact, ArtifactContent, ArtifactId, ArtifactService, Embedding};
 
 #[derive(Debug, Default)]
 pub struct ArtifactUpdate {
@@ -13,7 +13,7 @@ pub struct ArtifactUpdate {
 
 impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self, value))]
-    pub async fn update(&self, id: ArtifactId, value: ArtifactUpdate) -> Result<Artifact, Error> {
+    pub async fn update(&self, id: ArtifactId, value: ArtifactUpdate) -> nim_error::Result<Artifact> {
         let mut row = self.storage.artifacts().find_by_id(id.into()).await?;
 
         if let Some(value) = value.name {

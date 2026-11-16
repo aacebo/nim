@@ -1,6 +1,6 @@
 use async_nats::{Message, service};
 
-use crate::{Error, ServiceError, Signal};
+use crate::{ServiceError, Signal};
 
 pub struct Request {
     inner: service::Request,
@@ -8,7 +8,7 @@ pub struct Request {
 
 impl Request {
     #[tracing::instrument(skip(self))]
-    pub fn decode<T>(&self) -> Result<Signal<T>, Error>
+    pub fn decode<T>(&self) -> nim_error::Result<Signal<T>>
     where
         T: for<'a> serde::Deserialize<'a>,
     {
@@ -17,7 +17,7 @@ impl Request {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn respond<R>(&self, response: Result<R, ServiceError>) -> Result<(), Error>
+    pub async fn respond<R>(&self, response: Result<R, ServiceError>) -> nim_error::Result<()>
     where
         R: std::fmt::Debug + serde::Serialize,
     {

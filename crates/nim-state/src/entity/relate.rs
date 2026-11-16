@@ -1,6 +1,6 @@
 use nim_store::EntityRelationRow;
 
-use crate::{EntityId, EntityRelation, EntityRelationType, EntityService, Error};
+use crate::{EntityId, EntityRelation, EntityRelationType, EntityService};
 
 impl<'a> EntityService<'a> {
     #[tracing::instrument(skip(self))]
@@ -9,7 +9,7 @@ impl<'a> EntityService<'a> {
         source_id: EntityId,
         target_id: EntityId,
         ty: EntityRelationType,
-    ) -> Result<EntityRelation, Error> {
+    ) -> nim_error::Result<EntityRelation> {
         let row = self
             .storage
             .entity_relations()

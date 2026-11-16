@@ -2,8 +2,6 @@ use std::io::Cursor;
 
 use candle_core::{Device, Tensor};
 
-use crate::Error;
-
 use super::Config;
 
 const SAMPLE_RATE: u32 = 16_000;
@@ -15,7 +13,7 @@ pub struct Processor {
 }
 
 impl Processor {
-    pub fn tensors(&self, bytes: &[u8], config: &Config, device: &Device) -> Result<Vec<Tensor>, Error> {
+    pub fn tensors(&self, bytes: &[u8], config: &Config, device: &Device) -> nim_error::Result<Vec<Tensor>> {
         let samples = resample(decode(bytes)?)?;
         let filters: Vec<f32> = self.mel_filters.iter().flatten().copied().collect();
 
@@ -36,22 +34,21 @@ impl Processor {
     }
 }
 
-fn decode(bytes: &[u8]) -> Result<(Vec<f32>, u32), Error> {
-    let mut reader = hound::WavReader::new(Cursor::new(bytes)).map_err(|err| Error::custom("ai::audio", err))?;
+fn decode(bytes: &[u8]) -> nim_error::Result<(Vec<f32>, u32)> {
+    let mut reader = hound::WavReader::new(Cursor::new(bytes))?;
     let spec = reader.spec();
 
     if spec.sample_format != hound::SampleFormat::Int || spec.bits_per_sample != 16 || !(1..=2).contains(&spec.channels) {
-        return Err(Error::custom("ai::audio", "expected mono or stereo 16-bit PCM WAV"));
+        return Err(nim_error::Diagnostic::message("expected mono or stereo 16-bit PCM WAV"));
     }
 
     let samples: Vec<f32> = reader
         .samples::<i16>()
         .map(|sample| sample.map(|sample| sample as f32 / i16::MAX as f32))
-        .collect::<Result<_, _>>()
-        .map_err(|err| Error::custom("ai::audio", err))?;
+        .collect::<Result<_, _>>()?;
 
     if samples.is_empty() {
-        return Err(Error::custom("ai::audio", "audio is empty"));
+        return Err(nim_error::Diagnostic::message("audio is empty"));
     }
 
     let channels = spec.channels as usize;
@@ -63,9 +60,9 @@ fn decode(bytes: &[u8]) -> Result<(Vec<f32>, u32), Error> {
     Ok((samples, spec.sample_rate))
 }
 
-fn resample((samples, source_rate): (Vec<f32>, u32)) -> Result<Vec<f32>, Error> {
+fn resample((samples, source_rate): (Vec<f32>, u32)) -> nim_error::Result<Vec<f32>> {
     if source_rate == 0 {
-        return Err(Error::custom("ai::audio", "audio sample rate is zero"));
+        return Err(nim_error::Diagnostic::message("audio sample rate is zero"));
     }
 
     if source_rate == SAMPLE_RATE {

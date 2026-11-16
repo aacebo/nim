@@ -3,8 +3,6 @@ use std::io::Cursor;
 use rustfft::FftPlanner;
 use rustfft::num_complex::Complex32;
 
-use crate::Error;
-
 use super::config::Config;
 
 pub struct Processor {
@@ -17,18 +15,18 @@ impl Processor {
         Self { filters, window }
     }
 
-    pub fn features(&self, bytes: &[u8], config: &Config) -> Result<(Vec<Vec<f32>>, f64), Error> {
+    pub fn features(&self, bytes: &[u8], config: &Config) -> nim_error::Result<(Vec<Vec<f32>>, f64)> {
         let (samples, sample_rate) = decode(bytes)?;
 
         if sample_rate == 0 {
-            return Err(Error::custom("ai::audio", "audio sample rate is zero"));
+            return Err(nim_error::Diagnostic::message("audio sample rate is zero"));
         }
 
         let duration = samples.len() as f64 / sample_rate as f64;
         let samples = resample((samples, sample_rate), config.sample_rate)?;
 
         if samples.is_empty() {
-            return Err(Error::custom("ai::audio", "audio is too short after resampling"));
+            return Err(nim_error::Diagnostic::message("audio is too short after resampling"));
         }
 
         let padding = self.window.len() / 2;
@@ -75,22 +73,21 @@ impl Processor {
     }
 }
 
-fn decode(bytes: &[u8]) -> Result<(Vec<f32>, u32), Error> {
-    let mut reader = hound::WavReader::new(Cursor::new(bytes)).map_err(|err| Error::custom("ai::audio", err))?;
+fn decode(bytes: &[u8]) -> nim_error::Result<(Vec<f32>, u32)> {
+    let mut reader = hound::WavReader::new(Cursor::new(bytes))?;
     let spec = reader.spec();
 
     if spec.sample_format != hound::SampleFormat::Int || spec.bits_per_sample != 16 || !(1..=2).contains(&spec.channels) {
-        return Err(Error::custom("ai::audio", "expected mono or stereo 16-bit PCM WAV"));
+        return Err(nim_error::Diagnostic::message("expected mono or stereo 16-bit PCM WAV"));
     }
 
     let samples: Vec<f32> = reader
         .samples::<i16>()
         .map(|sample| sample.map(|sample| sample as f32 / i16::MAX as f32))
-        .collect::<Result<_, _>>()
-        .map_err(|err| Error::custom("ai::audio", err))?;
+        .collect::<Result<_, _>>()?;
 
     if samples.is_empty() {
-        return Err(Error::custom("ai::audio", "audio is empty"));
+        return Err(nim_error::Diagnostic::message("audio is empty"));
     }
 
     let channels = spec.channels as usize;
@@ -103,9 +100,9 @@ fn decode(bytes: &[u8]) -> Result<(Vec<f32>, u32), Error> {
     ))
 }
 
-fn resample((samples, source): (Vec<f32>, u32), target: usize) -> Result<Vec<f32>, Error> {
+fn resample((samples, source): (Vec<f32>, u32), target: usize) -> nim_error::Result<Vec<f32>> {
     if source == 0 {
-        return Err(Error::custom("ai::audio", "audio sample rate is zero"));
+        return Err(nim_error::Diagnostic::message("audio sample rate is zero"));
     }
 
     if source as usize == target {

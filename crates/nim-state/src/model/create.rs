@@ -1,6 +1,6 @@
 use nim_store::ModelRow;
 
-use crate::{Error, Model, ModelService, ModelSource};
+use crate::{Model, ModelService, ModelSource};
 
 #[derive(Debug)]
 pub struct ModelCreate {
@@ -13,7 +13,7 @@ pub struct ModelCreate {
 
 impl<'a> ModelService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self, value: ModelCreate) -> Result<Model, Error> {
+    pub async fn create(&self, value: ModelCreate) -> nim_error::Result<Model> {
         let now = chrono::Utc::now();
         let row = self
             .storage

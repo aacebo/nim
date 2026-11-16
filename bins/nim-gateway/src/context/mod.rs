@@ -1,4 +1,4 @@
-use crate::{Config, Error, Sockets};
+use crate::{Config, Sockets};
 
 pub mod http;
 
@@ -30,7 +30,7 @@ impl Context {
 
 impl Context {
     #[tracing::instrument]
-    pub async fn connect(config: Config) -> Result<Self, Error> {
+    pub async fn connect(config: Config) -> nim::error::Result<Self> {
         let pool = std::sync::Arc::new(
             sqlx::postgres::PgPoolOptions::new()
                 .max_connections(5)

@@ -1,4 +1,4 @@
-use crate::{Error, ModelId, ModelService, ModelWeight, ModelWeightContent, ModelWeightId};
+use crate::{ModelId, ModelService, ModelWeight, ModelWeightContent, ModelWeightId};
 
 #[derive(Debug, Default)]
 pub struct ModelWeightUpdate {
@@ -13,7 +13,7 @@ impl<'a> ModelService<'a> {
         model_id: ModelId,
         id: ModelWeightId,
         value: ModelWeightUpdate,
-    ) -> Result<ModelWeight, Error> {
+    ) -> nim_error::Result<ModelWeight> {
         let mut row = self.storage.model_weights().find_by_id(model_id.into(), id.into()).await?;
 
         if let Some(value) = value.name {

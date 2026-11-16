@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    Error,
     clients::download::Download,
     resources::{Asset, AssetData, Repository, Resource, Uri, cache},
 };
@@ -24,19 +23,19 @@ impl Repository for HttpRepository {
         self.resolve(path).is_ok()
     }
 
-    fn get(&self, path: &Path) -> Result<Asset, Error> {
+    fn get(&self, path: &Path) -> nim_error::Result<Asset> {
         Ok(Asset::file(self.resolve(path)?.local_path()?))
     }
 
-    fn read(&self, path: &Path) -> Result<AssetData, Error> {
+    fn read(&self, path: &Path) -> nim_error::Result<AssetData> {
         let path = self.resolve(path)?;
         Ok(AssetData::File(std::fs::read(path.local_path()?)?))
     }
 
-    fn resolve(&self, path: &Path) -> Result<Resource, Error> {
+    fn resolve(&self, path: &Path) -> nim_error::Result<Resource> {
         let filename = path
             .to_str()
-            .ok_or_else(|| Error::custom("url::parse", format!("{path:?} is not utf-8")))?;
+            .ok_or_else(|| nim_error::Diagnostic::message(format!("{path:?} is not utf-8")))?;
         let uri = self.base.join(filename)?;
         let key = format!("{:x}", Sha256::digest(uri.to_string().as_bytes()));
         let cached = cache::dir().unwrap_or_else(std::env::temp_dir).join("urls").join(key);
@@ -49,7 +48,7 @@ impl Repository for HttpRepository {
 
         progress.start();
 
-        let result = (|| -> Result<PathBuf, Error> {
+        let result = (|| -> nim_error::Result<PathBuf> {
             let url = uri.to_string();
             let mut response = reqwest::blocking::get(&url)?.error_for_status()?;
             progress.reset(response.content_length());

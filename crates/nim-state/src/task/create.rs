@@ -1,6 +1,6 @@
 use nim_store::TaskRow;
 
-use crate::{Error, Source, Task, TaskId, TaskService, TaskStatus};
+use crate::{Source, Task, TaskId, TaskService, TaskStatus};
 
 #[derive(Debug)]
 pub struct TaskCreate {
@@ -11,7 +11,7 @@ pub struct TaskCreate {
 
 impl<'a> TaskService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create(&self, value: TaskCreate) -> Result<Task, Error> {
+    pub async fn create(&self, value: TaskCreate) -> nim_error::Result<Task> {
         let now = chrono::Utc::now();
         let row = self
             .storage

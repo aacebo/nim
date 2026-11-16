@@ -1,6 +1,6 @@
 use axum::response::IntoResponse;
 
-use crate::{Error, extract, http::HttpContext};
+use crate::{extract, http::HttpContext};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 pub struct Body {
@@ -8,7 +8,7 @@ pub struct Body {
     pub text: String,
 }
 
-pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> axum::response::Result<axum::response::Response> {
+pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> nim::error::Result<impl axum::response::IntoResponse> {
     let artifact = ctx
         .services()
         .artifacts()
@@ -21,13 +21,9 @@ pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> axum::respons
             salience: None,
             strength: None,
         })
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
-    ctx.signals()
-        .publish("nim.text.artifact.create", artifact.clone())
-        .await
-        .map_err(Error::from)?;
+    ctx.signals().publish("nim.text.artifact.create", artifact.clone()).await?;
 
     Ok((axum::http::StatusCode::CREATED, axum::Json(artifact)).into_response())
 }

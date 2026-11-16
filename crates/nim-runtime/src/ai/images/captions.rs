@@ -1,6 +1,6 @@
 use nim_ai::{models::ModelRef, types::Artifact};
 
-use crate::{Error, TaskOptions, TaskSource, ai::ImagePipelines, task_run};
+use crate::{TaskOptions, TaskSource, ai::ImagePipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct ImageCaptionsOptions {
@@ -37,7 +37,7 @@ impl From<ImageCaptionsOptions> for nim_ai::pipelines::images::captions::Options
 }
 
 impl<'a> ImagePipelines<'a> {
-    pub async fn captions<T>(&self, input: &[T], options: ImageCaptionsOptions) -> Result<Vec<Artifact>, Error>
+    pub async fn captions<T>(&self, input: &[T], options: ImageCaptionsOptions) -> nim_error::Result<Vec<Artifact>>
     where
         T: AsRef<[u8]>,
     {

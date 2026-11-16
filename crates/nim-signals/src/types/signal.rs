@@ -1,5 +1,3 @@
-use crate::Error;
-
 pub trait ToSignal<T> {
     type Error;
 
@@ -10,7 +8,7 @@ impl<T> ToSignal<T> for async_nats::Message
 where
     T: for<'a> serde::Deserialize<'a>,
 {
-    type Error = crate::Error;
+    type Error = nim_error::Diagnostic;
 
     fn to_signal(&self) -> Result<Signal<T>, Self::Error> {
         Ok(serde_json::from_slice(&self.payload)?)
@@ -48,7 +46,7 @@ impl<T> ToSignal<T> for RawSignal
 where
     T: for<'a> serde::Deserialize<'a>,
 {
-    type Error = Error;
+    type Error = nim_error::Diagnostic;
 
     fn to_signal(&self) -> Result<Signal<T>, Self::Error> {
         let content: T = serde_json::from_str(self.content.get())?;

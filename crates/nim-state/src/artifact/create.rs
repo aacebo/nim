@@ -1,6 +1,6 @@
 use nim_store::ArtifactRow;
 
-use crate::{Artifact, ArtifactContent, ArtifactService, Embedding, Error};
+use crate::{Artifact, ArtifactContent, ArtifactService, Embedding};
 
 #[derive(Debug)]
 pub struct ArtifactCreate {
@@ -15,7 +15,7 @@ pub struct ArtifactCreate {
 
 impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self, value))]
-    pub async fn create(&self, value: ArtifactCreate) -> Result<Artifact, Error> {
+    pub async fn create(&self, value: ArtifactCreate) -> nim_error::Result<Artifact> {
         let now = chrono::Utc::now();
         let row = self
             .storage

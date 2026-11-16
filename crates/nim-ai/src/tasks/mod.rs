@@ -8,7 +8,6 @@ mod keybert;
 mod scorer;
 mod stopwords;
 
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Generation, Word};
 use crate::types::{Annotation, Keyword, Offset, Polarity, Span};
 
@@ -17,7 +16,7 @@ use crate::types::{Annotation, Keyword, Offset, Polarity, Span};
 /// They are free functions, not traits: a task is something you do *with* a capable model, not a
 /// capability a model has. Writing them as blanket impls would also collide -- a hosted model has
 /// every capability, so `impl<T: Embed> Keywords for T` conflicts with its own keyword path.
-pub fn embed<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
+pub fn embed<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
     model.embed(ctx, input)
 }
 
@@ -26,14 +25,19 @@ pub fn embed_with<E: Embed + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: &crate::models::EmbedOptions,
-) -> Result<Vec<Vec<f32>>, Error> {
+) -> nim_error::Result<Vec<Vec<f32>>> {
     options.validate()?;
     model.embed_with(ctx, input, options)
 }
 
 /// KeyBERT, over any embedder -- local or hosted. Previously this only worked locally, by
 /// special-casing a call into the embeddings pipeline's cache.
-pub fn keywords<E: Embed + ?Sized>(model: &E, ctx: &Context, input: &[&[u8]], top_n: usize) -> Result<Vec<Vec<Keyword>>, Error> {
+pub fn keywords<E: Embed + ?Sized>(
+    model: &E,
+    ctx: &Context,
+    input: &[&[u8]],
+    top_n: usize,
+) -> nim_error::Result<Vec<Vec<Keyword>>> {
     keybert::keywords(model, ctx, input, top_n)
 }
 
@@ -42,13 +46,12 @@ pub fn classify<C: Classify + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: ClassifyOptions<'_>,
-) -> Result<Vec<Vec<Annotation>>, Error> {
+) -> nim_error::Result<Vec<Vec<Annotation>>> {
     options.validate()?;
     let out = model.classify(ctx, input, options.clone())?;
 
     if out.len() != input.len() {
-        return Err(Error::custom(
-            "ai::invalid",
+        return Err(nim_error::Diagnostic::message(
             "classification output does not match input count",
         ));
     }
@@ -59,8 +62,7 @@ pub fn classify<C: Classify + ?Sized>(
                 || !(0.0..=1.0).contains(&annotation.score)
                 || options.labels.is_some_and(|labels| !labels.contains(&annotation.label))
             {
-                return Err(Error::custom(
-                    "ai::invalid",
+                return Err(nim_error::Diagnostic::message(
                     "classification returned an invalid label or score",
                 ));
             }
@@ -70,18 +72,17 @@ pub fn classify<C: Classify + ?Sized>(
                     Span::Text(offset) => {
                         let text = span
                             .text(input)?
-                            .ok_or_else(|| Error::custom("ai::invalid", "missing text span"))?;
+                            .ok_or_else(|| nim_error::Diagnostic::message("missing text span"))?;
 
                         if options.mode == ClassifyMode::Whole && (offset.begin != 0 || text.as_bytes() != *input) {
-                            return Err(Error::custom(
-                                "ai::invalid",
+                            return Err(nim_error::Diagnostic::message(
                                 "whole-text classification must span the full input",
                             ));
                         }
                     }
                     Span::Audio(time) => {
                         if !time.begin.is_finite() || !time.end.is_finite() || time.begin < 0.0 || time.begin > time.end {
-                            return Err(Error::custom("ai::invalid", "invalid audio time span"));
+                            return Err(nim_error::Diagnostic::message("invalid audio time span"));
                         }
                     }
                     Span::Image(bbox) => {
@@ -91,7 +92,7 @@ pub fn classify<C: Classify + ?Sized>(
                             || bbox.xmin > bbox.xmax
                             || bbox.ymin > bbox.ymax
                         {
-                            return Err(Error::custom("ai::invalid", "invalid image bounding box"));
+                            return Err(nim_error::Diagnostic::message("invalid image bounding box"));
                         }
                     }
                 }
@@ -136,12 +137,12 @@ pub fn generate<G: Generate + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: GenerateOptions<'_>,
-) -> Result<Vec<Generation>, Error> {
+) -> nim_error::Result<Vec<Generation>> {
     options.validate()?;
     let out = model.generate(ctx, input, options)?;
 
     if out.len() != input.len() {
-        return Err(Error::custom("ai::invalid", "generation output does not match input count"));
+        return Err(nim_error::Diagnostic::message("generation output does not match input count"));
     }
 
     Ok(out)
@@ -152,7 +153,7 @@ pub fn summarize<G: Generate + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: GenerateOptions<'_>,
-) -> Result<Vec<Generation>, Error> {
+) -> nim_error::Result<Vec<Generation>> {
     generate(model, ctx, input, options)
 }
 

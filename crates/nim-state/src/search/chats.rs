@@ -1,10 +1,10 @@
 use nim_store::{ChatFilter, SearchItem};
 
-use crate::{Chat, Error, SearchService};
+use crate::{Chat, SearchService};
 
 impl<'a> SearchService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn chats(&self, embedding: &[f32], filter: ChatFilter) -> Result<Vec<SearchItem<Chat>>, Error> {
+    pub async fn chats(&self, embedding: &[f32], filter: ChatFilter) -> nim_error::Result<Vec<SearchItem<Chat>>> {
         let rows = self.storage.search().chats(embedding, filter).await?;
 
         Ok(rows

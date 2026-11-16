@@ -1,4 +1,3 @@
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed};
 use crate::tasks;
 use crate::types::{Annotation, Span};
@@ -14,16 +13,16 @@ impl<E: Embed> KeyBert<E> {
 }
 
 impl<E: Embed> Embed for KeyBert<E> {
-    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> Result<Vec<Vec<f32>>, Error> {
+    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
         self.embedder.embed(ctx, input)
     }
 }
 
 impl<E: Embed> Classify for KeyBert<E> {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
@@ -32,8 +31,7 @@ impl<E: Embed> Classify for KeyBert<E> {
             || options.multi_label
             || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
         {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "KeyBERT only supports keyword regions without custom labels",
             ));
         }
@@ -56,7 +54,7 @@ impl<E: Embed> Classify for KeyBert<E> {
                         let span = Span::Text(offset);
                         let source = span
                             .text(text.as_bytes())?
-                            .ok_or_else(|| Error::custom("ai::invalid", "keyword requires a text span"))?;
+                            .ok_or_else(|| nim_error::Diagnostic::message("keyword requires a text span"))?;
 
                         if let Some((_, annotation)) = annotations
                             .iter_mut()

@@ -1,6 +1,6 @@
 use nim_ai::{models::EmbedOptions, models::ModelRef, types::Artifact};
 
-use crate::{Error, TaskOptions, TaskSource, ai::TextPipelines, task_run};
+use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
 #[derive(Debug, Clone)]
 pub struct TextEmbedOptions {
@@ -31,7 +31,7 @@ impl From<TextEmbedOptions> for nim_ai::pipelines::text::embeddings::Options {
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn embed<T>(&self, input: &[T], options: TextEmbedOptions) -> Result<Vec<Artifact>, Error>
+    pub async fn embed<T>(&self, input: &[T], options: TextEmbedOptions) -> nim_error::Result<Vec<Artifact>>
     where
         T: AsRef<str>,
     {

@@ -5,9 +5,9 @@ use candle_core::{Device, Tensor};
 use candle_nn::ops;
 pub use config::Config;
 
-use crate::{Error, models::bart::Bart};
+use crate::models::bart::Bart;
 
-pub fn run(model: &mut Bart, config: &Config, input: &Tensor, device: &Device) -> Result<(Vec<u32>, Option<f64>), Error> {
+pub fn run(model: &mut Bart, config: &Config, input: &Tensor, device: &Device) -> nim_error::Result<(Vec<u32>, Option<f64>)> {
     let beams = config.beams;
 
     model.reset_kv_cache();

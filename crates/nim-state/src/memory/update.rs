@@ -1,4 +1,4 @@
-use crate::{Embedding, Error, Memory, MemoryId, MemoryService, Source};
+use crate::{Embedding, Memory, MemoryId, MemoryService, Source};
 
 #[derive(Debug, Default)]
 pub struct MemoryUpdate<'a> {
@@ -14,7 +14,7 @@ pub struct MemoryUpdate<'a> {
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update<'b>(&self, id: MemoryId, value: MemoryUpdate<'b>) -> Result<Memory, Error> {
+    pub async fn update<'b>(&self, id: MemoryId, value: MemoryUpdate<'b>) -> nim_error::Result<Memory> {
         let mut row = self.storage.memories().find_by_id(id.into()).await?;
 
         if let Some(v) = value.sources {

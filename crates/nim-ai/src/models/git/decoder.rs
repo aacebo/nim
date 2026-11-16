@@ -1,8 +1,6 @@
 use candle_core::{DType, Tensor};
 use candle_nn::{Embedding, LayerNorm, Linear, Module, VarBuilder, embedding, layer_norm, linear};
 
-use crate::Error;
-
 use super::attention::Attention;
 use super::config::Config;
 
@@ -35,7 +33,7 @@ impl Decoder {
         })
     }
 
-    pub fn forward(&mut self, visual: &Tensor, tokens: &[u32]) -> Result<Tensor, Error> {
+    pub fn forward(&mut self, visual: &Tensor, tokens: &[u32]) -> nim_error::Result<Tensor> {
         let ids = Tensor::from_slice(tokens, (1, tokens.len()), visual.device())?;
         let positions = Tensor::arange(0u32, tokens.len() as u32, visual.device())?.unsqueeze(0)?;
         let text = (self.words.forward(&ids)? + self.positions.forward(&positions)?)?.apply(&self.norm)?;

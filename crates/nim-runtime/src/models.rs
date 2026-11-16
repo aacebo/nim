@@ -1,9 +1,7 @@
-use crate::Error;
-
 pub(crate) async fn assert(
     services: &nim_state::Services<'_>,
     model_ref: &nim_ai::models::ModelRef,
-) -> Result<nim_state::Model, Error> {
+) -> nim_error::Result<nim_state::Model> {
     let model = nim_ai::models::load(model_ref)?;
     let config = model.config().cloned();
     let source = match model_ref {

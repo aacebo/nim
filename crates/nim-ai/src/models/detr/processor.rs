@@ -3,8 +3,6 @@ use std::io::Cursor;
 use candle_core::{Device, Tensor};
 use image::{GenericImageView, ImageReader, imageops::FilterType};
 
-use crate::Error;
-
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
 pub struct Processor {
@@ -43,7 +41,7 @@ impl Default for Processor {
 }
 
 impl Processor {
-    pub fn tensor(&self, bytes: &[u8], device: &Device) -> Result<(Tensor, u32, u32), Error> {
+    pub fn tensor(&self, bytes: &[u8], device: &Device) -> nim_error::Result<(Tensor, u32, u32)> {
         if !self.rescale_factor.is_finite()
             || self.image_mean.iter().any(|value| !value.is_finite())
             || self.image_std.iter().any(|value| !value.is_finite() || *value <= 0.0)
@@ -51,7 +49,7 @@ impl Processor {
             || self.size.longest_edge < self.size.shortest_edge
             || self.size.longest_edge > u32::MAX as usize
         {
-            return Err(Error::custom("ai::config", "invalid DETR image processor configuration"));
+            return Err(nim_error::Diagnostic::message("invalid DETR image processor configuration"));
         }
 
         let filter = match self.resample {
@@ -59,17 +57,14 @@ impl Processor {
             1 => FilterType::Lanczos3,
             2 => FilterType::Triangle,
             3 => FilterType::CatmullRom,
-            _ => return Err(Error::custom("ai::config", "unsupported DETR resampling filter")),
+            _ => return Err(nim_error::Diagnostic::message("unsupported DETR resampling filter")),
         };
 
-        let image = ImageReader::new(Cursor::new(bytes))
-            .with_guessed_format()?
-            .decode()
-            .map_err(|error| Error::custom("ai::image", error))?;
+        let image = ImageReader::new(Cursor::new(bytes)).with_guessed_format()?.decode()?;
         let (source_width, source_height) = image.dimensions();
 
         if source_width == 0 || source_height == 0 {
-            return Err(Error::custom("ai::image", "image dimensions must be positive"));
+            return Err(nim_error::Diagnostic::message("image dimensions must be positive"));
         }
 
         let image = image.to_rgb8();
@@ -95,8 +90,7 @@ impl Processor {
             };
 
             if width == 0 || height == 0 {
-                return Err(Error::custom(
-                    "ai::image",
+                return Err(nim_error::Diagnostic::message(
                     "image aspect ratio produces an empty resized image",
                 ));
             }

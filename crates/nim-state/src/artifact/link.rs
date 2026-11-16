@@ -1,10 +1,10 @@
 use nim_store::MemoryArtifactRow;
 
-use crate::{ArtifactId, ArtifactService, Error, MemoryArtifact, MemoryId};
+use crate::{ArtifactId, ArtifactService, MemoryArtifact, MemoryId};
 
 impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn link(&self, memory_id: MemoryId, artifact_id: ArtifactId) -> Result<MemoryArtifact, Error> {
+    pub async fn link(&self, memory_id: MemoryId, artifact_id: ArtifactId) -> nim_error::Result<MemoryArtifact> {
         let row = self
             .storage
             .memory_artifacts()

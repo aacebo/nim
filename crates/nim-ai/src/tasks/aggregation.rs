@@ -1,6 +1,5 @@
 use tokenizers::Encoding;
 
-use crate::Error;
 use crate::models::Word;
 use crate::types::{Annotation, Offset, Span};
 
@@ -8,7 +7,7 @@ use super::char_offset;
 
 /// Merges sub-word pieces back into whole words, averaging their scores. The label of a word's
 /// first piece wins, matching HuggingFace's aggregation.
-pub fn words(probs: &[Vec<f32>], encoding: &Encoding, labels: &[String]) -> Result<Vec<Word>, Error> {
+pub fn words(probs: &[Vec<f32>], encoding: &Encoding, labels: &[String]) -> nim_error::Result<Vec<Word>> {
     let offsets = encoding.get_offsets();
     let word_ids = encoding.get_word_ids();
 
@@ -106,16 +105,16 @@ fn flush(open: Option<Open>, text: &str, entities: &mut Vec<Annotation>) {
     });
 }
 
-fn best(row: &[f32], labels: &[String]) -> Result<(String, f32), Error> {
+fn best(row: &[f32], labels: &[String]) -> nim_error::Result<(String, f32)> {
     let (index, score) = row
         .iter()
         .enumerate()
         .max_by(|(_, a), (_, b)| a.total_cmp(b))
-        .ok_or_else(|| Error::custom("ai::invalid", "empty logits row"))?;
+        .ok_or_else(|| nim_error::Diagnostic::message("empty logits row"))?;
 
     let label = labels
         .get(index)
-        .ok_or_else(|| Error::custom("ai::invalid", format!("no label for index {index}")))?;
+        .ok_or_else(|| nim_error::Diagnostic::message(format!("no label for index {index}")))?;
 
     Ok((label.clone(), *score))
 }

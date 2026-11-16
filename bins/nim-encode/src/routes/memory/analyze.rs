@@ -1,9 +1,9 @@
 use nim::{signals::Signal, state::Memory};
 
-use crate::{Error, SignalContext};
+use crate::SignalContext;
 
 #[tracing::instrument(skip(ctx, signal))]
-pub async fn run(ctx: SignalContext, signal: Signal<Memory>) -> Result<(), Error> {
+pub async fn run(ctx: SignalContext, signal: Signal<Memory>) -> nim::error::Result<()> {
     let artifacts = ctx.services().artifacts().find_by_memory_id(signal.content.id).await?;
     let confidence = artifacts
         .iter()

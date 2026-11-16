@@ -1,6 +1,6 @@
 use nim_store::ModelWeightRow;
 
-use crate::{Error, ModelId, ModelService, ModelWeight, ModelWeightContent, ModelWeightId};
+use crate::{ModelId, ModelService, ModelWeight, ModelWeightContent, ModelWeightId};
 
 #[derive(Debug)]
 pub struct ModelWeightCreate {
@@ -10,7 +10,7 @@ pub struct ModelWeightCreate {
 
 impl<'a> ModelService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create_weight(&self, model_id: ModelId, value: ModelWeightCreate) -> Result<ModelWeight, Error> {
+    pub async fn create_weight(&self, model_id: ModelId, value: ModelWeightCreate) -> nim_error::Result<ModelWeight> {
         let now = chrono::Utc::now();
         let row = self
             .storage

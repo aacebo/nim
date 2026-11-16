@@ -4,7 +4,6 @@ use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, VarBuilder, embedding, linear};
 use tokenizers::{TruncationParams, TruncationStrategy};
 
-use crate::Error;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::zero_shot::{self, softmax};
 use crate::types::{Annotation, Offset, Span};
@@ -32,13 +31,13 @@ impl ZeroShotClassifier {
             .all(|name| config.id2label.values().any(|label| label.eq_ignore_ascii_case(name)))
     }
 
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         let labels = config.labels()?;
         let index = |name: &str| {
             labels
                 .iter()
                 .position(|label| label.eq_ignore_ascii_case(name))
-                .ok_or_else(|| Error::custom("ai::invalid", format!("NLI model is missing {name}")))
+                .ok_or_else(|| nim_error::Diagnostic::message(format!("NLI model is missing {name}")))
         };
         let entailment = index("entailment")?;
         let contradiction = index("contradiction")?;
@@ -70,13 +69,13 @@ impl ZeroShotClassifier {
         })
     }
 
-    fn logits(&self, ctx: &Context, ids: &[u32]) -> Result<Vec<f32>, Error> {
+    fn logits(&self, ctx: &Context, ids: &[u32]) -> nim_error::Result<Vec<f32>> {
         let input = Tensor::from_slice(ids, (1, ids.len()), ctx.device())?;
 
         Ok(Forward::forward(self, input)?.squeeze(0)?.to_vec1::<f32>()?)
     }
 
-    fn custom_text(&self, ctx: &Context, text: &[&str], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn custom_text(&self, ctx: &Context, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let mut tokenizer = ctx.tokenizer()?.clone();
         tokenizer.with_padding(None);
         tokenizer
@@ -85,11 +84,11 @@ impl ZeroShotClassifier {
                 strategy: TruncationStrategy::OnlyFirst,
                 ..Default::default()
             }))
-            .map_err(|err| Error::custom("ai::encoding", err))?;
+            .map_err(nim_error::Diagnostic::message)?;
 
         let labels = options
             .labels
-            .ok_or_else(|| Error::custom("ai::config", "custom labels are required"))?;
+            .ok_or_else(|| nim_error::Diagnostic::message("custom labels are required"))?;
 
         text.iter()
             .map(|text| {
@@ -99,10 +98,10 @@ impl ZeroShotClassifier {
                         let hypothesis = options.hypothesis_template.replace("{}", label);
                         let encoding = tokenizer
                             .encode((*text, hypothesis.as_str()), true)
-                            .map_err(|err| Error::custom("ai::encoding", err))?;
+                            .map_err(nim_error::Diagnostic::message)?;
                         self.logits(ctx, encoding.get_ids())
                     })
-                    .collect::<Result<Vec<_>, Error>>()?;
+                    .collect::<nim_error::Result<Vec<_>>>()?;
                 let scores = if options.multi_label || labels.len() == 1 {
                     logits
                         .iter()
@@ -127,7 +126,7 @@ impl ZeroShotClassifier {
             .collect()
     }
 
-    fn text(&self, ctx: &Context, text: &[&str]) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn text(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let mut tokenizer = ctx.tokenizer()?.clone();
         tokenizer.with_padding(None);
         tokenizer
@@ -135,20 +134,18 @@ impl ZeroShotClassifier {
                 max_length: self.max_positions,
                 ..Default::default()
             }))
-            .map_err(|err| Error::custom("ai::encoding", err))?;
+            .map_err(nim_error::Diagnostic::message)?;
 
         text.iter()
             .map(|text| {
-                let encoding = tokenizer
-                    .encode(*text, true)
-                    .map_err(|err| Error::custom("ai::encoding", err))?;
+                let encoding = tokenizer.encode(*text, true).map_err(nim_error::Diagnostic::message)?;
                 let logits = self.logits(ctx, encoding.get_ids())?;
                 let scores = softmax(&logits.into_iter().map(f64::from).collect::<Vec<_>>());
                 let (index, score) = scores
                     .into_iter()
                     .enumerate()
                     .max_by(|left, right| left.1.total_cmp(&right.1))
-                    .ok_or_else(|| Error::custom("ai::invalid", "empty NLI classification output"))?;
+                    .ok_or_else(|| nim_error::Diagnostic::message("empty NLI classification output"))?;
 
                 Ok(vec![Annotation {
                     name: String::from("classification"),
@@ -166,11 +163,11 @@ impl Forward for ZeroShotClassifier {
     type Input = Tensor;
     type Output = Tensor;
 
-    fn forward(&self, input: Self::Input) -> Result<Self::Output, Error> {
+    fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output> {
         let (batch_size, seq_len) = input.dims2()?;
 
         if batch_size == 0 || seq_len == 0 {
-            return Err(Error::custom("ai::invalid", "empty classification input"));
+            return Err(nim_error::Diagnostic::message("empty classification input"));
         }
 
         let eos = input
@@ -179,9 +176,9 @@ impl Forward for ZeroShotClassifier {
             .map(|ids| {
                 ids.iter()
                     .rposition(|id| *id == self.eos_token_id)
-                    .ok_or_else(|| Error::custom("ai::invalid", "NLI input is missing EOS"))
+                    .ok_or_else(|| nim_error::Diagnostic::message("NLI input is missing EOS"))
             })
-            .collect::<Result<Vec<_>, Error>>()?;
+            .collect::<nim_error::Result<Vec<_>>>()?;
         let start = Tensor::full(self.decoder_start_token_id, (batch_size, 1), input.device())?;
         let shifted = Tensor::cat(&[&start, &input.narrow(1, 0, seq_len - 1)?], 1)?;
         let mask: Vec<f32> = (0..seq_len)
@@ -191,7 +188,7 @@ impl Forward for ZeroShotClassifier {
         let mut model = self
             .model
             .lock()
-            .map_err(|_| Error::custom("ai", "NLI model lock poisoned"))?;
+            .map_err(|_| nim_error::Diagnostic::message("NLI model lock poisoned"))?;
         let (encoder, decoder) = &mut *model;
         decoder.reset_kv_cache();
         let encoded = encoder.forward(&input)?;
@@ -210,10 +207,10 @@ impl Forward for ZeroShotClassifier {
 }
 
 impl Classify for ZeroShotClassifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> Result<Vec<Vec<Annotation>>, Error> {
+    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         options.validate()?;
 
@@ -228,7 +225,9 @@ impl Classify for ZeroShotClassifier {
                 .into_iter()
                 .map(|annotations| zero_shot::retain(annotations, options.clone(), options.min_score))
                 .collect(),
-            (ClassifyMode::Regions, None) => Err(Error::custom("ai::invalid", "NLI span classification requires custom labels")),
+            (ClassifyMode::Regions, None) => Err(nim_error::Diagnostic::message(
+                "NLI span classification requires custom labels",
+            )),
         }?;
 
         out.into_iter().map(|annotations| options.apply(annotations)).collect()

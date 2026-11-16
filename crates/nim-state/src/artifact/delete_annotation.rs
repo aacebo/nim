@@ -1,8 +1,8 @@
-use crate::{AnnotationId, ArtifactId, ArtifactService, Error};
+use crate::{AnnotationId, ArtifactId, ArtifactService};
 
 impl<'a> ArtifactService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn delete_annotation(&self, artifact_id: ArtifactId, id: AnnotationId) -> Result<(), Error> {
+    pub async fn delete_annotation(&self, artifact_id: ArtifactId, id: AnnotationId) -> nim_error::Result<()> {
         Ok(self
             .storage
             .artifact_annotations()

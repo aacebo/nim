@@ -1,10 +1,10 @@
 use nim_store::MemoryRelationRow;
 
-use crate::{Error, MemoryId, MemoryRelation, MemoryService};
+use crate::{MemoryId, MemoryRelation, MemoryService};
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn relate(&self, source_id: MemoryId, target_id: MemoryId) -> Result<MemoryRelation, Error> {
+    pub async fn relate(&self, source_id: MemoryId, target_id: MemoryId) -> nim_error::Result<MemoryRelation> {
         let row = self
             .storage
             .memory_relations()

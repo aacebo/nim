@@ -1,9 +1,9 @@
 use nim::{signals::Signal, state::MemoryRecall};
 
-use crate::{Error, SignalContext};
+use crate::SignalContext;
 
 #[tracing::instrument(skip(ctx, signal))]
-pub async fn run(ctx: SignalContext, signal: Signal<MemoryRecall>) -> Result<(), Error> {
+pub async fn run(ctx: SignalContext, signal: Signal<MemoryRecall>) -> nim::error::Result<()> {
     let memory = ctx.services().memories().find_by_id(signal.content.memory_id).await?;
     let now = chrono::Utc::now();
     let last_recalled_at = memory.recalled_at.unwrap_or(memory.created_at);

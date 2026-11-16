@@ -95,7 +95,7 @@ pub struct ModelWeight {
 }
 
 impl TryFrom<nim_store::ModelWeightRow> for ModelWeight {
-    type Error = crate::Error;
+    type Error = nim_error::Diagnostic;
 
     fn try_from(value: nim_store::ModelWeightRow) -> Result<Self, Self::Error> {
         Ok(Self {

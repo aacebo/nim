@@ -1,7 +1,5 @@
 use std::str::FromStr;
 
-use crate::Error;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Provider {
     #[serde(rename = "openai")]
@@ -29,12 +27,12 @@ impl Provider {
 }
 
 impl FromStr for Provider {
-    type Err = Error;
+    type Err = nim_error::Diagnostic;
 
-    fn from_str(value: &str) -> Result<Self, Error> {
+    fn from_str(value: &str) -> nim_error::Result<Self> {
         match value.to_lowercase().replace(['-', '_'], "").as_str() {
             "openai" => Ok(Self::OpenAI),
-            v => Err(Error::custom("ai::provider", format!("unknown provider: {v}"))),
+            v => Err(nim_error::Diagnostic::message(format!("unknown provider: {v}"))),
         }
     }
 }

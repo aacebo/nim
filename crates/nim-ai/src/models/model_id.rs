@@ -1,7 +1,5 @@
 use std::str::FromStr;
 
-use crate::Error;
-
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ModelId {
     group: Option<Box<str>>,
@@ -19,12 +17,12 @@ impl ModelId {
 }
 
 impl FromStr for ModelId {
-    type Err = Error;
+    type Err = nim_error::Diagnostic;
 
-    fn from_str(value: &str) -> Result<Self, Error> {
+    fn from_str(value: &str) -> nim_error::Result<Self> {
         let Some((group, name)) = value.split_once('/') else {
             if value.is_empty() {
-                return Err(Error::custom("ai", format!("invalid model id: {value:?}")));
+                return Err(nim_error::Diagnostic::message(format!("invalid model id: {value:?}")));
             }
 
             return Ok(Self {
@@ -34,7 +32,7 @@ impl FromStr for ModelId {
         };
 
         if group.is_empty() || name.is_empty() {
-            return Err(Error::custom("ai", format!("invalid model id: {value:?}")));
+            return Err(nim_error::Diagnostic::message(format!("invalid model id: {value:?}")));
         }
 
         Ok(Self {

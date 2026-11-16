@@ -1,8 +1,8 @@
-use crate::{ArtifactId, ChatArtifact, ChatEntity, ChatId, ChatService, EntityId, Error};
+use crate::{ArtifactId, ChatArtifact, ChatEntity, ChatId, ChatService, EntityId};
 
 impl<'a> ChatService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn link_entity(&self, chat_id: ChatId, entity_id: EntityId) -> Result<ChatEntity, Error> {
+    pub async fn link_entity(&self, chat_id: ChatId, entity_id: EntityId) -> nim_error::Result<ChatEntity> {
         let row = self
             .storage
             .chat_entities()
@@ -17,7 +17,7 @@ impl<'a> ChatService<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn link_artifact(&self, chat_id: ChatId, artifact_id: ArtifactId) -> Result<ChatArtifact, Error> {
+    pub async fn link_artifact(&self, chat_id: ChatId, artifact_id: ArtifactId) -> nim_error::Result<ChatArtifact> {
         let row = self
             .storage
             .chat_artifacts()

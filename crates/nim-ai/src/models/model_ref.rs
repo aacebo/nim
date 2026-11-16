@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use candle_core::{DType, Device};
 
-use crate::Error;
 use crate::models::{Loader, ModelId, Provider};
 use crate::resources::{DataSource, Repository, Resource, Uri};
 
@@ -47,19 +46,18 @@ impl ModelRef {
     }
 
     /// The weights-bearing model, or an error naming the remote one that has none.
-    pub fn local_or_err(&self) -> Result<&LocalModel, Error> {
+    pub fn local_or_err(&self) -> nim_error::Result<&LocalModel> {
         match self {
             Self::Local(model) => Ok(model),
-            Self::Remote(remote) => Err(Error::custom(
-                "ai::invalid",
-                format!("{remote} is a remote model and has no weights"),
-            )),
+            Self::Remote(remote) => Err(nim_error::Diagnostic::message(format!(
+                "{remote} is a remote model and has no weights"
+            ))),
         }
     }
 }
 
 impl FromStr for ModelRef {
-    type Err = Error;
+    type Err = nim_error::Diagnostic;
 
     fn from_str(model: &str) -> std::result::Result<Self, Self::Err> {
         let scheme = model.starts_with("file://") || model.starts_with("http://") || model.starts_with("https://");
@@ -97,11 +95,11 @@ impl LocalModel {
         }
     }
 
-    pub fn loader(&self, device: Device, dtype: DType) -> Result<Loader, Error> {
+    pub fn loader(&self, device: Device, dtype: DType) -> nim_error::Result<Loader> {
         Ok(Loader::new(self.repository()?, device, dtype))
     }
 
-    pub fn repository(&self) -> Result<Arc<dyn Repository>, Error> {
+    pub fn repository(&self) -> nim_error::Result<Arc<dyn Repository>> {
         match self {
             Self::Hub(id) => Ok(Arc::new(HuggingFace.load(id)?)),
             Self::Path(resource) => match &resource.uri {

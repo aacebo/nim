@@ -1,6 +1,6 @@
 use nim_store::MemoryRow;
 
-use crate::{Context, Embedding, Error, Memory, MemoryService, MemoryType, Source};
+use crate::{Context, Embedding, Memory, MemoryService, MemoryType, Source};
 
 #[derive(Debug)]
 pub struct MemoryCreate<'a> {
@@ -27,7 +27,7 @@ impl<'a> Default for MemoryCreate<'a> {
 
 impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn create<'b>(&self, value: MemoryCreate<'b>) -> Result<Memory, Error> {
+    pub async fn create<'b>(&self, value: MemoryCreate<'b>) -> nim_error::Result<Memory> {
         let now = chrono::Utc::now();
         let sources = value.sources.iter().map(|v| (*v).into()).collect();
         let contexts = value.contexts.iter().map(|c| c.clone().into()).collect();

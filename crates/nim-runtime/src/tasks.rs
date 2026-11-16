@@ -43,7 +43,7 @@ macro_rules! task_run {
         let services = &$runtime._services;
         let signals = &$runtime._signals;
         let task = $crate::tasks::start(services, signals, $name, &$options.task).await?;
-        let result: Result<_, $crate::Error> = async {
+        let result: nim_error::Result<_> = async {
             let output = $run?;
             Ok(output)
         }
@@ -58,7 +58,7 @@ pub(crate) async fn start<'a>(
     signals: &nim_signals::Client,
     name: impl std::fmt::Display,
     options: &TaskOptions,
-) -> Result<nim_state::Task, Error> {
+) -> nim_error::Result<nim_state::Task> {
     let task = services
         .tasks()
         .create(nim_state::TaskCreate {
@@ -121,7 +121,7 @@ pub(crate) async fn start<'a>(
             let _ = signals.publish("nim.task.error", task).await;
         }
 
-        return Err(err.into());
+        return Err(err);
     }
     Ok(task)
 }
@@ -130,11 +130,11 @@ pub(crate) async fn complete<'a, T>(
     services: &nim_state::Services<'a>,
     signals: &nim_signals::Client,
     task: nim_state::Task,
-    result: Result<T, Error>,
-) -> Result<T, Error> {
+    result: nim_error::Result<T>,
+) -> nim_error::Result<T> {
     let (output, started_at) = match &task.status {
         nim_state::TaskStatus::Started { output, started_at } => (output.clone(), *started_at),
-        _ => return Err(Error::custom("invalid task state")),
+        _ => return Err(nim_error::Diagnostic::message("invalid task state")),
     };
 
     match result {
@@ -180,5 +180,3 @@ pub(crate) async fn complete<'a, T>(
 }
 
 pub(crate) use task_run;
-
-use crate::Error;

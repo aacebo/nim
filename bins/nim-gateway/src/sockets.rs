@@ -29,7 +29,7 @@ impl Sockets {
         map.remove(&subscription.id);
     }
 
-    pub async fn send(&self, subject: String, signal: nim::signals::RawSignal) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send(&self, subject: String, signal: nim::signals::RawSignal) -> nim::error::Result<()> {
         let signal = SocketSignal { subject, signal };
         let mut map = self.inner.write().await;
         let mut dead = Vec::new();

@@ -2,7 +2,6 @@ use std::sync::Mutex;
 
 use candle_nn::VarBuilder;
 
-use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
@@ -23,7 +22,7 @@ struct GenerationConfig {
 }
 
 impl Captioner {
-    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
         let generation = GenerationConfig {
             bos: config.bos_token_id,
             eos: config.eos_token_id,
@@ -37,12 +36,12 @@ impl Captioner {
         })
     }
 
-    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> Result<String, Error> {
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> nim_error::Result<String> {
         let image = self.processor.tensor(bytes, ctx.device())?;
         let mut model = self
             .model
             .lock()
-            .map_err(|_| Error::custom("ai", "image-to-text model lock poisoned"))?;
+            .map_err(|_| nim_error::Diagnostic::message("image-to-text model lock poisoned"))?;
         let visual = model.vision(&image)?;
         let limit = max_len.min(self.config.max_len).max(1);
         let mut live = vec![(0f64, vec![self.config.bos])];
@@ -89,17 +88,16 @@ impl Captioner {
         ctx.tokenizer()?
             .decode(&tokens, true)
             .map(|text| text.trim().to_string())
-            .map_err(|e| Error::custom("ai::decoding", e))
+            .map_err(nim_error::Diagnostic::message)
     }
 }
 
 impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "this generator does not support the supplied prompt or language",
             ));
         }

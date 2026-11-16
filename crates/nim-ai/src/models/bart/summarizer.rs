@@ -3,7 +3,6 @@ use std::sync::Mutex;
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::Error;
 use crate::models::{Context, Generate, GenerateOptions, Generation};
 
 use super::config::Config;
@@ -23,7 +22,7 @@ pub struct Summarizer {
 }
 
 impl Summarizer {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self, Error> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Bart::new(config, vars)?),
             generation: generate::Config::from(config),
@@ -38,19 +37,18 @@ impl Summarizer {
 }
 
 impl Generate for Summarizer {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> Result<Vec<Generation>, Error> {
+    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
         options.validate()?;
 
         if options.prompt.is_some() || options.language.is_some() {
-            return Err(Error::custom(
-                "ai::config",
+            return Err(nim_error::Diagnostic::message(
                 "BART summarization does not support prompt or language",
             ));
         }
 
         let text = input
             .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(|err| Error::custom("ai::encoding", err)))
+            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         let mut generation = self.generation;
 
@@ -66,7 +64,7 @@ impl Generate for Summarizer {
 }
 
 impl Summarizer {
-    fn one(&self, ctx: &Context, text: &str, generation: &generate::Config) -> Result<Generation, Error> {
+    fn one(&self, ctx: &Context, text: &str, generation: &generate::Config) -> nim_error::Result<Generation> {
         let encoding = ctx.encode_one(text)?;
         let ids = encoding.get_ids();
 
@@ -76,7 +74,7 @@ impl Summarizer {
         let mut model = self
             .model
             .lock()
-            .map_err(|_| Error::custom("ai", "summarization model lock poisoned"))?;
+            .map_err(|_| nim_error::Diagnostic::message("summarization model lock poisoned"))?;
 
         let (tokens, confidence) = generate::run(&mut model, generation, &input, ctx.device())?;
 
@@ -86,6 +84,6 @@ impl Summarizer {
                 text: summary.trim().to_string(),
                 confidence,
             })
-            .map_err(|err| Error::custom("ai::decoding", err))
+            .map_err(nim_error::Diagnostic::message)
     }
 }

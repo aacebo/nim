@@ -3,20 +3,14 @@ use std::io::Write;
 use nim_state::{Artifact, MessageContent, Services};
 use nim_store::ArtifactContent;
 
-use crate::Error;
-
 pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 pub trait Render {
-    type Error: std::error::Error;
-
-    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Self::Error>>;
+    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<String>>;
 }
 
 impl Render for MessageContent {
-    type Error = Error;
-
-    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Error>> {
+    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<String>> {
         Box::pin(async move {
             match self.clone() {
                 Self::String(v) => Ok(v),
@@ -42,16 +36,14 @@ impl Render for MessageContent {
 
                     Ok(String::from_utf8(f)?)
                 }
-                _ => Err(Error::custom("render: unsupported message content")),
+                _ => Err(nim_error::Diagnostic::message("render: unsupported message content")),
             }
         })
     }
 }
 
 impl Render for Artifact {
-    type Error = Error;
-
-    fn render<'a>(&'a self, _s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Error>> {
+    fn render<'a>(&'a self, _s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<String>> {
         Box::pin(async move {
             match &self.summary {
                 Some(summary) => Ok(summary.clone()),

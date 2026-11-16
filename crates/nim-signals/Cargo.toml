@@ -13,6 +13,8 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+nim-error = { workspace = true }
+
 chrono = { workspace = true }
 uuid = { workspace = true }
 serde = { workspace = true }

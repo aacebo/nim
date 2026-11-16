@@ -1,10 +1,10 @@
 use heck::ToSnakeCase;
 use nim::{signals::Signal, state::Artifact};
 
-use crate::{Error, SignalContext};
+use crate::SignalContext;
 
 #[tracing::instrument(skip(ctx, signal))]
-pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Error> {
+pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Result<()> {
     let bytes = match &signal.content.content {
         nim::state::ArtifactContent::Text { text } => text.as_bytes().to_vec(),
         nim::state::ArtifactContent::File {
@@ -43,7 +43,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> Result<(), Err
         .await?;
 
     let Some(caption) = captions.first() else {
-        return Err(Error::custom(format!(
+        return Err(nim::error::Diagnostic::message(format!(
             "no captions could be generated from artifact `{}`",
             signal.content.id
         )));

@@ -1,4 +1,4 @@
-use crate::{Error, Message, MessageContent, MessageId, MessageService};
+use crate::{Message, MessageContent, MessageId, MessageService};
 
 #[derive(Debug, Default)]
 pub struct MessageUpdate {
@@ -10,7 +10,7 @@ pub struct MessageUpdate {
 
 impl<'a> MessageService<'a> {
     #[tracing::instrument(skip(self))]
-    pub async fn update(&self, id: MessageId, value: MessageUpdate) -> Result<Message, Error> {
+    pub async fn update(&self, id: MessageId, value: MessageUpdate) -> nim_error::Result<Message> {
         let mut row = self.storage.messages().find_by_id(id.into()).await?;
 
         if let Some(value) = value.content {

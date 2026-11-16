@@ -13,6 +13,7 @@ rustdocflags = ["-D", "warnings"]
 
 [env]
 RUST_BACKTRACE = "1"
+NIM_ERROR_COLOR = "true"
 
 [net]
 retry = 3

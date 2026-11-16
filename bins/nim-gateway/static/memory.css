@@ -13,7 +13,7 @@
     overflow: hidden;
     border: 1px solid rgb(140 166 246 / 65%);
     border-radius: 12px;
-    background: radial-gradient(ellipse at 12% 12%, rgb(24 36 104 / 28%), transparent 45%), radial-gradient(ellipse at 92% 95%, rgb(85 18 104 / 32%), transparent 48%), rgb(4 3 12 / 95%);
+    background: radial-gradient(ellipse at 12% 12%, rgb(24 36 104 / 24%), transparent 45%), radial-gradient(ellipse at 92% 95%, rgb(85 18 104 / 26%), transparent 48%), rgb(4 3 12 / 76%);
     box-shadow: 0 0 32px rgb(70 114 255 / 8%);
     color: var(--ui-ink);
 }
@@ -21,6 +21,7 @@
 .orb-scene[data-hud="memory"] :is(.hud-grid, .hud-cubes) { opacity: 0; }
 .orb-scene[data-hud="memory"] .background-cube,
 .orb-scene[data-hud="memory"] .background-cube :is(g, use) { animation-play-state: paused; }
+.orb-scene[data-hud="memory"] #orb { filter: drop-shadow(0 0 22px rgb(96 126 255 / 24%)); }
 .memory-header, .memory-controls, .memory-modes, .memory-footer, .memory-detail-header, .memory-brand { display: flex; align-items: center; }
 .memory-header { grid-row: 1; justify-content: space-between; gap: 16px; padding: 0 32px; }
 .memory-brand { gap: 16px; font-size: 23px; letter-spacing: .24em; }

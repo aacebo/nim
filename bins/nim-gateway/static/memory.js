@@ -322,7 +322,7 @@ const memoryView = (() => {
             glow.addColorStop(0.7, theme.violet);
             glow.addColorStop(1, theme.pink);
             timelineContext.strokeStyle = glow;
-            timelineContext.lineWidth = 0.65;
+            timelineContext.lineWidth = 1;
 
             // A shallow flowing mesh, with no opaque cross-section fills.
             const ribbonPoint = (progress, lane) => {
@@ -334,15 +334,24 @@ const memoryView = (() => {
             for (let lane = 0; lane <= 20; lane++) {
                 timelineContext.beginPath();
                 traceTimeline(slices.map((_, index) => ribbonPoint(index / timelineSliceCount, lane / 10 - 1)));
-                timelineContext.globalAlpha = 0.3;
+                timelineContext.globalAlpha = 0.48;
                 timelineContext.stroke();
             }
             for (let index = 0; index < slices.length; index += 2) {
                 timelineContext.beginPath();
                 traceTimeline(Array.from({ length: 21 }, (_, lane) => ribbonPoint(index / timelineSliceCount, lane / 10 - 1)));
-                timelineContext.globalAlpha = 0.17;
+                timelineContext.globalAlpha = 0.28;
                 timelineContext.stroke();
             }
+            // A brighter center ridge keeps the sinusoidal strand legible on dim or high-contrast displays.
+            timelineContext.beginPath();
+            traceTimeline(slices.map((_, index) => ribbonPoint(index / timelineSliceCount, 0)));
+            timelineContext.globalAlpha = 0.82;
+            timelineContext.lineWidth = 1.4;
+            timelineContext.shadowColor = theme.cyan;
+            timelineContext.shadowBlur = 5;
+            timelineContext.stroke();
+            timelineContext.shadowBlur = 0;
             timelineContext.globalAlpha = 1;
             for (const button of visibleMarkers) {
                 const progress = Number(button.dataset.progress);

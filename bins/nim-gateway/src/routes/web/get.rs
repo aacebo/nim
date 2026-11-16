@@ -17,10 +17,10 @@ use axum::{
         <link rel="stylesheet" href="/web/static/theme.css?v=1">
         <link rel="stylesheet" href="/web/static/orb.css?v=4">
         <link rel="stylesheet" href="/web/static/hud.css?v=15">
-        <link rel="stylesheet" href="/web/static/memory.css?v=15">
+        <link rel="stylesheet" href="/web/static/memory.css?v=16">
         <script src="/web/static/client.js" defer></script>
         <script src="/web/static/orb.js?v=7" defer></script>
-        <script src="/web/static/memory.js?v=19" defer></script>
+        <script src="/web/static/memory.js?v=20" defer></script>
         <script src="/web/static/hud.js?v=14" defer></script>
     </head>
     <body>

@@ -12,33 +12,31 @@ pub fn diagnose<F>(handler: F) -> Diagnose<F> {
     Diagnose(handler)
 }
 
-macro_rules! diagnose_error {
-    ($error:ident) => {{
-        if let nim::error::Source::Error(source) = $error.source() {
-            if let Some(errors) = source.downcast_ref::<serde_valid::validation::Errors>() {
-                return (axum::http::StatusCode::BAD_REQUEST, axum::Json(errors)).into_response();
-            }
+fn diagnose_error(error: nim::error::Diagnostic) -> Response {
+    if let nim::error::Source::Error(source) = error.source() {
+        if let Some(errors) = source.downcast_ref::<serde_valid::validation::Errors>() {
+            return (axum::http::StatusCode::BAD_REQUEST, axum::Json(errors)).into_response();
         }
+    }
 
-        let status = match $error.source() {
-            nim::error::Source::Error(source)
-                if source
-                    .downcast_ref::<sqlx::Error>()
-                    .is_some_and(|err| matches!(err, sqlx::Error::RowNotFound)) =>
-            {
-                axum::http::StatusCode::NOT_FOUND
-            }
-            nim::error::Source::Error(source)
-                if source.downcast_ref::<axum::extract::multipart::MultipartError>().is_some()
-                    || source.downcast_ref::<axum::extract::rejection::JsonRejection>().is_some() =>
-            {
-                axum::http::StatusCode::BAD_REQUEST
-            }
-            _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        };
+    let status = match error.source() {
+        nim::error::Source::Error(source)
+            if source
+                .downcast_ref::<sqlx::Error>()
+                .is_some_and(|err| matches!(err, sqlx::Error::RowNotFound)) =>
+        {
+            axum::http::StatusCode::NOT_FOUND
+        }
+        nim::error::Source::Error(source)
+            if source.downcast_ref::<axum::extract::multipart::MultipartError>().is_some()
+                || source.downcast_ref::<axum::extract::rejection::JsonRejection>().is_some() =>
+        {
+            axum::http::StatusCode::BAD_REQUEST
+        }
+        _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+    };
 
-        (status, $error.to_string()).into_response()
-    }};
+    (status, error.to_string()).into_response()
 }
 
 impl<F, Fut, T, S> Handler<((),), S> for Diagnose<F>
@@ -54,7 +52,7 @@ where
         Box::pin(async move {
             match (self.0)().await {
                 Ok(response) => response.into_response(),
-                Err(error) => diagnose_error!(error),
+                Err(error) => diagnose_error(error),
             }
         })
     }
@@ -94,7 +92,7 @@ macro_rules! impl_handler {
 
                     match (self.0)($($ty,)* $last,).await {
                         Ok(response) => response.into_response(),
-                        Err(error) => diagnose_error!(error),
+                        Err(error) => diagnose_error(error),
                     }
                 })
             }

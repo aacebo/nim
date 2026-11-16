@@ -11,5 +11,10 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+color = ["dep:anstyle"]
+
 [dependencies]
 tracing.workspace = true
+anstyle = { version = "1", optional = true }

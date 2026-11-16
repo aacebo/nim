@@ -5,9 +5,13 @@ use crate::http::HttpContext;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Body {
     pub text: String,
+
+    #[serde(default)]
+    pub created_at: Option<nim::state::TimeRange>,
 }
 
 pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> nim::error::Result<impl axum::response::IntoResponse> {
+    let body = body.0;
     let artifacts = ctx
         .runtime()
         .pipelines()
@@ -42,6 +46,7 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> nim::er
             nim::store::MemoryFilter {
                 limit: Some(10),
                 min_score: Some(0.7),
+                created_at: body.created_at.map(Into::into),
                 ..Default::default()
             },
         )

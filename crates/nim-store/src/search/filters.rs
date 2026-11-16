@@ -1,4 +1,4 @@
-use crate::{MemoryType, Role};
+use crate::{MemoryType, Role, TimeRange};
 
 #[derive(Debug, Default)]
 pub struct Filter {
@@ -17,6 +17,7 @@ pub struct MemoryFilter {
     pub ty: Option<MemoryType>,
     pub limit: Option<usize>,
     pub min_score: Option<f32>,
+    pub created_at: Option<TimeRange>,
 }
 
 #[derive(Debug, Default)]

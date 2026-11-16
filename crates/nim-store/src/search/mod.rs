@@ -1,8 +1,10 @@
 mod filters;
 mod item;
+mod time;
 
 pub use filters::*;
 pub use item::*;
+pub use time::*;
 
 use crate::types;
 
@@ -44,6 +46,7 @@ impl<'a> SearchStorage<'a> {
                 ) AS annotations ON annotations.memory_id = memories.id
                 WHERE (memories.embedding IS NOT NULL OR artifacts.distance IS NOT NULL OR annotations.distance IS NOT NULL)
                 AND ($2::text IS NULL OR memories.type = $2)
+                AND ($5::tstzrange IS NULL OR memories.created_at <@ $5::tstzrange)
                 AND (1 - LEAST(memories.embedding <=> $1::vector, artifacts.distance, annotations.distance))::real >= $4
                 ORDER BY similarity DESC, memories.created_at DESC, memories.id
                 LIMIT $3;
@@ -53,6 +56,7 @@ impl<'a> SearchStorage<'a> {
         .bind(filter.ty)
         .bind(filter.limit.map(|v| v as i64).unwrap_or(10))
         .bind(filter.min_score.unwrap_or(0.2))
+        .bind(filter.created_at)
         .fetch_all(self.pool)
         .await
     }

@@ -12,6 +12,7 @@ mod record;
 mod region;
 mod source;
 mod task;
+mod time;
 mod version;
 
 pub use annotation::*;
@@ -28,4 +29,5 @@ pub use record::*;
 pub use region::*;
 pub use source::*;
 pub use task::*;
+pub use time::*;
 pub use version::*;

@@ -72,6 +72,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                     ty: Some(nim::store::MemoryType::Working),
                     limit: Some(10),
                     min_score: Some(0.2),
+                    ..Default::default()
                 },
             )
             .await?

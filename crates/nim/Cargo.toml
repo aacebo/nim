@@ -20,8 +20,9 @@ vision = ["nim-ai?/vision", "nim-runtime?/vision"]
 signals = ["dep:nim-signals"]
 
 [dependencies]
+nim-ai = { workspace = true, optional = true }
+nim-error = { workspace = true }
 nim-state = { workspace = true }
 nim-store = { workspace = true }
 nim-signals = { workspace = true, optional = true }
-nim-ai = { workspace = true, optional = true }
 nim-runtime = { workspace = true, optional = true }

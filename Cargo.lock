@@ -2438,6 +2438,7 @@ name = "nim"
 version = "0.0.0"
 dependencies = [
  "nim-ai",
+ "nim-error",
  "nim-runtime",
  "nim-signals",
  "nim-state",
@@ -2493,6 +2494,13 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "nim-error"
+version = "0.0.0"
+dependencies = [
+ "tracing",
 ]
 
 [[package]]

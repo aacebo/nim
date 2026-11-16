@@ -42,6 +42,7 @@ futures-util = { version = "0.3" }
 
 nim = { path = "crates/nim", version = "0.0.0" }
 nim-ai = { path = "crates/nim-ai", version = "0.0.0" }
+nim-error = { path = "crates/nim-error", version = "0.0.0" }
 nim-state = { path = "crates/nim-state", version = "0.0.0" }
 nim-store = { path = "crates/nim-store", version = "0.0.0" }
 nim-signals = { path = "crates/nim-signals", version = "0.0.0" }

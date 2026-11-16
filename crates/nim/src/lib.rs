@@ -2,6 +2,7 @@ mod error;
 pub use error::*;
 #[cfg(feature = "ai")]
 pub use nim_ai as ai;
+pub use nim_error as error;
 #[cfg(feature = "runtime")]
 pub use nim_runtime as runtime;
 #[cfg(feature = "signals")]

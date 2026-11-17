@@ -4,29 +4,43 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title>Nim</title>
-        <link rel="stylesheet" href="/web/static/index.css">
+        <link rel="stylesheet" href="/web/static/index.css?v=2">
         <link rel="stylesheet" href="/web/static/orb/orb.css">
-        <link rel="stylesheet" href="/web/static/chat/chat.css">
-        <link rel="stylesheet" href="/web/static/memory/memory.css">
+        <link rel="stylesheet" href="/web/static/chat/transcript/transcript.css">
+        <link rel="stylesheet" href="/web/static/chat/chat.css?v=2">
+        <link rel="stylesheet" href="/web/static/memory/timeline/timeline.css">
+        <link rel="stylesheet" href="/web/static/memory/graph/graph.css?v=2">
+        <link rel="stylesheet" href="/web/static/memory/details/details.css">
+        <link rel="stylesheet" href="/web/static/memory/memory.css?v=3">
         <link rel="stylesheet" href="/web/static/dev-tools/dev-tools.css?v=4">
         <link rel="stylesheet" href="/web/static/artifacts/artifacts.css">
-        <script defer src="/web/static/index.js"></script>
-        <script defer src="/web/static/artifacts/artifacts.js"></script>
-        <script defer src="/web/static/orb/orb.js?v=2"></script>
-        <script defer src="/web/static/memory/memory.js"></script>
-        <script defer src="/web/static/chat/chat.js?v=3"></script>
-        <script defer src="/web/static/dev-tools/dev-tools.js?v=4"></script>
+        <script defer src="/web/static/index.js?v=3"></script>
+        <script defer src="/web/static/artifacts/artifacts.js?v=5"></script>
+        <script defer src="/web/static/orb/orb.js?v=5"></script>
+        <script defer src="/web/static/memory/timeline/timeline.js"></script>
+        <script defer src="/web/static/memory/graph/graph.js"></script>
+        <script defer src="/web/static/memory/details/details.js"></script>
+        <script defer src="/web/static/memory/memory.js?v=7"></script>
+        <script defer src="/web/static/chat/transcript/transcript.js"></script>
+        <script defer src="/web/static/chat/chat.js?v=9"></script>
+        <script defer src="/web/static/dev-tools/dev-tools.js?v=7"></script>
         <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
     </head>
     <body>
-        <div id="nim-app" x-data="nimApp" x-cloak @keydown.window="handleKey($event)">
+        <template id="orb-template">{{ self.orb|safe }}</template>
+        <template id="chat-template">{{ self.chat|safe }}</template>
+        <template id="memory-template">{{ self.memory|safe }}</template>
+        <template id="dev-tools-template">{{ self.dev_tools|safe }}</template>
+        <template id="artifacts-template">{{ self.artifacts|safe }}</template>
+        <div id="nim-app" x-data="nimApp" x-cloak @keydown.window="handleKey($event)"
+            @memory-change="memoryDisabled = !$event.detail.hasMemories">
             <main class="orb-scene" data-hud="idle" :data-hud="hud">
-                {{ self.orb|safe }}
-                {{ self.chat|safe }}
-                {{ self.memory|safe }}
+                <nim-orb></nim-orb>
+                <nim-chat></nim-chat>
+                <nim-memory></nim-memory>
             </main>
-            {{ self.dev_tools|safe }}
-            {{ self.artifacts|safe }}
+            <nim-dev-tools></nim-dev-tools>
+            <nim-artifacts></nim-artifacts>
         </div>
     </body>
 </html>

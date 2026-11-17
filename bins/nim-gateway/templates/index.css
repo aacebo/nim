@@ -17,3 +17,11 @@
 [x-cloak] {
     display: none !important;
 }
+
+nim-orb,
+nim-chat,
+nim-memory,
+nim-dev-tools,
+nim-artifacts {
+    display: contents;
+}

@@ -42,7 +42,6 @@ main {
         outline: 2px solid #f1b7f1;
         outline-offset: 2px;
     }
-
 }
 .orb-scene {
     --hud-ink: var(--ui-ink);
@@ -110,7 +109,6 @@ main {
     50% {
         translate: calc(-50% + var(--drift-x)) -50%;
     }
-
 }
 @keyframes cube-bob {
     0%, 100% {
@@ -119,7 +117,6 @@ main {
     50% {
         transform: translateY(var(--drift-y));
     }
-
 }
 @keyframes cube-turn {
     from {
@@ -128,7 +125,6 @@ main {
     to {
         transform: rotate(calc(var(--angle) + var(--turn, 360deg)));
     }
-
 }
 #orb-hub {
     position: fixed;
@@ -239,7 +235,6 @@ main {
         top: max(var(--hub-top), calc(100% - 232px - env(safe-area-inset-bottom)));
         left: var(--hub-left);
     }
-
 }
 @media (max-height: 300px) {
     #orb-hub {
@@ -248,5 +243,4 @@ main {
         padding: 4px;
         overflow-y: auto;
     }
-
 }

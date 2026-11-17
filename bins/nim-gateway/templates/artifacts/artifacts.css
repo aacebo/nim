@@ -195,7 +195,6 @@
     #chat-messages .artifact-chip {
         min-height: 44px;
     }
-
 }
 @media (max-width: 600px) {
     #artifact-view {
@@ -217,7 +216,6 @@
         padding: 8px;
         font-size: 12px;
     }
-
 }
 .artifact-image-error {
     display: grid;

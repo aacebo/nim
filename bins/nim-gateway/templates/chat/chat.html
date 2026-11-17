@@ -54,11 +54,5 @@
         <p id="chat-error" role="alert"></p>
         <p id="chat-status" role="status"></p>
     </section>
-    <aside id="chat-transcript" aria-labelledby="chat-transcript-title" hidden>
-        <h2 id="chat-transcript-title">Transcript</h2>
-        <p id="chat-history-status" role="status"></p>
-        <div class="chat-scroll" role="region" aria-label="Messages" tabindex="0">
-            <ol id="chat-messages"></ol>
-        </div>
-    </aside>
+    {% include "chat/transcript/transcript.html" %}
 </div>

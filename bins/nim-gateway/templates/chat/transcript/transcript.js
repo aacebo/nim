@@ -1,0 +1,54 @@
+customElements.define("nim-chat-transcript", class extends HTMLElement {
+    messageText(content) {
+        if (typeof content === "string") return content;
+        if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("\n");
+        return content?.text ?? content?.url ?? (content?.artifact_id ? "" : "Message content");
+    }
+
+    messageArtifacts(content, artifactView) {
+        if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item, artifactView));
+        return content?.artifact_id ? [artifactView.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
+    }
+
+    messageOrder(message) {
+        const timestamp = message.created_at.replace(/(?:\.(\d+))?Z$/, (_, fraction = "") => `.${fraction.padEnd(9, "0")}Z`);
+        return `${timestamp} ${message.id}`;
+    }
+
+    render({ open, chatMessages, historyLoading, historyError, artifactView }) {
+        const chatTranscript = this.querySelector("#chat-transcript");
+        const chatScroll = this.querySelector(".chat-scroll");
+        const chatMessageList = this.querySelector("#chat-messages");
+        const chatHistoryStatus = this.querySelector("#chat-history-status");
+        chatTranscript.hidden = !open || chatMessages.size === 0;
+
+        if (chatTranscript.hidden) {
+            return;
+        }
+
+        const scrollTop = chatScroll.scrollTop;
+        const stickToEnd = chatScroll.scrollHeight - chatScroll.clientHeight - scrollTop < 16;
+        const messages = [...chatMessages.values()].sort((a, b) => this.messageOrder(a).localeCompare(this.messageOrder(b)));
+        const rows = document.createDocumentFragment();
+
+        for (const message of messages) {
+            const row = document.createElement("li");
+            const role = document.createElement("span");
+            const text = document.createElement("p");
+            role.className = "chat-message-role";
+            role.textContent = message.role === "user" ? "You" : message.role;
+            text.className = "chat-message-text";
+            text.textContent = this.messageText(message.content);
+            row.append(role);
+            if (text.textContent) row.append(text);
+            const artifacts = this.messageArtifacts(message.content, artifactView);
+            if (artifacts.length) row.append(artifactView.list(artifacts));
+            rows.append(row);
+        }
+
+        chatMessageList.replaceChildren(rows);
+        chatHistoryStatus.textContent = historyLoading ? "Loading history…"
+            : historyError ? "Unable to load chat history." : "";
+        chatScroll.scrollTop = stickToEnd ? chatScroll.scrollHeight : scrollTop;
+    }
+});

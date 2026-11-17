@@ -135,6 +135,7 @@ pub enum AnyModel {
     Summarizer(bart::Summarizer),
     QwenGenerator(qwen2::Generator),
     QwenEmbedder(qwen3::Embedder),
+    Qwen3Generator(qwen3::Generator),
     GemmaEmbedder(embeddinggemma::Embedder),
     #[cfg(feature = "vision")]
     VisionClassifier(mobilenet::Classifier),
@@ -198,6 +199,21 @@ impl Model {
             });
         }
 
+        if matches!(model, LocalModel::Hub(id) if id.to_string() == qwen3::QUANTIZED_MODEL) {
+            let companion = LocalModel::Hub(qwen3::MODEL.parse()?);
+            let companion = companion.loader(device.clone(), dtype)?;
+            let config: qwen3::Config = companion.config()?;
+            let weights = repo.resolve(std::path::Path::new(qwen3::WEIGHTS))?;
+
+            return Ok(Self {
+                name,
+                model: AnyModel::Qwen3Generator(qwen3::Generator::quantized(&config, weights, &device)?),
+                device,
+                tokenizer: Some(companion.tokenizer()?),
+                config: Some(companion.config()?),
+            });
+        }
+
         let model_config: ModelConfig = repo.config()?;
 
         let model = match model_config.model_type {
@@ -236,7 +252,26 @@ impl Model {
             ModelType::Whisper => {
                 return Err(nim_error::Diagnostic::message(format!("{name} requires the `audio` feature")));
             }
-            ModelType::Qwen3 => AnyModel::QwenEmbedder(qwen3::Embedder::new(&repo)?),
+            ModelType::Qwen3 => {
+                if model_config
+                    .architectures
+                    .iter()
+                    .any(|architecture| matches!(architecture, Architecture::Qwen3ForCausalLM))
+                {
+                    let config: qwen3::Config = repo.config()?;
+                    AnyModel::Qwen3Generator(qwen3::Generator::new(&config, repo.vars()?)?)
+                } else if model_config
+                    .architectures
+                    .iter()
+                    .any(|architecture| matches!(architecture, Architecture::Qwen3Model))
+                {
+                    AnyModel::QwenEmbedder(qwen3::Embedder::new(&repo)?)
+                } else {
+                    return Err(nim_error::Diagnostic::message(format!(
+                        "{name} has an unsupported Qwen3 architecture"
+                    )));
+                }
+            }
             ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::Embedder::new(&repo)?),
             ModelType::Bart => {
                 let config: bart::Config = repo.config()?;
@@ -419,6 +454,7 @@ impl Model {
         match &self.model {
             AnyModel::Summarizer(model) => Some(model),
             AnyModel::QwenGenerator(model) => Some(model),
+            AnyModel::Qwen3Generator(model) => Some(model),
             #[cfg(feature = "vision")]
             AnyModel::ImageCaptioner(model) => Some(model),
             #[cfg(feature = "audio")]
@@ -445,6 +481,14 @@ mod tests {
     fn parses_a_config_json_model_type() {
         assert_eq!("bert".parse::<ModelType>().unwrap(), ModelType::Bert);
         assert_eq!("distilbert".parse::<ModelType>().unwrap(), ModelType::DistilBert);
+    }
+
+    #[test]
+    fn parses_qwen3_causal_architecture() {
+        assert_eq!(
+            "Qwen3ForCausalLM".parse::<Architecture>().unwrap(),
+            Architecture::Qwen3ForCausalLM
+        );
     }
 
     /// An unrecognised architecture must not be an error -- config.json may name anything.

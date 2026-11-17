@@ -28,6 +28,6 @@ pub mod defaults {
     }
 
     pub fn generate() -> models::ModelRef {
-        models::refer(models::qwen2::QUANTIZED_MODEL).expect("built-in model ids are valid")
+        models::refer(models::qwen3::QUANTIZED_MODEL).expect("built-in model ids are valid")
     }
 }

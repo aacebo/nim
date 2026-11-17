@@ -1,6 +1,15 @@
+mod generator;
+
 use candle_core::Tensor;
 
 use crate::models::{Context, Embed, EmbedMode, EmbedOptions, Loader};
+
+pub use candle_transformers::models::qwen3::Config;
+pub use generator::*;
+
+pub const MODEL: &str = "Qwen/Qwen3-32B";
+pub const QUANTIZED_MODEL: &str = "Qwen/Qwen3-32B-GGUF";
+pub const WEIGHTS: &str = "Qwen3-32B-Q4_K_M.gguf";
 
 pub struct Embedder {
     model: candle_transformers::models::qwen3::Model,

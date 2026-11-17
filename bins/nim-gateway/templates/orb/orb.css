@@ -1,0 +1,252 @@
+:root {
+    color-scheme: dark;
+    background: #04030c;
+}
+body {
+    margin: 0;
+}
+main {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: radial-gradient(ellipse at 38% 38%, #0b1749, transparent 48%),
+        radial-gradient(ellipse at 64% 66%, #310c35, transparent 52%),
+        #04030c;
+}
+#orb-trigger {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: min(94vw, 90vh, 760px);
+    width: min(94vw, 90dvh, 760px);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+#orb-trigger:focus-visible {
+    outline: 2px solid #b9c8ff;
+    outline-offset: 2px;
+}
+#orb {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+    #orb-trigger:active {
+        outline: 2px solid #f1b7f1;
+        outline-offset: 2px;
+    }
+
+}
+.orb-scene {
+    --hud-ink: var(--ui-ink);
+    --hud-line: var(--ui-muted);
+    --hub-top: max(18px, env(safe-area-inset-top));
+    --hub-left: max(18px, env(safe-area-inset-left));
+    position: relative;
+    color: var(--hud-ink);
+    font: 400 14px/1.4 system-ui, sans-serif;
+}
+#orb-trigger {
+    position: relative;
+}
+.hud-grid,
+.hud-cubes {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 260ms ease;
+    pointer-events: none;
+}
+.orb-scene:not([data-hud="idle"]) :is(.hud-grid, .hud-cubes) {
+    opacity: 1;
+}
+.grid-lines {
+    fill: none;
+    stroke: #9ec4de;
+    stroke-width: 1;
+    opacity: 0.13;
+    vector-effect: non-scaling-stroke;
+}
+.background-cube {
+    position: absolute;
+    top: var(--y);
+    left: var(--x);
+    width: min(var(--size), 15vw);
+    overflow: visible;
+    opacity: var(--tone);
+    translate: -50% -50%;
+    animation: cube-sway var(--drift-time) ease-in-out var(--phase) infinite;
+}
+.background-cube g {
+    animation: cube-bob calc(var(--drift-time) * 1.37) ease-in-out var(--phase) infinite;
+}
+.background-cube use {
+    transform-origin: 16px 16px;
+    transform: rotate(var(--angle));
+    animation: cube-turn var(--turn-time) linear var(--phase) infinite;
+}
+.background-cube,
+.background-cube :is(g, use) {
+    animation-play-state: paused;
+}
+.orb-scene:not([data-hud="idle"]) .background-cube,
+.orb-scene:not([data-hud="idle"]) .background-cube :is(g, use) {
+    animation-play-state: running;
+}
+@keyframes cube-sway {
+    0%, 100% {
+        translate: -50% -50%;
+    }
+    50% {
+        translate: calc(-50% + var(--drift-x)) -50%;
+    }
+
+}
+@keyframes cube-bob {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(var(--drift-y));
+    }
+
+}
+@keyframes cube-turn {
+    from {
+        transform: rotate(var(--angle));
+    }
+    to {
+        transform: rotate(calc(var(--angle) + var(--turn, 360deg)));
+    }
+
+}
+#orb-hub {
+    position: fixed;
+    z-index: 1;
+    top: max(var(--hub-top), calc(50% - 112px));
+    left: max(var(--hub-left), calc(50% - min(47vw, 45dvh, 380px) - 144px));
+    visibility: hidden;
+    transition: visibility 0s linear 220ms;
+}
+.orb-scene[data-hud="hub"] #orb-hub {
+    visibility: visible;
+    transition-delay: 0s;
+}
+.hub-action,
+#hub-back,
+#action-panel button {
+    appearance: none;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: 500 11px/1 system-ui, sans-serif;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.hub-action {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    text-align: left;
+}
+.hub-symbol {
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 5px;
+}
+.hub-label {
+    padding: 6px 8px;
+    background: rgb(24 43 56 / 80%);
+    white-space: nowrap;
+}
+#orb-hub > button {
+    opacity: 0;
+    transform: translate(-10px, -6px);
+    transition: opacity 180ms ease, transform 220ms ease;
+}
+.orb-scene[data-hud="hub"] #orb-hub > button {
+    opacity: 1;
+    transform: none;
+}
+.orb-scene[data-hud="hub"] #orb-hub > :nth-child(2) {
+    transition-delay: 40ms;
+}
+.orb-scene[data-hud="hub"] #orb-hub > :nth-child(3) {
+    transition-delay: 80ms;
+}
+.orb-scene[data-hud="hub"] #orb-hub > :nth-child(4) {
+    transition-delay: 120ms;
+}
+#orb-hub > .hub-action:nth-child(2) {
+    margin-left: 16px;
+}
+#orb-hub > .hub-action:nth-child(4) {
+    margin-left: 24px;
+}
+#hub-back {
+    margin-left: 38px;
+    color: #c0d5e1;
+}
+#hub-back:hover {
+    color: #fff;
+}
+.orb-scene[data-hud="hub"] #orb-hub > .hub-action:disabled {
+    opacity: 0.3;
+    filter: grayscale(1);
+    cursor: default;
+}
+.orb-scene[data-hud="hub"] .hub-action:enabled:is(:hover, :focus-visible) {
+    --cube-top: #ce8088;
+    --cube-left: #a45261;
+    --cube-right: #763847;
+}
+.hub-action:enabled:is(:hover, :focus-visible) .hub-label {
+    background: rgb(156 87 255 / 25%);
+}
+#orb-hub :focus-visible,
+#action-panel :focus-visible {
+    outline: 2px solid #ecf9ff;
+    outline-offset: 3px;
+}
+#action-panel {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 180ms ease, transform 220ms ease, visibility 0s linear 220ms;
+}
+.orb-scene[data-hud="panel"] #action-panel {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition-delay: 0s;
+}
+@media (max-width: 760px) {
+    #orb-hub {
+        top: max(var(--hub-top), calc(100% - 232px - env(safe-area-inset-bottom)));
+        left: var(--hub-left);
+    }
+
+}
+@media (max-height: 300px) {
+    #orb-hub {
+        top: var(--hub-top);
+        max-height: calc(100dvh - var(--hub-top) - 12px);
+        padding: 4px;
+        overflow-y: auto;
+    }
+
+}

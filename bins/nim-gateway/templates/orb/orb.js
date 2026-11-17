@@ -115,6 +115,10 @@ function animateOrb() {
     }
 
     function gradient() {
+        if (!Number.isFinite(radius) || radius <= 0) {
+            return context.createLinearGradient(0, 0, 1, 1);
+        }
+
         const position = time / transitionDuration;
         const index = Math.floor(position);
         const progress = position - index;
@@ -242,11 +246,14 @@ function animateOrb() {
     function resize() {
         const nextSize = canvas.getBoundingClientRect().width;
 
-        if (nextSize <= 0) {
+        if (!Number.isFinite(nextSize) || nextSize <= 0) {
             return;
         }
 
         const pixels = Math.round(nextSize * Math.min(devicePixelRatio, 2));
+        if (!Number.isFinite(pixels) || pixels <= 0) {
+            return;
+        }
 
         if (size === nextSize && canvas.width === pixels && canvas.height === pixels) {
             return;

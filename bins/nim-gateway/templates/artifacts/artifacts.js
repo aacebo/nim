@@ -1,18 +1,35 @@
-const socketUrl = new URL("/web/connect", window.location.href);
-socketUrl.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-
-const socket = new WebSocket(socketUrl);
-
 // Shared by the memory inspector and message attachments. Native dialog supplies
 // focus containment and makes the underlying HUD inert while an artifact is open.
 const artifactView = (() => {
     const records = new Map();
     const blobs = new Map();
-    const extensions = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', svg: 'image/svg+xml', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg', mp4: 'video/mp4', webm: 'video/webm', txt: 'text/plain', md: 'text/plain', csv: 'text/csv', json: 'application/json', yaml: 'text/plain', yml: 'text/plain', log: 'text/plain' };
+    const extensions = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+        avif: 'image/avif',
+        svg: 'image/svg+xml',
+        mp3: 'audio/mpeg',
+        wav: 'audio/wav',
+        m4a: 'audio/mp4',
+        ogg: 'audio/ogg',
+        mp4: 'video/mp4',
+        webm: 'video/webm',
+        txt: 'text/plain',
+        md: 'text/plain',
+        csv: 'text/csv',
+        json: 'application/json',
+        yaml: 'text/plain',
+        yml: 'text/plain',
+        log: 'text/plain',
+    };
     function mime(artifact) {
         if (artifact.type === 'text') return 'text/plain';
         const declared = artifact.media_type?.split(';')[0].trim().toLowerCase();
-        return declared && declared !== 'application/octet-stream' ? declared
+        return declared && declared !== 'application/octet-stream'
+            ? declared
             : extensions[artifact.name?.split('.').pop().toLowerCase()] || 'application/octet-stream';
     }
     const isImage = (artifact) => mime(artifact).startsWith('image/');
@@ -32,9 +49,14 @@ const artifactView = (() => {
                     throw new Error(`Artifact content request failed (HTTP ${response.status}).`);
                 }
                 const data = await response.blob();
-                if (!data.size) throw new Error('The content endpoint returned an empty file.');
+                if (!data.size) {
+                    throw new Error('The content endpoint returned an empty file.');
+                }
                 return data.slice(0, data.size, mime(artifact));
-            }).catch((error) => { blobs.delete(key); throw error; });
+            }).catch((error) => {
+                blobs.delete(key);
+                throw error;
+            });
             blobs.set(key, request);
             // Bound retained file data; object URLs belong to individual views.
             if (blobs.size > 12) blobs.delete(blobs.keys().next().value);
@@ -47,7 +69,9 @@ const artifactView = (() => {
         img.alt = artifact.name || 'Memory image';
         img.decoding = 'async';
         const fail = (error) => {
-            const message = error instanceof TypeError ? 'Cannot reach the artifact content endpoint.' : error.message;
+            const message = error instanceof TypeError
+                ? 'Cannot reach the artifact content endpoint.'
+                : error.message;
             const placeholder = document.createElement('span');
             placeholder.className = 'artifact-image-error';
             placeholder.textContent = message;
@@ -58,24 +82,31 @@ const artifactView = (() => {
         void blob(artifact).then((data) => {
             const url = URL.createObjectURL(data);
             img.onload = () => URL.revokeObjectURL(url);
-            img.onerror = () => { URL.revokeObjectURL(url); fail(new Error('The downloaded file could not be decoded as an image.')); };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                fail(new Error('The downloaded file could not be decoded as an image.'));
+            };
             img.src = url;
         }).catch(fail);
         return img;
     }
-    const dialog = document.createElement('dialog');
-    dialog.id = 'artifact-view';
-    dialog.setAttribute('aria-labelledby', 'artifact-title');
-    dialog.innerHTML = `<header class="artifact-header"><div><p class="artifact-kicker">Artifact</p><h2 id="artifact-title"></h2><p id="artifact-meta"></p></div><button type="button" class="artifact-close" aria-label="Close artifact viewer">×</button></header><div class="artifact-body" aria-live="polite"></div><footer class="artifact-footer"><button type="button" class="artifact-prev" aria-label="Previous artifact">← Previous</button><span class="artifact-count"></span><button type="button" class="artifact-next" aria-label="Next artifact">Next →</button><a class="artifact-download" hidden>Download</a></footer>`;
-    document.body.append(dialog);
+    const dialog = document.querySelector('#artifact-view');
     const body = dialog.querySelector('.artifact-body');
     const download = dialog.querySelector('.artifact-download');
     const previous = dialog.querySelector('.artifact-prev');
     const next = dialog.querySelector('.artifact-next');
-    let items = [], index = 0, generation = 0, objectUrl, opener;
+    let items = [];
+    let index = 0;
+    let generation = 0;
+    let objectUrl;
+    let opener;
     function clear() {
         generation++;
-        for (const media of body.querySelectorAll('audio, video')) { media.pause(); media.removeAttribute('src'); media.load(); }
+        for (const media of body.querySelectorAll('audio, video')) {
+            media.pause();
+            media.removeAttribute('src');
+            media.load();
+        }
         body.replaceChildren();
         download.hidden = true;
         download.removeAttribute('href');
@@ -98,7 +129,9 @@ const artifactView = (() => {
             }
             sizeLabel = `${Number(size.toFixed(2))} ${units[unit]}`;
         }
-        dialog.querySelector('#artifact-meta').textContent = [mime(item), sizeLabel].filter(Boolean).join(' · ');
+        dialog.querySelector('#artifact-meta').textContent = [mime(item), sizeLabel]
+            .filter(Boolean)
+            .join(' · ');
         dialog.querySelector('.artifact-count').textContent = `${index + 1} / ${items.length}`;
         previous.disabled = index === 0;
         next.disabled = index === items.length - 1;
@@ -125,7 +158,9 @@ const artifactView = (() => {
                 preview = document.createElement('pre');
                 // Keep huge logs readable without locking up the page.
                 preview.textContent = await data.slice(0, 1024 * 1024).text();
-                if (data.size > 1024 * 1024) preview.textContent += '\n\nPreview truncated. Download to read the complete file.';
+                if (data.size > 1024 * 1024) {
+                    preview.textContent += '\n\nPreview truncated. Download to read the complete file.';
+                }
             } else {
                 preview = document.createElement('p');
                 preview.textContent = 'No preview for this file type. Download it to open in another app.';
@@ -155,14 +190,30 @@ const artifactView = (() => {
     dialog.querySelector('.artifact-close').onclick = () => dialog.close();
     dialog.addEventListener('click', (event) => {
         const rect = dialog.getBoundingClientRect();
-        if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
+        if (event.target === dialog && (
+            event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom
+        )) {
+            dialog.close();
+        }
     });
-    dialog.addEventListener('close', () => { clear(); if (opener?.isConnected) opener.focus({ preventScroll: true }); });
+    dialog.addEventListener('close', () => {
+        clear();
+        if (opener?.isConnected) opener.focus({ preventScroll: true });
+    });
     document.addEventListener('keydown', (event) => {
         if (!dialog.open || event.isComposing) return;
-        if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); dialog.close(); }
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            dialog.close();
+        }
         if (['ArrowLeft', 'ArrowRight'].includes(event.key) && !event.target.closest('audio, video, input, textarea')) {
-            event.preventDefault(); event.stopImmediatePropagation(); step(event.key === 'ArrowLeft' ? -1 : 1);
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            step(event.key === 'ArrowLeft' ? -1 : 1);
         }
     }, true);
     function open(artifacts, selected = 0) {

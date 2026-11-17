@@ -23,7 +23,26 @@ const memoryView = (() => {
         const previousHeading = title.parentElement;
         const brand = document.createElement("div");
         brand.className = "memory-brand";
-        brand.innerHTML = `<svg class="memory-orb-mark" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="archive-orb"><stop stop-color="#00e7ff"/><stop offset="1" stop-color="#c45bff"/></linearGradient></defs><g fill="none" stroke="url(#archive-orb)" stroke-width=".65"><circle cx="24" cy="24" r="20"/><ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(32 24 24)"/><ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(-32 24 24)"/><ellipse cx="24" cy="24" rx="20" ry="9"/><ellipse cx="24" cy="24" rx="20" ry="15"/><ellipse cx="24" cy="24" rx="5" ry="20"/></g></svg><span>NIM</span><span class="memory-brand-archive">Archive</span>`;
+        brand.innerHTML = `
+            <svg class="memory-orb-mark" viewBox="0 0 48 48" aria-hidden="true">
+                <defs>
+                    <linearGradient id="archive-orb">
+                        <stop stop-color="#00e7ff"/>
+                        <stop offset="1" stop-color="#c45bff"/>
+                    </linearGradient>
+                </defs>
+                <g fill="none" stroke="url(#archive-orb)" stroke-width=".65">
+                    <circle cx="24" cy="24" r="20"/>
+                    <ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(32 24 24)"/>
+                    <ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(-32 24 24)"/>
+                    <ellipse cx="24" cy="24" rx="20" ry="9"/>
+                    <ellipse cx="24" cy="24" rx="20" ry="15"/>
+                    <ellipse cx="24" cy="24" rx="5" ry="20"/>
+                </g>
+            </svg>
+            <span>NIM</span>
+            <span class="memory-brand-archive">Archive</span>
+        `;
         const heading = document.createElement("div");
         heading.className = "memory-heading";
         const kicker = document.createElement("p");
@@ -58,10 +77,10 @@ const memoryView = (() => {
     axisPosition.append(axisLabel);
     timeAxis.append(axisPosition);
 
-    if (!document.querySelector('link[href*="/web/static/theme.css"]')) {
+    if (!document.querySelector('link[href*="/web/static/index.css"]')) {
         const stylesheet = document.createElement("link");
         stylesheet.rel = "stylesheet";
-        stylesheet.href = "/web/static/theme.css?v=1";
+        stylesheet.href = "/web/static/index.css";
         document.head.append(stylesheet);
     }
     const themeStyle = getComputedStyle(view);
@@ -952,10 +971,6 @@ const memoryView = (() => {
         timeline.scrollLeft += event.deltaY * unit;
     }, { passive: false });
 
-    timelineToggle.addEventListener("click", () => setTopology("timeline"));
-    graphToggle.addEventListener("click", () => setTopology("graph"));
-    detailClose.addEventListener("click", () => dismissDetails());
-    expand.addEventListener("click", () => expandGraph(selectedId));
     timeline.addEventListener("scroll", () => {
         if (!view.hidden && !timelineStage.hidden && memories.length) {
             positionTimelineTiles(true);
@@ -1399,6 +1414,10 @@ const memoryView = (() => {
         },
         mergeMemory,
         handleSignal,
+        setTopology,
+        expandSelected() {
+            expandGraph(selectedId);
+        },
         hasMemories() {
             return memories.length > 0 || pendingMemories.size > 0;
         },

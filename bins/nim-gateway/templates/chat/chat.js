@@ -3,7 +3,6 @@ const orbHub = document.querySelector("#orb-hub");
 const orbTrigger = document.querySelector("#orb-trigger");
 const chatAction = document.querySelector("#chat-action");
 const memoryAction = document.querySelector("#memory-action");
-const hubBack = document.querySelector("#hub-back");
 const actionPanel = document.querySelector("#action-panel");
 const actionTitle = document.querySelector("#action-title");
 const actionBack = document.querySelector("#action-back");
@@ -82,6 +81,14 @@ function setHudView(view) {
     actionPanel.inert = view !== "panel";
     orbTrigger.inert = view === "memory";
     orbTrigger.setAttribute("aria-expanded", String(view === "hub"));
+    const state = window.Alpine?.$data?.(orbScene);
+    if (state) {
+        state.hud = view;
+        state.hubInert = view !== "hub";
+        state.panelInert = view !== "panel";
+        state.triggerInert = view === "memory";
+        state.showChatForm = view === "panel" && activeAction === chatAction;
+    }
     renderChatTranscript();
 
     if (view === "hub") {
@@ -91,12 +98,18 @@ function setHudView(view) {
                 return response.json();
             })
             .then((page) => {
-                memoryAction.disabled = !page.data?.length;
+                setMemoryActionDisabled(!page.data?.length);
             })
             .catch(() => {
-                memoryAction.disabled = true;
+                setMemoryActionDisabled(true);
             });
     }
+}
+
+function setMemoryActionDisabled(disabled) {
+    memoryAction.disabled = disabled;
+    const state = window.Alpine?.$data?.(orbScene);
+    if (state) state.memoryDisabled = disabled;
 }
 
 function closeHub() {
@@ -121,7 +134,8 @@ function openAction(action) {
     actionTitle.textContent = action.textContent.trim();
     const isChat = action === chatAction;
     actionPanel.classList.toggle("chat-panel", isChat);
-    chatForm.hidden = !isChat;
+    const state = window.Alpine?.$data?.(orbScene);
+    if (state) state.showChatForm = isChat;
     setHudView("panel");
 
     if (isChat) {
@@ -129,48 +143,105 @@ function openAction(action) {
             setChatStatus("");
         }
 
-        chatInput.focus();
+        window.Alpine.nextTick(() => {
+            let attempts = 0;
+            const focusWhenVisible = () => {
+                if (!isChatOpen() || attempts++ >= 60) return;
+                if (chatForm.hidden || actionPanel.inert || getComputedStyle(chatInput).visibility !== "visible") {
+                    requestAnimationFrame(focusWhenVisible);
+                    return;
+                }
+                chatInput.focus({ preventScroll: true });
+            };
+            requestAnimationFrame(focusWhenVisible);
+        });
         void loadChatHistory();
     } else {
         actionBack.focus();
     }
 }
 
-orbTrigger.addEventListener("click", () => {
-    if (orbScene.dataset.hud === "idle") {
-        setHudView("hub");
-        chatAction.focus();
-    } else if (orbScene.dataset.hud === "panel") {
-        returnToHub();
-    }
-});
+document.addEventListener("alpine:init", () => {
+    Alpine.data("nimApp", () => ({
+        hud: "idle",
+        memoryDisabled: true,
+        showChatForm: false,
+        devToolsOpen: false,
+        draft: "",
 
-for (const action of orbHub.querySelectorAll(".hub-action")) {
-    action.addEventListener("click", () => openAction(action));
-}
+        toggleOrb() {
+            if (this.hud === "idle") {
+                setHudView("hub");
+                chatAction.focus();
+            } else if (this.hud === "panel") {
+                returnToHub();
+            }
+        },
 
-hubBack.addEventListener("click", closeHub);
-actionBack.addEventListener("click", returnToHub);
-document.querySelector("#memory-back").addEventListener("click", returnToHub);
+        chooseAction(action) {
+            openAction(action);
+        },
 
-document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || event.isComposing) {
-        return;
-    }
+        closeOrbHub() {
+            closeHub();
+        },
 
-    if (orbScene.dataset.hud === "memory") {
-        event.preventDefault();
-
-        if (!memoryView.dismissDetails()) {
+        backToHub() {
             returnToHub();
-        }
-    } else if (orbScene.dataset.hud === "panel") {
-        event.preventDefault();
-        returnToHub();
-    } else if (orbScene.dataset.hud === "hub") {
-        event.preventDefault();
-        closeHub();
-    }
+        },
+
+        setMemoryTopology(topology) {
+            memoryView.setTopology(topology);
+        },
+
+        dismissMemoryDetails() {
+            memoryView.dismissDetails();
+        },
+
+        expandMemoryGraph() {
+            memoryView.expandSelected();
+        },
+
+        sendChatMessage() {
+            return submitChatMessage();
+        },
+
+        selectChatFiles(event) {
+            handleChatFiles(event.target.files);
+        },
+
+        clearChatError() {
+            setChatError("");
+        },
+
+        closeDevTools() {
+            this.devToolsOpen = false;
+        },
+
+        handleKey(event) {
+            if (event.isComposing) return;
+            if (event.key === "F12") {
+                event.preventDefault();
+                this.devToolsOpen = !this.devToolsOpen;
+                if (this.devToolsOpen) this.$nextTick(() => this.$refs.devTools.focus({ preventScroll: true }));
+                return;
+            }
+            if (event.key !== "Escape") return;
+            if (this.devToolsOpen) {
+                event.preventDefault();
+                this.closeDevTools();
+            } else if (this.hud === "memory") {
+                event.preventDefault();
+                if (!memoryView.dismissDetails()) returnToHub();
+            } else if (this.hud === "panel") {
+                event.preventDefault();
+                returnToHub();
+            } else if (this.hud === "hub") {
+                event.preventDefault();
+                closeHub();
+            }
+        },
+    }));
 });
 
 function messageText(content) {
@@ -307,7 +378,7 @@ socket.addEventListener("message", (event) => {
         const payload = typeof event.data === "string" ? event.data : signalDecoder.decode(event.data);
         const signal = JSON.parse(payload);
         if (memoryView.handleSignal(signal)) {
-            memoryAction.disabled = !memoryView.hasMemories();
+            setMemoryActionDisabled(!memoryView.hasMemories());
         }
 
         if (mergeChatMessage(signal?.content)) {
@@ -356,11 +427,10 @@ function renderAttachments() {
     }));
 }
 
-chatAttach.addEventListener("click", () => chatFiles.click());
-chatFiles.addEventListener("change", () => {
+function handleChatFiles(files) {
     if (chatSend.disabled) return;
     const errors = [];
-    for (const file of chatFiles.files) {
+    for (const file of files) {
         const kind = file.type.startsWith("image/") ? "image"
             : file.type.startsWith("audio/") ? "audio"
             : file.type.startsWith("text/") || textExtensions.test(file.name) ? "text" : null;
@@ -375,7 +445,7 @@ chatFiles.addEventListener("change", () => {
     chatFiles.value = "";
     setChatError(errors.join(" "));
     renderAttachments();
-});
+}
 
 async function uploadAttachment(attachment) {
     if (attachment.artifactId) return;
@@ -398,18 +468,14 @@ async function uploadAttachment(attachment) {
     attachment.artifactId = artifacts[0].id;
 }
 
-chatInput.addEventListener("input", () => {
-    setChatError("");
-});
-
-chatForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+async function submitChatMessage() {
 
     if (chatSend.disabled) {
         return;
     }
 
-    const text = chatInput.value.trim();
+    const state = window.Alpine.$data(orbScene);
+    const text = state.draft.trim();
 
     if (!text && pendingAttachments.length === 0) {
         setChatError("Enter a message or attach a file.");
@@ -454,7 +520,7 @@ chatForm.addEventListener("submit", async (event) => {
 
         const firstMessage = !chatId;
         chatId = message.chat_id;
-        chatInput.value = "";
+        state.draft = "";
         pendingAttachments.length = 0;
         renderAttachments();
         mergeChatMessage(message);
@@ -480,4 +546,4 @@ chatForm.addEventListener("submit", async (event) => {
             chatInput.focus();
         }
     }
-});
+}

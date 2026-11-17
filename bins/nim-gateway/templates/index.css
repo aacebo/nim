@@ -13,3 +13,7 @@
     --ui-focus: #b9c8ff;
     --ui-duration: 220ms;
 }
+
+[x-cloak] {
+    display: none !important;
+}

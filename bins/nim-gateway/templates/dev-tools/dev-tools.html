@@ -1,0 +1,47 @@
+<div
+    id="dev-tools"
+    role="dialog"
+    aria-label="Developer tools"
+    aria-modal="true"
+    tabindex="-1"
+    x-ref="devTools"
+    x-show="devToolsOpen"
+    x-transition.opacity.duration.180ms
+    x-cloak
+    @click.self="closeDevTools()"
+>
+    <button id="dev-tools-close" type="button" aria-label="Close developer overlay" @click="closeDevTools()">
+        ×
+    </button>
+    <section class="dev-widget" aria-labelledby="dev-tools-title">
+        <header class="dev-widget-header">
+            <div class="dev-widget-heading">
+                <span class="dev-status-dot" aria-hidden="true"></span>
+                <h1 id="dev-tools-title">Events</h1>
+            </div>
+            <span class="dev-widget-count" x-text="`${$store.nim.events.length} captured`"></span>
+        </header>
+        <ol id="dev-tools-events" aria-live="polite" aria-label="Live websocket events">
+            <template x-if="$store.nim.events.length === 0">
+                <li class="dev-event-empty">
+                    <span class="dev-empty-mark" aria-hidden="true">›</span>
+                    Waiting for events<span class="dev-empty-cursor" aria-hidden="true">_</span>
+                </li>
+            </template>
+            <template x-for="item in $store.nim.events" :key="item.key">
+                <li class="dev-event" :data-event-key="item.key">
+                    <details>
+                        <summary class="dev-event-row">
+                            <span class="dev-event-chevron" aria-hidden="true">›</span>
+                            <span class="dev-event-name" x-text="item.label" :title="item.subject"></span>
+                            <time :datetime="item.date" x-text="item.time"></time>
+                        </summary>
+                        <div class="dev-event-details">
+                            <div class="dev-event-tree"></div>
+                        </div>
+                    </details>
+                </li>
+            </template>
+        </ol>
+    </section>
+</div>

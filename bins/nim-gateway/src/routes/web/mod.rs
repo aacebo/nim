@@ -11,19 +11,29 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
     axum::Router::new()
         .route("/", axum::routing::get(crate::diagnose(get::route)))
         .route("/connect", axum::routing::any(crate::diagnose(connect::route)))
+        .route("/views/chat", axum::routing::get(crate::diagnose(views::chat::route)))
+        .route("/views/memory", axum::routing::get(crate::diagnose(views::memory::route)))
+        .route(
+            "/views/artifacts",
+            axum::routing::get(crate::diagnose(views::artifacts::route)),
+        )
+        .route(
+            "/views/dev-tools",
+            axum::routing::get(crate::diagnose(views::dev_tools::route)),
+        )
         .route_service(
-            "/static/index.css",
+            "/views/index.css",
             tower_http::services::ServeFile::new(templates.join("index.css")),
         )
         .route_service(
-            "/static/index.js",
+            "/views/index.js",
             tower_http::services::ServeFile::new(templates.join("index.js")),
         )
-        .nest_service("/static/orb", static_assets("orb"))
-        .nest_service("/static/chat", static_assets("chat"))
-        .nest_service("/static/memory", static_assets("memory"))
+        .nest_service("/views/orb/", static_assets("orb"))
+        .nest_service("/views/chat/", static_assets("chat"))
+        .nest_service("/views/memory/", static_assets("memory"))
         .route(
-            "/static/dev-tools/dev-tools.js",
+            "/views/dev-tools/dev-tools.js",
             axum::routing::get(|| async {
                 (
                     [
@@ -35,7 +45,7 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
             }),
         )
         .route(
-            "/static/dev-tools/dev-tools.css",
+            "/views/dev-tools/dev-tools.css",
             axum::routing::get(|| async {
                 (
                     [
@@ -46,5 +56,5 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
                 )
             }),
         )
-        .nest_service("/static/artifacts", static_assets("artifacts"))
+        .nest_service("/views/artifacts/", static_assets("artifacts"))
 }

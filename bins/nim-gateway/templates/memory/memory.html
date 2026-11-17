@@ -1,61 +1,63 @@
-<section id="memory-view" role="dialog" aria-modal="true" aria-labelledby="memory-title" hidden>
-    <header class="memory-header">
-        <div class="memory-brand">
-            <svg class="memory-orb-mark" viewBox="0 0 48 48" aria-hidden="true">
-                <defs>
-                    <linearGradient id="archive-orb">
-                        <stop stop-color="#00e7ff"/>
-                        <stop offset="1" stop-color="#c45bff"/>
-                    </linearGradient>
-                </defs>
-                <g fill="none" stroke="url(#archive-orb)" stroke-width=".65">
-                    <circle cx="24" cy="24" r="20"/>
-                    <ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(32 24 24)"/>
-                    <ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(-32 24 24)"/>
-                    <ellipse cx="24" cy="24" rx="20" ry="9"/>
-                    <ellipse cx="24" cy="24" rx="20" ry="15"/>
-                    <ellipse cx="24" cy="24" rx="5" ry="20"/>
-                </g>
-            </svg>
-            <span>NIM</span>
-            <span class="memory-brand-archive">Archive</span>
-        </div>
-        <div class="memory-controls">
-            <div class="memory-modes" role="group" aria-label="Memory view">
-                <button
-                    id="memory-timeline-toggle"
-                    type="button"
-                    aria-pressed="true"
-                    aria-controls="memory-timeline-stage"
-                    @click="setMemoryTopology('timeline')"
-                >
-                    Timeline
-                </button>
-                <button
-                    id="memory-graph-toggle"
-                    type="button"
-                    aria-pressed="false"
-                    aria-controls="memory-graph"
-                    @click="setMemoryTopology('graph')"
-                >
-                    Graph
+<template id="memory-template" data-state="{{ self.records|json }}">
+    <section id="memory-view" role="dialog" aria-modal="true" aria-labelledby="memory-title" hidden>
+        <header class="memory-header">
+            <div class="memory-brand">
+                <svg class="memory-orb-mark" viewBox="0 0 48 48" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="archive-orb">
+                            <stop stop-color="#00e7ff"/>
+                            <stop offset="1" stop-color="#c45bff"/>
+                        </linearGradient>
+                    </defs>
+                    <g fill="none" stroke="url(#archive-orb)" stroke-width=".65">
+                        <circle cx="24" cy="24" r="20"/>
+                        <ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(32 24 24)"/>
+                        <ellipse cx="24" cy="24" rx="12" ry="20" transform="rotate(-32 24 24)"/>
+                        <ellipse cx="24" cy="24" rx="20" ry="9"/>
+                        <ellipse cx="24" cy="24" rx="20" ry="15"/>
+                        <ellipse cx="24" cy="24" rx="5" ry="20"/>
+                    </g>
+                </svg>
+                <span>NIM</span>
+                <span class="memory-brand-archive">Archive</span>
+            </div>
+            <div class="memory-controls">
+                <div class="memory-modes" role="group" aria-label="Memory view">
+                    <button
+                        id="memory-timeline-toggle"
+                        type="button"
+                        aria-pressed="true"
+                        aria-controls="memory-timeline-stage"
+                        @click="setMemoryTopology('timeline')"
+                    >
+                        Timeline
+                    </button>
+                    <button
+                        id="memory-graph-toggle"
+                        type="button"
+                        aria-pressed="false"
+                        aria-controls="memory-graph"
+                        @click="setMemoryTopology('graph')"
+                    >
+                        Graph
+                    </button>
+                </div>
+                <button id="memory-back" type="button" @click="backToHub()">
+                    <span aria-hidden="true">←</span> Back
                 </button>
             </div>
-            <button id="memory-back" type="button" @click="backToHub()">
-                <span aria-hidden="true">←</span> Back
-            </button>
+        </header>
+        <div class="memory-heading">
+            <p class="memory-kicker">Memory</p>
+            <h2 id="memory-title">Timeline</h2>
+            <p id="memory-subtitle">Your memories in time</p>
         </div>
-    </header>
-    <div class="memory-heading">
-        <p class="memory-kicker">Memory</p>
-        <h2 id="memory-title">Timeline</h2>
-        <p id="memory-subtitle">Your memories in time</p>
-    </div>
-    {% include "memory/timeline/timeline.html" %}
-    {% include "memory/graph/graph.html" %}
-    <footer class="memory-footer">
-        <span>◇ &nbsp; Stored memories</span>
-        <span id="memory-view-status" role="status"></span>
-    </footer>
-    {% include "memory/details/details.html" %}
-</section>
+        {% include "memory/timeline/timeline.html" %}
+        {% include "memory/graph/graph.html" %}
+        <footer class="memory-footer">
+            <span>◇ &nbsp; Stored memories</span>
+            <span id="memory-view-status" role="status"></span>
+        </footer>
+        {% include "memory/details/details.html" %}
+    </section>
+</template>

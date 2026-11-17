@@ -1,58 +1,60 @@
-<div class="action-view">
-    <section id="action-panel" aria-labelledby="action-title" :inert="hud !== 'panel'">
-        <header class="action-header">
-            <div class="action-heading">
-                <svg viewBox="0 0 32 32" aria-hidden="true">
-                    <use href="#hud-cube"/>
-                </svg>
-                <h2 id="action-title"></h2>
-            </div>
-            <button id="action-back" type="button" aria-label="Back" @click="backToHub()">
-                <span>Back</span>
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="m10 3-5 5 5 5"/>
-                </svg>
-            </button>
-        </header>
-        <form id="chat-form" hidden :hidden="!showChatForm" @submit.prevent="sendChatMessage()">
-            <input
-                id="chat-files"
-                x-ref="chatFiles"
-                type="file"
-                accept="audio/*,image/*,text/*,.txt,.md,.csv,.json,.log,.yaml,.yml"
-                multiple
-                hidden
-                @change="selectChatFiles($event)"
-            >
-            <ul id="chat-attachments" aria-label="Attachments" hidden></ul>
-            <div class="chat-fields">
-                <button
-                    id="chat-attach"
-                    type="button"
-                    aria-label="Attach audio, images, or text files"
-                    title="Attach files"
-                    @click="$refs.chatFiles.click()"
-                >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m8 12 7-7a3 3 0 0 1 4 4L9 19a5 5 0 0 1-7-7L12 2m-7 13 10-10"/>
+<template id="chat-template">
+    <div class="action-view">
+        <section id="action-panel" aria-labelledby="action-title" :inert="hud !== 'panel'">
+            <header class="action-header">
+                <div class="action-heading">
+                    <svg viewBox="0 0 32 32" aria-hidden="true">
+                        <use href="#hud-cube"/>
+                    </svg>
+                    <h2 id="action-title"></h2>
+                </div>
+                <button id="action-back" type="button" aria-label="Back" @click="backToHub()">
+                    <span>Back</span>
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="m10 3-5 5 5 5"/>
                     </svg>
                 </button>
-                <span class="chat-input-field">
-                    <input
-                        id="chat-input"
-                        type="text"
-                        aria-label="Message"
-                        placeholder="Write a message…"
-                        autocomplete="off"
-                        x-model="draft"
-                        @input="clearChatError()"
+            </header>
+            <form id="chat-form" hidden :hidden="!showChatForm" @submit.prevent="sendChatMessage()">
+                <input
+                    id="chat-files"
+                    x-ref="chatFiles"
+                    type="file"
+                    accept="audio/*,image/*,text/*,.txt,.md,.csv,.json,.log,.yaml,.yml"
+                    multiple
+                    hidden
+                    @change="selectChatFiles($event)"
+                >
+                <ul id="chat-attachments" aria-label="Attachments" hidden></ul>
+                <div class="chat-fields">
+                    <button
+                        id="chat-attach"
+                        type="button"
+                        aria-label="Attach audio, images, or text files"
+                        title="Attach files"
+                        @click="$refs.chatFiles.click()"
                     >
-                </span>
-                <button id="chat-send" type="submit">Send</button>
-            </div>
-        </form>
-        <p id="chat-error" role="alert"></p>
-        <p id="chat-status" role="status"></p>
-    </section>
-    {% include "chat/transcript/transcript.html" %}
-</div>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m8 12 7-7a3 3 0 0 1 4 4L9 19a5 5 0 0 1-7-7L12 2m-7 13 10-10"/>
+                        </svg>
+                    </button>
+                    <span class="chat-input-field">
+                        <input
+                            id="chat-input"
+                            type="text"
+                            aria-label="Message"
+                            placeholder="Write a message…"
+                            autocomplete="off"
+                            x-model="draft"
+                            @input="clearChatError()"
+                        >
+                    </span>
+                    <button id="chat-send" type="submit">Send</button>
+                </div>
+            </form>
+            <p id="chat-error" role="alert"></p>
+            <p id="chat-status" role="status"></p>
+        </section>
+        {% include "chat/transcript/transcript.html" %}
+    </div>
+</template>

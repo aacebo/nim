@@ -97,7 +97,10 @@ customElements.define("nim-chat", class extends HTMLElement {
                 const response = await fetch(`/chats/${encodeURIComponent(id)}/artifacts?${query}`);
                 if (!response.ok) throw new Error("Unable to load attachments");
                 const page = await response.json();
-                host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(page.data);
+                if (page.data.length) {
+                    await loadView("artifacts");
+                    host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(page.data);
+                }
                 if (!page.next) break;
                 if (cursors.has(page.next)) throw new Error("Attachment cursor did not advance");
                 cursors.add(page.next);
@@ -124,7 +127,7 @@ customElements.define("nim-chat", class extends HTMLElement {
         function renderChatTranscript() {
             host.querySelector("nim-chat-transcript").render({
                 open: isChatOpen(), chatMessages, historyLoading, historyError,
-                artifactView: host.closest("#nim-app").querySelector("nim-artifacts").controller,
+                artifactView: host.closest("#nim-app").querySelector("nim-artifacts")?.controller,
             });
         }
 
@@ -171,15 +174,17 @@ customElements.define("nim-chat", class extends HTMLElement {
         }
 
         socket.binaryType = "arraybuffer";
-        socket.addEventListener("message", (event) => {
+        socket.addEventListener("open", () => { void loadChatHistory(); }, { signal });
+        socket.addEventListener("message", async (event) => {
             try {
                 const payload = typeof event.data === "string" ? event.data : signalDecoder.decode(event.data);
                 const signal = JSON.parse(payload);
                 if (mergeChatMessage(signal?.content)) {
-                    renderChatTranscript();
-                    if (host.querySelector("nim-chat-transcript").messageArtifacts(signal.content.content, host.closest("#nim-app").querySelector("nim-artifacts").controller).length) {
+                    if (host.querySelector("nim-chat-transcript").messageArtifacts(signal.content.content).length) {
+                        await loadView("artifacts");
                         void loadChatArtifacts(chatId).then(renderChatTranscript).catch(() => {});
                     }
+                    renderChatTranscript();
                 }
             } catch {
                 return;
@@ -258,6 +263,7 @@ customElements.define("nim-chat", class extends HTMLElement {
             if (!Array.isArray(artifacts) || artifacts.length !== 1 || typeof artifacts[0]?.id !== "string" || !artifacts[0].id) {
                 throw new Error(`Invalid upload response for ${file.name}. Try again.`);
             }
+            await loadView("artifacts");
             host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(artifacts);
             attachment.artifactId = artifacts[0].id;
         }

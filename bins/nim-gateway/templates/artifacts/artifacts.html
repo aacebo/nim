@@ -1,17 +1,19 @@
-<dialog id="artifact-view" aria-labelledby="artifact-title">
-    <header class="artifact-header">
-        <div>
-            <p class="artifact-kicker">Artifact</p>
-            <h2 id="artifact-title"></h2>
-            <p id="artifact-meta"></p>
-        </div>
-        <button type="button" class="artifact-close" aria-label="Close artifact viewer">×</button>
-    </header>
-    <div class="artifact-body" aria-live="polite"></div>
-    <footer class="artifact-footer">
-        <button type="button" class="artifact-prev" aria-label="Previous artifact">← Previous</button>
-        <span class="artifact-count"></span>
-        <button type="button" class="artifact-next" aria-label="Next artifact">Next →</button>
-        <a class="artifact-download" hidden>Download</a>
-    </footer>
-</dialog>
+<template id="artifacts-template">
+    <dialog id="artifact-view" aria-labelledby="artifact-title">
+        <header class="artifact-header">
+            <div>
+                <p class="artifact-kicker">Artifact</p>
+                <h2 id="artifact-title"></h2>
+                <p id="artifact-meta"></p>
+            </div>
+            <button type="button" class="artifact-close" aria-label="Close artifact viewer">×</button>
+        </header>
+        <div class="artifact-body" aria-live="polite"></div>
+        <footer class="artifact-footer">
+            <button type="button" class="artifact-prev" aria-label="Previous artifact">← Previous</button>
+            <span class="artifact-count"></span>
+            <button type="button" class="artifact-next" aria-label="Next artifact">Next →</button>
+            <a class="artifact-download" hidden>Download</a>
+        </footer>
+    </dialog>
+</template>

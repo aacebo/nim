@@ -7,7 +7,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
 
     messageArtifacts(content, artifactView) {
         if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item, artifactView));
-        return content?.artifact_id ? [artifactView.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
+        return content?.artifact_id ? [artifactView?.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
     }
 
     messageOrder(message) {
@@ -42,7 +42,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             row.append(role);
             if (text.textContent) row.append(text);
             const artifacts = this.messageArtifacts(message.content, artifactView);
-            if (artifacts.length) row.append(artifactView.list(artifacts));
+            if (artifacts.length && artifactView) row.append(artifactView.list(artifacts));
             rows.append(row);
         }
 

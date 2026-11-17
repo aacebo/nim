@@ -1,6 +1,16 @@
 customElements.define("nim-memory-details", class extends HTMLElement {
     renderMemoryArtifacts(memory, host, detailArtifacts, selectionArt, detailArt) {
         const artifacts = memory.record.artifacts ?? [];
+        if (!artifacts.length) {
+            detailArtifacts.replaceChildren();
+            detailArtifacts.hidden = true;
+            delete detailArtifacts.dataset.key;
+            selectionArt.replaceChildren();
+            selectionArt.hidden = true;
+            detailArt.replaceChildren();
+            detailArt.hidden = true;
+            return;
+        }
         host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(artifacts);
         const image = artifacts.find(host.closest("#nim-app").querySelector("nim-artifacts").controller.isImage);
         const key = `${memory.id}:${artifacts.map((item) => `${item.id}:${item.version}`).join(",")}`;

@@ -1,13 +1,24 @@
 use askama::Template;
 
-use super::{artifacts::ArtifactsView, chat::ChatView, dev_tools::DevToolsView, memory::MemoryView, orb::OrbView};
+use super::orb::OrbView;
 
 #[derive(Template)]
 #[template(path = "index.html")]
-pub(super) struct RootView {
-    pub(super) orb: OrbView,
-    pub(super) chat: ChatView,
-    pub(super) memory: MemoryView,
-    pub(super) dev_tools: DevToolsView,
-    pub(super) artifacts: ArtifactsView,
+pub struct RootView {
+    pub orb: OrbView,
+    pub has_memories: bool,
+}
+
+impl RootView {
+    pub async fn load(ctx: &crate::Context) -> nim::error::Result<Self> {
+        let page = ctx
+            .services()
+            .memories()
+            .find(nim::state::Page { cursor: None, limit: 5 })
+            .await?;
+        Ok(Self {
+            orb: OrbView,
+            has_memories: !page.data.is_empty(),
+        })
+    }
 }

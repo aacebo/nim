@@ -78,10 +78,10 @@ customElements.define("nim-memory", class extends HTMLElement {
         axisPosition.append(axisLabel);
         timeAxis.append(axisPosition);
 
-        if (!document.querySelector('link[href*="/web/static/index.css"]')) {
+        if (!document.querySelector('link[href*="/web/views/index.css"]')) {
             const stylesheet = document.createElement("link");
             stylesheet.rel = "stylesheet";
-            stylesheet.href = "/web/static/index.css";
+            stylesheet.href = "/web/views/index.css";
             document.head.append(stylesheet);
         }
         const themeStyle = getComputedStyle(view);
@@ -451,7 +451,7 @@ customElements.define("nim-memory", class extends HTMLElement {
         }
 
         function makeMemoryArt(memory) {
-            const image = memory.record.artifacts?.find(host.closest("#nim-app").querySelector("nim-artifacts").controller.isImage);
+            const image = memory.record.artifacts?.find((artifact) => host.closest("#nim-app").querySelector("nim-artifacts")?.controller?.isImage(artifact));
             if (image) return host.closest("#nim-app").querySelector("nim-artifacts").controller.image(image, "memory-art");
             const art = makeSvgElement("svg", {
                 class: "memory-art",
@@ -996,7 +996,7 @@ customElements.define("nim-memory", class extends HTMLElement {
                 node.title = summary;
                 node.setAttribute("aria-label", summary);
                 node.querySelector(".memory-graph-label").textContent = summary;
-                const image = memory.record.artifacts?.find(host.closest("#nim-app").querySelector("nim-artifacts").controller.isImage);
+                const image = memory.record.artifacts?.find((artifact) => host.closest("#nim-app").querySelector("nim-artifacts")?.controller?.isImage(artifact));
                 const imageKey = image ? `${image.id}:${image.version}` : "";
                 if (node.dataset.imageKey !== imageKey) {
                     node.dataset.imageKey = imageKey;
@@ -1297,6 +1297,7 @@ customElements.define("nim-memory", class extends HTMLElement {
                     query.set("cursor", page.next);
                 }
 
+                if ([...records.values()].some((record) => record.artifacts?.length)) await loadView("artifacts");
                 for (const record of records.values()) {
                     updateMemory(record, true);
                 }
@@ -1329,6 +1330,13 @@ customElements.define("nim-memory", class extends HTMLElement {
             }
         }
 
+        const initialRecords = JSON.parse(document.getElementById("memory-template").dataset.state || "[]");
+        for (const record of initialRecords) {
+            if (validMemory(record)) updateMemory(record, true);
+        }
+        loaded = true;
+        synchronizeMemories();
+
         return {
             async open() {
                 view.hidden = false;
@@ -1358,6 +1366,7 @@ customElements.define("nim-memory", class extends HTMLElement {
                 view.hidden = true;
             },
             dismissDetails,
+            refresh: loadMemories,
             destroy() {
                 clearGraphFocus();
                 stopTimeline();
@@ -1372,10 +1381,24 @@ customElements.define("nim-memory", class extends HTMLElement {
         this.replaceChildren(content);
         this.listeners = new AbortController();
         this.controller = this.createView(this, this.listeners.signal);
-        socket.addEventListener("message", (event) => {
+        socket.addEventListener("open", () => { void this.controller.refresh(); }, { signal: this.listeners.signal });
+        for (const event of pendingMemorySignals.splice(0)) {
+            if (event.content?.artifacts?.length) {
+                void loadView("artifacts").then(() => this.controller.handleSignal(event)).catch(console.error);
+            } else {
+                this.controller.handleSignal(event);
+            }
+        }
+        if (memorySignalsOverflowed) {
+            memorySignalsOverflowed = false;
+            void this.controller.refresh();
+        }
+        socket.addEventListener("message", async (event) => {
             try {
                 const payload = typeof event.data === "string" ? event.data : new TextDecoder().decode(event.data);
-                if (this.controller.handleSignal(JSON.parse(payload))) {
+                const incoming = JSON.parse(payload);
+                if (incoming.content?.artifacts?.length) await loadView("artifacts");
+                if (this.controller.handleSignal(incoming)) {
                     this.dispatchEvent(new CustomEvent("memory-change", { bubbles: true, detail: { hasMemories: this.controller.hasMemories() } }));
                 }
             } catch {}

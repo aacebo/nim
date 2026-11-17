@@ -19,6 +19,14 @@ a more intelligent, self sufficient, and cost effective/performant intelligence.
 Rephrased, can you make/train a general purpose intelligence model built on a network of 
 smaller models more speicific to one given task?
 
+## Goals
+
+1. Multi-modal input/output
+2. Sleep cycle powered live learning
+3. Emotions - implemented how the human brain works
+4. Creativity - the ability to form unique/novel ideas
+5. Self-awareness - the ability to have a sense of self like all humans do, with whats and needs
+
 ```mermaid
 flowchart TD
     A["Input tokens<br/>Token embeddings"]

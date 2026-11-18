@@ -16,7 +16,7 @@ impl std::fmt::Display for Artifact {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ArtifactContent {
     Text { text: String },
     File { path: std::path::PathBuf },

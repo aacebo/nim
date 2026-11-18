@@ -1,7 +1,6 @@
 use tokenizers::Encoding;
 
-use crate::models::Word;
-use crate::types::{Annotation, Offset, Span};
+use crate::types::{Annotation, Offset, Span, Word};
 
 use super::char_offset;
 

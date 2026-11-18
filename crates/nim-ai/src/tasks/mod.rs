@@ -8,8 +8,8 @@ mod keybert;
 mod scorer;
 mod stopwords;
 
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Generation, Word};
-use crate::types::{Annotation, Keyword, Offset, Polarity, Span};
+use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Generation};
+use crate::types::{Annotation, Keyword, Offset, Polarity, Span, Word};
 
 /// The user-facing routines, each a presentation over one model capability.
 ///

@@ -47,11 +47,6 @@ use candle_core::{DType, Device};
 use crate::resources::Repository;
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
-type LoadCallback = dyn Fn(&ModelRef, &ModelConfig) + Send + Sync + 'static;
-
-static LOAD_CALLBACKS: std::sync::LazyLock<std::sync::RwLock<std::collections::HashMap<u64, std::sync::Arc<LoadCallback>>>> =
-    std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashMap::new()));
-static NEXT_SUBSCRIPTION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 fn device() -> nim_error::Result<Device> {
     #[cfg(target_os = "macos")]
@@ -79,41 +74,8 @@ pub fn load(model: &ModelRef) -> nim_error::Result<std::sync::Arc<crate::models:
     MODELS.get_or_build(Key::new(model), || {
         let device = device()?;
 
-        if let ModelRef::Remote(_) = model {
-            return Ok(std::sync::Arc::new(Model::new(model, device, DType::F32)?));
-        }
-
-        let callbacks = LOAD_CALLBACKS
-            .read()
-            .map_err(|error| nim_error::Diagnostic::message(error.to_string()))?
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
-        let loaded = Model::new(model, device, DType::F32)?;
-
-        if let Some(config) = &loaded.config {
-            for callback in &callbacks {
-                callback(model, config);
-            }
-        }
-
-        Ok(std::sync::Arc::new(loaded))
+        Ok(std::sync::Arc::new(Model::new(model, device, DType::F32)?))
     })
-}
-
-pub fn on_load(callback: impl Fn(&ModelRef, &ModelConfig) + Send + Sync + 'static) -> nim_error::Result<crate::Subscription> {
-    let id = NEXT_SUBSCRIPTION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    LOAD_CALLBACKS
-        .write()
-        .map_err(|error| nim_error::Diagnostic::message(error.to_string()))?
-        .insert(id, std::sync::Arc::new(callback));
-
-    Ok(crate::Subscription::new(move || {
-        LOAD_CALLBACKS
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .remove(&id);
-    }))
 }
 
 pub trait Forward: Send + Sync {
@@ -419,30 +381,6 @@ impl Model {
         }
     }
 
-    pub(crate) fn classify_mode(&self, media: ClassifyMedia) -> nim_error::Result<ClassifyMode> {
-        match (media, &self.model) {
-            (ClassifyMedia::Text, AnyModel::BartSequenceClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::BertSequenceClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::DistilBertSequenceClassifier(_)) => Ok(ClassifyMode::Whole),
-            (ClassifyMedia::Text, AnyModel::Embedder(_))
-            | (ClassifyMedia::Text, AnyModel::BartEntityClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::BertEntityClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::DistilBertEntityClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::BartZeroShotClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::Remote(_)) => Ok(ClassifyMode::Regions),
-            #[cfg(feature = "vision")]
-            (ClassifyMedia::Image, AnyModel::VisionClassifier(_)) => Ok(ClassifyMode::Whole),
-            #[cfg(feature = "vision")]
-            (ClassifyMedia::Image, AnyModel::ObjectDetector(_)) => Ok(ClassifyMode::Regions),
-            #[cfg(feature = "audio")]
-            (ClassifyMedia::Audio, AnyModel::AudioClassifier(_)) => Ok(ClassifyMode::Whole),
-            _ => Err(nim_error::Diagnostic::message(format!(
-                "{} cannot classify {media:?} input",
-                self.name
-            ))),
-        }
-    }
-
     pub fn as_classify(&self) -> Option<&dyn Classify> {
         match &self.model {
             AnyModel::Embedder(model) => Some(model),
@@ -481,6 +419,30 @@ impl Model {
 
     pub fn cannot(&self, capability: &str) -> nim_error::Diagnostic {
         nim_error::Diagnostic::message(format!("{} cannot {capability}", self.name))
+    }
+
+    pub(crate) fn classify_mode(&self, media: ClassifyMedia) -> nim_error::Result<ClassifyMode> {
+        match (media, &self.model) {
+            (ClassifyMedia::Text, AnyModel::BartSequenceClassifier(_))
+            | (ClassifyMedia::Text, AnyModel::BertSequenceClassifier(_))
+            | (ClassifyMedia::Text, AnyModel::DistilBertSequenceClassifier(_)) => Ok(ClassifyMode::Whole),
+            (ClassifyMedia::Text, AnyModel::Embedder(_))
+            | (ClassifyMedia::Text, AnyModel::BartEntityClassifier(_))
+            | (ClassifyMedia::Text, AnyModel::BertEntityClassifier(_))
+            | (ClassifyMedia::Text, AnyModel::DistilBertEntityClassifier(_))
+            | (ClassifyMedia::Text, AnyModel::BartZeroShotClassifier(_))
+            | (ClassifyMedia::Text, AnyModel::Remote(_)) => Ok(ClassifyMode::Regions),
+            #[cfg(feature = "vision")]
+            (ClassifyMedia::Image, AnyModel::VisionClassifier(_)) => Ok(ClassifyMode::Whole),
+            #[cfg(feature = "vision")]
+            (ClassifyMedia::Image, AnyModel::ObjectDetector(_)) => Ok(ClassifyMode::Regions),
+            #[cfg(feature = "audio")]
+            (ClassifyMedia::Audio, AnyModel::AudioClassifier(_)) => Ok(ClassifyMode::Whole),
+            _ => Err(nim_error::Diagnostic::message(format!(
+                "{} cannot classify {media:?} input",
+                self.name
+            ))),
+        }
     }
 }
 

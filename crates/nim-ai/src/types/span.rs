@@ -1,7 +1,7 @@
 use super::{BoundingBox, Offset, TimeSpan};
 
 #[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Span {
     Text(Offset),
     Image(BoundingBox),

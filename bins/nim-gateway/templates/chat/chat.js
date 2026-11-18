@@ -179,6 +179,7 @@ customElements.define("nim-chat", class extends HTMLElement {
             try {
                 const payload = typeof event.data === "string" ? event.data : signalDecoder.decode(event.data);
                 const signal = JSON.parse(payload);
+                const response = signal?.subject === "nim.message.response" && signal.content?.chat_id === chatId;
                 if (mergeChatMessage(signal?.content)) {
                     if (host.querySelector("nim-chat-transcript").messageArtifacts(signal.content.content).length) {
                         await loadView("artifacts");
@@ -186,6 +187,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                     }
                     renderChatTranscript();
                 }
+                if (response) setChatStatus("");
             } catch {
                 return;
             }
@@ -330,7 +332,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                     void loadChatHistory();
                 }
 
-                setChatStatus("Sent", true);
+                setChatStatus("Thinking…");
             } catch (error) {
                 setChatStatus("");
                 setChatError(error.message?.startsWith("Upload") || error.message?.startsWith("Invalid upload")

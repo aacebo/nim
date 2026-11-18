@@ -105,6 +105,7 @@ impl Context {
                             "nim.message.create".into(),
                             "nim.message.update".into(),
                             "nim.message.analyze".into(),
+                            "nim.message.response".into(),
                             "nim.message.delete".into(),
                         ],
                         ..Default::default()

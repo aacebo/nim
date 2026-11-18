@@ -53,6 +53,15 @@ static LOAD_CALLBACKS: std::sync::LazyLock<std::sync::RwLock<std::collections::H
     std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashMap::new()));
 static NEXT_SUBSCRIPTION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+fn device() -> nim_error::Result<Device> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(Device::new_metal(0)?)
+    }
+    #[cfg(not(target_os = "macos"))]
+    Ok(Device::Cpu)
+}
+
 pub fn id(value: impl AsRef<str>) -> nim_error::Result<ModelId> {
     value.as_ref().parse::<ModelId>()
 }
@@ -65,11 +74,13 @@ pub fn refer(value: impl AsRef<str>) -> nim_error::Result<ModelRef> {
 /// for two routines now loads its weights once.
 #[tracing::instrument]
 pub fn load(model: &ModelRef) -> nim_error::Result<std::sync::Arc<crate::models::Model>> {
-    use candle_core::{DType, Device};
+    use candle_core::DType;
 
     MODELS.get_or_build(Key::new(model), || {
+        let device = device()?;
+
         if let ModelRef::Remote(_) = model {
-            return Ok(std::sync::Arc::new(Model::new(model, Device::Cpu, DType::F32)?));
+            return Ok(std::sync::Arc::new(Model::new(model, device, DType::F32)?));
         }
 
         let callbacks = LOAD_CALLBACKS
@@ -78,7 +89,7 @@ pub fn load(model: &ModelRef) -> nim_error::Result<std::sync::Arc<crate::models:
             .values()
             .cloned()
             .collect::<Vec<_>>();
-        let loaded = Model::new(model, Device::Cpu, DType::F32)?;
+        let loaded = Model::new(model, device, DType::F32)?;
 
         if let Some(config) = &loaded.config {
             for callback in &callbacks {

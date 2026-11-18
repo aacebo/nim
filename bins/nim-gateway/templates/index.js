@@ -47,7 +47,7 @@ socket.addEventListener("message", (event) => {
 
 const viewAssets = {
     artifacts: { css: ["artifacts/artifacts.css"], js: ["artifacts/artifacts.js?v=5"] },
-    chat: { css: ["chat/transcript/transcript.css", "chat/chat.css?v=2"], js: ["chat/transcript/transcript.js?v=2", "chat/chat.js?v=10"] },
+    chat: { css: ["chat/transcript/transcript.css", "chat/chat.css?v=2"], js: ["chat/transcript/transcript.js?v=2", "chat/chat.js?v=11"] },
     memory: {
         css: ["memory/timeline/timeline.css", "memory/graph/graph.css?v=2", "memory/details/details.css", "memory/memory.css?v=3"],
         js: ["memory/timeline/timeline.js", "memory/graph/graph.js", "memory/details/details.js?v=2", "memory/memory.js?v=9"],

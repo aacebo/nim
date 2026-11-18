@@ -1,7 +1,9 @@
+mod chat;
 mod classify;
 mod embeddings;
 mod summarize;
 
+pub use chat::*;
 pub use classify::*;
 pub use embeddings::*;
 pub use summarize::*;

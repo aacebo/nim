@@ -1,3 +1,4 @@
+use crate::types::TextOutput;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -5,16 +6,13 @@ use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::{quantized_qwen2, qwen2};
 
-use crate::models::{Context, Generate, GenerateOptions, Generation};
+use crate::models::{Chat, ChatOptions, Context, Summarize, SummarizeOptions};
 
 use super::Config;
 
 const CONTEXT_LIMIT: usize = 4096;
 const MAX_LEN: usize = 128;
-const PROMPT: &str = "Summarize the meaning of the user's text in concise third-person prose. \
-                      Preserve only facts stated in the text. Keep short messages to one short sentence. \
-                      Do not reply to the message, continue the conversation, or invent details. \
-                      Return only the summary.";
+const PROMPT: &str = "You are NIM, a helpful assistant. Answer the user's message directly.";
 
 pub struct Generator {
     model: Mutex<Runtime>,
@@ -63,7 +61,7 @@ impl Generator {
         })
     }
 
-    fn one(&self, ctx: &Context, text: &str, options: &GenerateOptions<'_>) -> nim_error::Result<Generation> {
+    fn one(&self, ctx: &Context, text: &str, options: &ChatOptions<'_>) -> nim_error::Result<TextOutput> {
         let tokenizer = ctx.tokenizer()?;
         let prompt = options.prompt.unwrap_or(PROMPT);
         let text = format!("<|im_start|>system\n{prompt}<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n");
@@ -122,7 +120,7 @@ impl Generator {
             };
             let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
 
-            Ok(Generation {
+            Ok(TextOutput {
                 text: text.trim().to_string(),
                 confidence,
             })
@@ -133,14 +131,12 @@ impl Generator {
     }
 }
 
-impl Generate for Generator {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
+impl Chat for Generator {
+    fn chat(&self, ctx: &Context, input: &[&[u8]], options: ChatOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 
-        if options.language.is_some() || options.beams.is_some_and(|beams| beams != 1) {
-            return Err(nim_error::Diagnostic::message(
-                "Qwen generation supports one beam and no language option",
-            ));
+        if options.beams.is_some_and(|beams| beams != 1) {
+            return Err(nim_error::Diagnostic::message("Qwen chat supports one beam"));
         }
 
         let text = input
@@ -148,5 +144,17 @@ impl Generate for Generator {
             .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
         text.iter().map(|text| self.one(ctx, text, &options)).collect()
+    }
+}
+
+impl Summarize for Generator {
+    fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
+        options.validate()?;
+        let responses = self.chat(ctx, input, ChatOptions {
+            prompt: Some("Summarize the text concisely and accurately, using only information present in the text. Return only the summary."),
+            beams: options.beams,
+            max_len: options.max_len,
+        })?;
+        Ok(responses)
     }
 }

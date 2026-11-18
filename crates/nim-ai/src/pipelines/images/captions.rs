@@ -1,4 +1,4 @@
-use crate::models::{GenerateOptions, ModelRef, load};
+use crate::models::{CaptionOptions, ModelRef, load};
 use crate::pipelines::text;
 use crate::pipelines::text::embeddings::Options as EmbeddingOptions;
 use crate::tasks;
@@ -37,25 +37,21 @@ pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Artifact>> {
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Artifact>> {
     let model = load(&options.model)?;
-    let capable = model.as_generate().ok_or_else(|| model.cannot("generate"))?;
-    let generation_options = GenerateOptions {
+    let capable = model.as_image_caption().ok_or_else(|| model.cannot("caption"))?;
+    let caption_options = CaptionOptions {
         beams: options.beams,
         max_len: options.max_len,
-        ..Default::default()
     };
-    let captions = tasks::generate(capable, &model.context(), input, generation_options)?;
+    let captions = tasks::caption(capable, &model.context(), input, caption_options)?;
     let out = text::embeddings::run_with(
-        &captions
-            .iter()
-            .map(|generation| generation.text.as_bytes())
-            .collect::<Vec<_>>(),
+        &captions.iter().map(|caption| caption.text.as_bytes()).collect::<Vec<_>>(),
         options.embedding,
     )?;
     let out = out
         .into_iter()
         .zip(captions)
-        .map(|(mut artifact, generation)| {
-            artifact.confidence = generation.confidence;
+        .map(|(mut artifact, caption)| {
+            artifact.confidence = caption.confidence;
             artifact
         })
         .collect();

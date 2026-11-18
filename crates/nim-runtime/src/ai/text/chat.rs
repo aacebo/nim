@@ -1,4 +1,4 @@
-use nim_ai::{models::Generation, models::ModelRef};
+use nim_ai::{models::ModelRef, types::TextOutput};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
@@ -37,7 +37,7 @@ impl From<TextChatOptions> for nim_ai::pipelines::text::chat::Options {
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn chat<T>(&self, input: &[T], options: TextChatOptions) -> nim_error::Result<Vec<Generation>>
+    pub async fn chat<T>(&self, input: &[T], options: TextChatOptions) -> nim_error::Result<Vec<TextOutput>>
     where
         T: AsRef<str>,
     {

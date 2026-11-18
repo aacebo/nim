@@ -399,20 +399,47 @@ impl Model {
         }
     }
 
-    pub fn as_generate(&self) -> Option<&dyn Generate> {
+    pub fn as_chat(&self) -> Option<&dyn Chat> {
+        match &self.model {
+            AnyModel::QwenGenerator(model) => Some(model),
+            AnyModel::Qwen3Generator(model) => Some(model),
+            AnyModel::Remote(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_summarize(&self) -> Option<&dyn Summarize> {
         match &self.model {
             AnyModel::Summarizer(model) => Some(model),
             AnyModel::QwenGenerator(model) => Some(model),
             AnyModel::Qwen3Generator(model) => Some(model),
+            AnyModel::Remote(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_image_caption(&self) -> Option<&dyn Caption> {
+        match &self.model {
             #[cfg(feature = "vision")]
             AnyModel::ImageCaptioner(model) => Some(model),
-            #[cfg(feature = "audio")]
-            AnyModel::Transcriber(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_audio_caption(&self) -> Option<&dyn Caption> {
+        match &self.model {
             #[cfg(feature = "audio")]
             AnyModel::WhisperCaptioner(model) => Some(model),
             #[cfg(feature = "audio")]
             AnyModel::AudioCaptioner(model) => Some(model),
-            AnyModel::Remote(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
+        match &self.model {
+            #[cfg(feature = "audio")]
+            AnyModel::Transcriber(model) => Some(model),
             _ => None,
         }
     }

@@ -1,8 +1,9 @@
+use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_nn::VarBuilder;
 
-use crate::models::{Context, Generate, GenerateOptions, Generation};
+use crate::models::{Caption, CaptionOptions, Context};
 
 use super::config::Config;
 use super::model::Model;
@@ -23,7 +24,7 @@ struct GenerationConfig {
 
 impl Captioner {
     pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
-        let generation = GenerationConfig {
+        let decoding = GenerationConfig {
             bos: config.bos_token_id,
             eos: config.eos_token_id,
             max_len: config.max_position_embeddings,
@@ -32,7 +33,7 @@ impl Captioner {
         Ok(Self {
             model: Mutex::new(Model::new(&config, vars)?),
             processor,
-            config: generation,
+            config: decoding,
         })
     }
 
@@ -92,22 +93,16 @@ impl Captioner {
     }
 }
 
-impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
+impl Caption for Captioner {
+    fn caption(&self, ctx: &Context, input: &[&[u8]], options: CaptionOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
-
-        if options.prompt.is_some() || options.language.is_some() {
-            return Err(nim_error::Diagnostic::message(
-                "this generator does not support the supplied prompt or language",
-            ));
-        }
 
         let beams = options.beams;
         let max_len = options.max_len;
         input
             .iter()
             .map(|image| self.one(ctx, image, beams.unwrap_or(1), max_len.unwrap_or(20)))
-            .map(|result| result.map(|text| Generation { text, confidence: None }))
+            .map(|result| result.map(|text| TextOutput { text, confidence: None }))
             .collect()
     }
 }

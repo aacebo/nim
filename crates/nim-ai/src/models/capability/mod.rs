@@ -1,10 +1,16 @@
+mod caption;
+mod chat;
 mod classify;
 mod embed;
-mod generate;
+mod summarize;
+mod transcribe;
 
+pub use caption::*;
+pub use chat::*;
 pub use classify::*;
 pub use embed::*;
-pub use generate::*;
+pub use summarize::*;
+pub use transcribe::*;
 
 use candle_core::Device;
 use tokenizers::Tokenizer;

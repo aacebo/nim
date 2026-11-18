@@ -1,9 +1,10 @@
+use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::models::{Context, Generate, GenerateOptions, Generation};
+use crate::models::{Caption, CaptionOptions, Context};
 
 use super::config::Config;
 use super::model::Model;
@@ -32,7 +33,7 @@ impl Captioner {
         let prefix = std::iter::once(config.decoder_start_token_id)
             .chain(forced.into_iter().map(|(_, token)| token))
             .collect();
-        let generation = GenerationConfig {
+        let decoding = GenerationConfig {
             eos: config.eos_token_id,
             max_len: config.model().max_target_positions,
             prefix,
@@ -44,7 +45,7 @@ impl Captioner {
             model: Mutex::new(Model::new(&config, vars)?),
             processor,
             model_config: config,
-            config: generation,
+            config: decoding,
         })
     }
 
@@ -148,22 +149,16 @@ fn repeats(tokens: &[u32], token: u32) -> bool {
         .any(|ngram| ngram[..NGRAM - 1] == candidate[..NGRAM - 1] && ngram[NGRAM - 1] == token)
 }
 
-impl Generate for Captioner {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
+impl Caption for Captioner {
+    fn caption(&self, ctx: &Context, input: &[&[u8]], options: CaptionOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
-
-        if options.prompt.is_some() || options.language.is_some() {
-            return Err(nim_error::Diagnostic::message(
-                "this generator does not support the supplied prompt or language",
-            ));
-        }
 
         let beams = options.beams;
         let max_len = options.max_len;
         input
             .iter()
             .map(|bytes| self.one(ctx, bytes, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
-            .map(|result| result.map(|text| Generation { text, confidence: None }))
+            .map(|result| result.map(|text| TextOutput { text, confidence: None }))
             .collect()
     }
 }

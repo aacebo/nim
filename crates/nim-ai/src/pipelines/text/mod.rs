@@ -28,7 +28,11 @@ pub mod defaults {
         models::refer("dbmdz/bert-large-cased-finetuned-conll03-english").expect("built-in model ids are valid")
     }
 
-    pub fn generate() -> models::ModelRef {
+    pub fn summarize() -> models::ModelRef {
+        models::refer(models::qwen3::QUANTIZED_MODEL).expect("built-in model ids are valid")
+    }
+
+    pub fn chat() -> models::ModelRef {
         models::refer(models::qwen3::QUANTIZED_MODEL).expect("built-in model ids are valid")
     }
 }

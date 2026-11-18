@@ -1,9 +1,10 @@
+use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::models::{Context, Generate, GenerateOptions, Generation};
+use crate::models::{Context, Transcribe, TranscribeOptions};
 
 use super::config::Config;
 use super::model::Model;
@@ -30,7 +31,7 @@ struct GenerationConfig {
 
 impl Transcriber {
     pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
-        let generation = GenerationConfig {
+        let decoding = GenerationConfig {
             start: config.decoder_start_token_id,
             eos: config.eos_token_id,
             max_len: config.model().max_target_positions,
@@ -42,7 +43,7 @@ impl Transcriber {
             model: Mutex::new(Model::new(&config, vars)?),
             processor,
             model_config: config,
-            config: generation,
+            config: decoding,
         })
     }
 
@@ -151,15 +152,9 @@ impl Transcriber {
     }
 }
 
-impl Generate for Transcriber {
-    fn generate(&self, ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
+impl Transcribe for Transcriber {
+    fn transcribe(&self, ctx: &Context, input: &[&[u8]], options: TranscribeOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
-
-        if options.prompt.is_some() {
-            return Err(nim_error::Diagnostic::message(
-                "this generator does not support the supplied prompt or language",
-            ));
-        }
 
         let beams = options.beams;
         let max_len = options.max_len;
@@ -175,7 +170,7 @@ impl Generate for Transcriber {
                     max_len.unwrap_or(self.config.max_len),
                 )
             })
-            .map(|result| result.map(|text| Generation { text, confidence: None }))
+            .map(|result| result.map(|text| TextOutput { text, confidence: None }))
             .collect()
     }
 }

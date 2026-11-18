@@ -1,4 +1,4 @@
-use crate::models::{GenerateOptions, ModelRef, load};
+use crate::models::{ModelRef, TranscribeOptions, load};
 use crate::pipelines::text;
 use crate::tasks;
 use crate::types::Artifact;
@@ -36,27 +36,26 @@ pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Artifact>> {
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
 pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Artifact>> {
     let model = load(&options.model)?;
-    let capable = model.as_generate().ok_or_else(|| model.cannot("generate"))?;
-    let generation_options = GenerateOptions {
+    let capable = model.as_transcribe().ok_or_else(|| model.cannot("transcribe"))?;
+    let transcript_options = TranscribeOptions {
         beams: options.beams,
         max_len: options.max_len,
         language: options.language.as_deref(),
-        ..Default::default()
     };
 
-    let transcripts = tasks::generate(capable, &model.context(), input, generation_options)?;
+    let transcripts = tasks::transcribe(capable, &model.context(), input, transcript_options)?;
     let out = text::embeddings::run(
         &transcripts
             .iter()
-            .map(|generation| generation.text.as_bytes())
+            .map(|transcript| transcript.text.as_bytes())
             .collect::<Vec<_>>(),
     )?;
 
     let out = out
         .into_iter()
         .zip(transcripts)
-        .map(|(mut artifact, generation)| {
-            artifact.confidence = generation.confidence;
+        .map(|(mut artifact, transcript)| {
+            artifact.confidence = transcript.confidence;
             artifact
         })
         .collect();

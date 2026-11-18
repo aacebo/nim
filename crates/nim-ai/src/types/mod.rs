@@ -4,6 +4,7 @@ mod chat;
 mod keyword;
 mod sentiment;
 mod span;
+mod text;
 mod word;
 
 pub use annotation::*;
@@ -12,4 +13,5 @@ pub use chat::*;
 pub use keyword::*;
 pub use sentiment::*;
 pub use span::*;
+pub use text::*;
 pub use word::*;

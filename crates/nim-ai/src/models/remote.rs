@@ -1,8 +1,11 @@
 use crate::tasks::{anchor, zero_shot};
+use crate::types::TextOutput;
 use crate::types::{Classification, Offset, Span};
 
 use super::RemoteModel;
-use super::capability::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Generation};
+use super::capability::{
+    Chat, ChatOptions, Classify, ClassifyMode, ClassifyOptions, Context, Embed, Summarize, SummarizeOptions,
+};
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
                         schema: `label` is your chosen class and `score` is your confidence from \
@@ -39,8 +42,7 @@ struct Item {
 }
 
 /// A hosted model serves every capability: the classification ones through a JSON-schema-constrained
-/// chat completion, generation through a plain completion, and embeddings through their own
-/// endpoint. This is the full remote row of the capability matrix.
+/// chat and summarization through plain completions, and embeddings through their own endpoint. This is the full remote row of the capability matrix.
 impl Embed for RemoteModel {
     fn embed(&self, _ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
         let text = input
@@ -255,28 +257,26 @@ impl RemoteModel {
     }
 }
 
-/// Generation is a plain completion, not a schema-constrained one: the output is prose, and
+/// Chat is a plain completion, not a schema-constrained one: the output is prose, and
 /// wrapping it in a JSON envelope buys nothing.
-impl Generate for RemoteModel {
-    fn generate(&self, _ctx: &Context, input: &[&[u8]], options: GenerateOptions<'_>) -> nim_error::Result<Vec<Generation>> {
+impl Chat for RemoteModel {
+    fn chat(&self, _ctx: &Context, input: &[&[u8]], options: ChatOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 
-        if options.language.is_some() || options.beams.is_some() {
-            return Err(nim_error::Diagnostic::message(
-                "hosted text generation does not support language or beams",
-            ));
+        if options.beams.is_some() {
+            return Err(nim_error::Diagnostic::message("hosted chat does not support beams"));
         }
 
         let text = input
             .iter()
             .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
-        let prompt = options.prompt.unwrap_or(
-            "Summarize the text the user gives you. Be concise and factual; use only information present in the text.",
-        );
+        let prompt = options
+            .prompt
+            .unwrap_or("You are NIM, a helpful assistant. Answer the user's message directly.");
         text.iter()
             .map(|text| self.client().complete(prompt, text, options.max_len))
-            .map(|result| result.map(|text| Generation { text, confidence: None }))
+            .map(|result| result.map(|text| TextOutput { text, confidence: None }))
             .collect()
     }
 }
@@ -314,4 +314,16 @@ fn tokens_schema() -> serde_json::Value {
         "required": ["entities"],
         "additionalProperties": false,
     })
+}
+
+impl Summarize for RemoteModel {
+    fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
+        options.validate()?;
+        let responses = self.chat(ctx, input, ChatOptions {
+            prompt: Some("Summarize the text concisely and accurately, using only information present in the text. Return only the summary."),
+            beams: options.beams,
+            max_len: options.max_len,
+        })?;
+        Ok(responses)
+    }
 }

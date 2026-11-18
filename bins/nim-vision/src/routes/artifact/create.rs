@@ -123,7 +123,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
     ctx.services().artifacts().link(memory.id, signal.content.id).await?;
     tracing::debug!("classifying image...");
 
-    let annotations = ctx
+    let classifications = ctx
         .runtime()
         .pipelines()
         .images()
@@ -142,7 +142,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
         )
         .await?;
 
-    let mut annotations = if let Some(a) = annotations.first() {
+    let mut classifications = if let Some(a) = classifications.first() {
         a.clone()
     } else {
         Default::default()
@@ -171,13 +171,13 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
         .await?;
 
     if let Some(regions) = regions.first().cloned() {
-        annotations.extend(regions);
+        classifications.extend(regions);
     }
 
     ctx.ack_progress().await?;
 
-    if !annotations.is_empty() {
-        let labels = annotations.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
+    if !classifications.is_empty() {
+        let labels = classifications.iter().map(|a| a.label.to_snake_case()).collect::<Vec<_>>();
         let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
 
         tracing::debug!("generating label embeddings...");
@@ -205,7 +205,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
         ctx.ack_progress().await?;
         tracing::debug!("generating label categories...");
 
-        let label_annotations = ctx
+        let label_classifications = ctx
             .runtime()
             .pipelines()
             .text()
@@ -241,10 +241,10 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
 
         ctx.ack_progress().await?;
 
-        for (i, annotation) in annotations.iter().enumerate() {
-            let mut label_annotations = label_annotations.get(i).cloned().unwrap_or_default();
-            label_annotations.sort_by(|a, b| b.score.total_cmp(&a.score));
-            let label = if let Some(first) = label_annotations.first() {
+        for (i, classification) in classifications.iter().enumerate() {
+            let mut label_classifications = label_classifications.get(i).cloned().unwrap_or_default();
+            label_classifications.sort_by(|a, b| b.score.total_cmp(&a.score));
+            let label = if let Some(first) = label_classifications.first() {
                 nim::state::Label::try_from_classify_label(&first.label).unwrap_or_default()
             } else {
                 nim::state::Label::Unknown
@@ -257,16 +257,16 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                 .await?;
 
             if let Some(existing) = &existing
-                && existing.confidence as f64 >= annotation.score
+                && existing.confidence as f64 >= classification.score
             {
                 continue;
             }
 
-            tracing::debug!("creating annotation [{label}] -> {}", annotation.score);
-            let spans = annotation
+            tracing::debug!("creating annotation [{label}] -> {}", classification.score);
+            let spans = classification
                 .spans
                 .iter()
-                .filter_map(nim::ai::types::Span::as_image)
+                .filter_map(nim::ai::types::Span::as_space)
                 .map(|v| nim::state::Span::Image {
                     xmin: v.xmin,
                     ymin: v.ymin,
@@ -286,7 +286,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                             text: Some(labels[i].to_string()),
                             spans: Some(spans.clone()),
                             embedding: embeddings.get(i).and_then(|a| a.vector.clone()),
-                            confidence: Some(annotation.score as f32),
+                            confidence: Some(classification.score as f32),
                         },
                     )
                     .await?;
@@ -300,7 +300,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                             text: labels[i].to_string(),
                             spans: &spans,
                             embedding: embeddings.get(i).and_then(|a| a.vector.as_deref()),
-                            confidence: annotation.score as f32,
+                            confidence: classification.score as f32,
                         },
                     )
                     .await?;

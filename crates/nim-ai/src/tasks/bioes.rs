@@ -1,10 +1,10 @@
-use crate::types::{Annotation, Offset, Span, Word};
+use crate::types::{Classification, Offset, Span, Word};
 
 use super::char_offset;
 
 /// BIOES decoding, distinct from the plain IOB1 aggregation used for NER: it honours `E-`/`S-`
 /// tags, merges adjacent same-label entities, and weights merged scores by token count.
-pub fn entities(words: Vec<Word>, text: &str, min_score: f64) -> Vec<Annotation> {
+pub fn entities(words: Vec<Word>, text: &str, min_score: f64) -> Vec<Classification> {
     let mut entities = Entities::new(text, min_score);
 
     for word in words {
@@ -81,9 +81,9 @@ impl<'a> Entities<'a> {
         }
     }
 
-    fn finish(mut self) -> Vec<Annotation> {
+    fn finish(mut self) -> Vec<Classification> {
         self.finish_current();
-        self.finished.into_iter().map(|entity| entity.annotation).collect()
+        self.finished.into_iter().map(|entity| entity.classification).collect()
     }
 
     fn should_start(&self, tag: Tag, label: &str, start: usize) -> bool {
@@ -107,7 +107,7 @@ impl<'a> Entities<'a> {
         };
         let entity = builder.finish(self.text);
 
-        if entity.annotation.score < self.min_score {
+        if entity.classification.score < self.min_score {
             return;
         }
 
@@ -123,7 +123,7 @@ impl<'a> Entities<'a> {
 }
 
 struct Finished {
-    annotation: Annotation,
+    classification: Classification,
     words: usize,
     start: usize,
     end: usize,
@@ -131,15 +131,15 @@ struct Finished {
 
 impl Finished {
     fn can_merge(&self, other: &Self) -> bool {
-        self.annotation.label.eq_ignore_ascii_case(&other.annotation.label) && self.end == other.start
+        self.classification.label.eq_ignore_ascii_case(&other.classification.label) && self.end == other.start
     }
 
     fn merge(&mut self, other: Self, text: &str) {
         let total = self.words + other.words;
 
-        self.annotation.score =
-            ((self.annotation.score * self.words as f64) + (other.annotation.score * other.words as f64)) / total as f64;
-        self.annotation.spans = vec![Span::Text(Offset::new(
+        self.classification.score =
+            ((self.classification.score * self.words as f64) + (other.classification.score * other.words as f64)) / total as f64;
+        self.classification.spans = vec![Span::Offset(Offset::new(
             char_offset(text, self.start),
             char_offset(text, other.end),
         ))];
@@ -186,12 +186,12 @@ impl Builder {
 
     fn finish(self, text: &str) -> Finished {
         Finished {
-            annotation: Annotation {
+            classification: Classification {
                 name: String::from("entity"),
 
                 label: self.label,
                 score: self.scores / self.count as f64,
-                spans: vec![Span::Text(Offset::new(
+                spans: vec![Span::Offset(Offset::new(
                     char_offset(text, self.start),
                     char_offset(text, self.end),
                 ))],
@@ -225,7 +225,7 @@ mod tests {
         let found = entities(words, text, 0.0);
 
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), Some("John Smith"));
+        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), "John Smith");
         assert!((found[0].score - 0.7).abs() < 1e-9, "score was {}", found[0].score);
     }
 
@@ -239,7 +239,7 @@ mod tests {
         let found = entities(words, text, 0.5);
 
         assert_eq!(found.len(), 1, "the weak entity must not merge in");
-        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), Some("John"));
+        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), "John");
         assert!((found[0].score - 0.9).abs() < 1e-9, "score was {}", found[0].score);
     }
 
@@ -252,7 +252,7 @@ mod tests {
         let found = entities(words, text, 0.0);
 
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), Some("Jean-Luc"));
+        assert_eq!(found[0].spans[0].text(text.as_bytes()).unwrap(), "Jean-Luc");
     }
 
     #[test]

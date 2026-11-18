@@ -1,7 +1,7 @@
 use unicode_categories::UnicodeCategories;
 
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
-use crate::types::{Annotation, Offset, Span};
+use crate::types::{Classification, Offset, Span};
 
 use super::{char_offset, classify};
 
@@ -13,7 +13,7 @@ pub fn softmax(logits: &[f64]) -> Vec<f64> {
     exp.into_iter().map(|value| value / total).collect()
 }
 
-pub fn select(labels: Vec<Annotation>, multi_label: bool) -> Vec<Annotation> {
+pub fn select(labels: Vec<Classification>, multi_label: bool) -> Vec<Classification> {
     if multi_label {
         return labels;
     }
@@ -30,7 +30,7 @@ pub fn entities<C: Classify + ?Sized>(
     ctx: &Context,
     input: &[&[u8]],
     options: ClassifyOptions<'_>,
-) -> nim_error::Result<Vec<Vec<Annotation>>> {
+) -> nim_error::Result<Vec<Vec<Classification>>> {
     let options = ClassifyOptions {
         mode: ClassifyMode::Whole,
         min_score: 0.0,
@@ -58,12 +58,12 @@ pub fn entities<C: Classify + ?Sized>(
 
                 for ((start, end), labels) in chunk.iter().zip(scores) {
                     for label in select(labels, options.multi_label) {
-                        entities.push(Annotation {
+                        entities.push(Classification {
                             name: String::from("entity"),
 
                             label: label.label,
                             score: label.score,
-                            spans: vec![Span::Text(Offset::new(char_offset(text, *start), char_offset(text, *end)))],
+                            spans: vec![Span::Offset(Offset::new(char_offset(text, *start), char_offset(text, *end)))],
                         });
                     }
                 }
@@ -74,13 +74,19 @@ pub fn entities<C: Classify + ?Sized>(
         .collect()
 }
 
-pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_score: f64) -> nim_error::Result<Vec<Annotation>> {
+pub fn retain(
+    classifications: Vec<Classification>,
+    options: ClassifyOptions<'_>,
+    min_score: f64,
+) -> nim_error::Result<Vec<Classification>> {
     let labels = options
         .labels
         .ok_or_else(|| nim_error::Diagnostic::message("custom labels are required"))?;
 
-    if annotations.iter().any(|annotation| {
-        !labels.contains(&annotation.label) || !annotation.score.is_finite() || !(0.0..=1.0).contains(&annotation.score)
+    if classifications.iter().any(|classification| {
+        !labels.contains(&classification.label)
+            || !classification.score.is_finite()
+            || !(0.0..=1.0).contains(&classification.score)
     }) {
         return Err(nim_error::Diagnostic::message(
             "custom classification returned an invalid label or score",
@@ -89,18 +95,21 @@ pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_sc
 
     let mut candidates = Vec::new();
 
-    for annotation in annotations.into_iter().filter(|annotation| annotation.score >= min_score) {
-        for span in &annotation.spans {
-            let Span::Text(offset) = span else {
+    for classification in classifications
+        .into_iter()
+        .filter(|classification| classification.score >= min_score)
+    {
+        for span in &classification.spans {
+            let Span::Offset(offset) = span else {
                 return Err(nim_error::Diagnostic::message("text extraction requires text spans"));
             };
 
             if offset.begin < offset.end {
                 candidates.push((
                     *offset,
-                    Annotation {
+                    Classification {
                         spans: vec![*span],
-                        ..annotation.clone()
+                        ..classification.clone()
                     },
                 ));
             }
@@ -120,11 +129,11 @@ pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_sc
                     .cmp(&labels.iter().position(|label| label == &right.label))
             })
     });
-    let mut retained: Vec<(Offset, Annotation)> = Vec::new();
+    let mut retained: Vec<(Offset, Classification)> = Vec::new();
 
-    for (span, annotation) in candidates {
+    for (span, classification) in candidates {
         let overlap = retained.iter().any(|(other_span, other)| {
-            if span == *other_span && options.multi_label && annotation.label != other.label {
+            if span == *other_span && options.multi_label && classification.label != other.label {
                 return false;
             }
 
@@ -132,7 +141,7 @@ pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_sc
         });
 
         if !overlap {
-            retained.push((span, annotation));
+            retained.push((span, classification));
         }
     }
 
@@ -145,7 +154,7 @@ pub fn retain(annotations: Vec<Annotation>, options: ClassifyOptions<'_>, min_sc
         })
     });
 
-    Ok(retained.into_iter().map(|(_, annotation)| annotation).collect())
+    Ok(retained.into_iter().map(|(_, classification)| classification).collect())
 }
 
 fn spans(text: &str) -> Vec<(usize, usize)> {

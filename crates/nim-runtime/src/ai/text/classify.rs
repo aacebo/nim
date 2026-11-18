@@ -1,4 +1,4 @@
-use nim_ai::{models::ModelRef, types::Annotation};
+use nim_ai::{models::ModelRef, types::Classification};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
@@ -43,7 +43,7 @@ impl From<TextClassifyOptions> for nim_ai::pipelines::text::classify::Options {
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn classify<T>(&self, input: &[T], options: TextClassifyOptions) -> nim_error::Result<Vec<Vec<Annotation>>>
+    pub async fn classify<T>(&self, input: &[T], options: TextClassifyOptions) -> nim_error::Result<Vec<Vec<Classification>>>
     where
         T: AsRef<str>,
     {

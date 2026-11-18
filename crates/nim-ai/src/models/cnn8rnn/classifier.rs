@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use candle_nn::VarBuilder;
 
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
-use crate::types::{Annotation, Span, TimeSpan};
+use crate::types::{Classification, Span, TimeRange};
 
 use super::config::Config;
 use super::model::Model;
@@ -25,7 +25,12 @@ impl Classifier {
 }
 
 impl Classify for Classifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn classify(
+        &self,
+        ctx: &Context,
+        input: &[&[u8]],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>> {
         options.validate()?;
 
         if options.mode != ClassifyMode::Whole
@@ -54,9 +59,9 @@ impl Classify for Classifier {
                 let mut labels: Vec<_> = probabilities[0]
                     .iter()
                     .enumerate()
-                    .map(|(index, score)| Annotation {
+                    .map(|(index, score)| Classification {
                         name: String::from("classification"),
-                        spans: vec![Span::Audio(TimeSpan {
+                        spans: vec![Span::Time(TimeRange {
                             begin: 0.0,
                             end: duration,
                         })],

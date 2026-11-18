@@ -1,6 +1,6 @@
 use crate::models::{ClassifyMedia, ClassifyOptions, ModelRef, load};
 use crate::tasks;
-use crate::types::Annotation;
+use crate::types::Classification;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {
@@ -34,12 +34,12 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Vec<Annotation>>> {
+pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Vec<Classification>>> {
     run_with(input, Default::default())
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Vec<Annotation>>> {
+pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Vec<Classification>>> {
     let mut classify_options = ClassifyOptions {
         min_score: options.min_score,
         limit: options.limit,

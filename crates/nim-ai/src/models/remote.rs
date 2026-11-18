@@ -1,5 +1,5 @@
 use crate::tasks::{anchor, zero_shot};
-use crate::types::{Annotation, Offset, Span};
+use crate::types::{Classification, Offset, Span};
 
 use super::RemoteModel;
 use super::capability::{Classify, ClassifyMode, ClassifyOptions, Context, Embed, Generate, GenerateOptions, Generation};
@@ -38,7 +38,7 @@ struct Item {
     score: f64,
 }
 
-/// A hosted model serves every capability: the annotation ones through a JSON-schema-constrained
+/// A hosted model serves every capability: the classification ones through a JSON-schema-constrained
 /// chat completion, generation through a plain completion, and embeddings through their own
 /// endpoint. This is the full remote row of the capability matrix.
 impl Embed for RemoteModel {
@@ -56,7 +56,12 @@ impl Embed for RemoteModel {
 }
 
 impl Classify for RemoteModel {
-    fn classify(&self, _ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn classify(
+        &self,
+        _ctx: &Context,
+        input: &[&[u8]],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>> {
         let text = input
             .iter()
             .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
@@ -71,36 +76,36 @@ impl Classify for RemoteModel {
         }?;
 
         out.into_iter()
-            .map(|annotations| {
-                let annotations = if options.mode == ClassifyMode::Regions && options.labels.is_some() {
-                    zero_shot::retain(annotations, options.clone(), options.min_score)?
+            .map(|classifications| {
+                let classifications = if options.mode == ClassifyMode::Regions && options.labels.is_some() {
+                    zero_shot::retain(classifications, options.clone(), options.min_score)?
                 } else {
-                    annotations
+                    classifications
                 };
-                options.apply(annotations)
+                options.apply(classifications)
             })
             .collect()
     }
 }
 
 impl RemoteModel {
-    fn text(&self, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn text(&self, text: &[&str]) -> nim_error::Result<Vec<Vec<Classification>>> {
         text.iter()
             .map(|text| {
                 let out: Classified = self.client().json(CLASSIFY, text, classify_schema())?;
 
-                Ok(vec![Annotation {
+                Ok(vec![Classification {
                     name: String::from("classification"),
 
                     label: out.label.to_lowercase(),
                     score: out.score,
-                    spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
+                    spans: vec![Span::Offset(Offset::new(0, text.chars().count() as u32))],
                 }])
             })
             .collect()
     }
 
-    fn custom_text(&self, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn custom_text(&self, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Classification>>> {
         let candidates = options
             .labels
             .ok_or_else(|| nim_error::Diagnostic::message("custom labels are required"))?;
@@ -153,12 +158,12 @@ impl RemoteModel {
                         ));
                     }
 
-                    labels.push(Annotation {
+                    labels.push(Classification {
                         name: String::from("classification"),
 
                         label: label.clone(),
                         score: matching[0].score,
-                        spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
+                        spans: vec![Span::Offset(Offset::new(0, text.chars().count() as u32))],
                     });
                 }
 
@@ -181,7 +186,7 @@ impl RemoteModel {
             .collect()
     }
 
-    fn custom_spans(&self, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn custom_spans(&self, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Classification>>> {
         let candidates = options
             .labels
             .ok_or_else(|| nim_error::Diagnostic::message("custom labels are required"))?;
@@ -213,9 +218,9 @@ impl RemoteModel {
                     }
 
                     for offset in anchor::all(text, &item.text) {
-                        entities.push(Annotation {
+                        entities.push(Classification {
                             name: String::from("entity"),
-                            spans: vec![Span::Text(offset)],
+                            spans: vec![Span::Offset(offset)],
 
                             label: item.label.clone(),
                             score: item.score,
@@ -228,7 +233,7 @@ impl RemoteModel {
             .collect()
     }
 
-    fn spans(&self, text: &str) -> nim_error::Result<Vec<Annotation>> {
+    fn spans(&self, text: &str) -> nim_error::Result<Vec<Classification>> {
         let found: Found = self.client().json(TOKENS, text, tokens_schema())?;
 
         Ok(found
@@ -238,9 +243,9 @@ impl RemoteModel {
             // that is not verbatim cannot be anchored -- and violates the prompt -- so it is
             // dropped rather than given an invented span.
             .filter_map(|item| {
-                Some(Annotation {
+                Some(Classification {
                     name: String::from("entity"),
-                    spans: vec![Span::Text(anchor::find(text, &item.text)?)],
+                    spans: vec![Span::Offset(anchor::find(text, &item.text)?)],
 
                     label: item.label.to_lowercase(),
                     score: item.score,

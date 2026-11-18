@@ -1,4 +1,4 @@
-use crate::types::{Annotation, Citation, FileFormat, Status};
+use crate::types::{Annotation, FileFormat, Status};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "role")]
@@ -40,7 +40,6 @@ pub struct ChatUserMessage {
 pub struct ChatAssistantMessage {
     pub status: Status,
     pub content: Vec<ChatMessageContent>,
-    pub citations: Vec<Citation>,
     pub annotations: Vec<Annotation>,
 }
 

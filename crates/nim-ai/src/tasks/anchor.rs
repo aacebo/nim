@@ -25,7 +25,10 @@ pub fn all(text: &str, needle: &str) -> Vec<Offset> {
         let start = cursor + index;
         let end = start + needle.len();
 
-        offsets.push(Offset::new(char_offset(text, start), char_offset(text, end)));
+        offsets.push(Offset {
+            begin: char_offset(text, start),
+            end: char_offset(text, end),
+        });
         cursor = end;
     }
 
@@ -38,7 +41,10 @@ mod tests {
 
     #[test]
     fn finds_a_unique_substring() {
-        assert_eq!(find("Satya works at Microsoft", "Microsoft"), Some(Offset::new(15, 24)));
+        assert_eq!(
+            find("Satya works at Microsoft", "Microsoft"),
+            Some(Offset { begin: 15, end: 24 })
+        );
     }
 
     #[test]

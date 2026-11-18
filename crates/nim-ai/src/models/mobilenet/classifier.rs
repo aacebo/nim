@@ -2,7 +2,7 @@ use candle_core::Tensor;
 use candle_nn::{Linear, Module, VarBuilder, linear, ops};
 
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
-use crate::types::{Annotation, Span};
+use crate::types::{Classification, Span};
 
 use super::config::Config;
 use super::model::MobileNetV2;
@@ -39,7 +39,12 @@ impl Forward for Classifier {
 }
 
 impl Classify for Classifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn classify(
+        &self,
+        ctx: &Context,
+        input: &[&[u8]],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>> {
         options.validate()?;
 
         if options.mode != ClassifyMode::Whole
@@ -61,12 +66,12 @@ impl Classify for Classifier {
 
                 let (input, bounds) = self.processor.tensor(input, ctx.device())?;
                 let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
-                let mut labels: Vec<Annotation> = probabilities[0]
+                let mut labels: Vec<Classification> = probabilities[0]
                     .iter()
                     .enumerate()
-                    .map(|(index, score)| Annotation {
+                    .map(|(index, score)| Classification {
                         name: String::from("classification"),
-                        spans: vec![Span::Image(bounds)],
+                        spans: vec![Span::Space(bounds)],
                         label: self.labels[index].clone(),
                         score: *score as f64,
                     })

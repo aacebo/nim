@@ -6,7 +6,7 @@ use tokenizers::{TruncationParams, TruncationStrategy};
 
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::zero_shot::{self, softmax};
-use crate::types::{Annotation, Offset, Span};
+use crate::types::{Classification, Offset, Span};
 
 use super::config::Config;
 use super::decoder::Decoder;
@@ -75,7 +75,12 @@ impl ZeroShotClassifier {
         Ok(Forward::forward(self, input)?.squeeze(0)?.to_vec1::<f32>()?)
     }
 
-    fn custom_text(&self, ctx: &Context, text: &[&str], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn custom_text(
+        &self,
+        ctx: &Context,
+        text: &[&str],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>> {
         let mut tokenizer = ctx.tokenizer()?.clone();
         tokenizer.with_padding(None);
         tokenizer
@@ -114,19 +119,19 @@ impl ZeroShotClassifier {
                 Ok(labels
                     .iter()
                     .zip(scores)
-                    .map(|(label, score)| Annotation {
+                    .map(|(label, score)| Classification {
                         name: String::from("classification"),
 
                         label: label.clone(),
                         score,
-                        spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
+                        spans: vec![Span::Offset(Offset::new(0, text.chars().count() as u32))],
                     })
                     .collect())
             })
             .collect()
     }
 
-    fn text(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn text(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Classification>>> {
         let mut tokenizer = ctx.tokenizer()?.clone();
         tokenizer.with_padding(None);
         tokenizer
@@ -147,12 +152,12 @@ impl ZeroShotClassifier {
                     .max_by(|left, right| left.1.total_cmp(&right.1))
                     .ok_or_else(|| nim_error::Diagnostic::message("empty NLI classification output"))?;
 
-                Ok(vec![Annotation {
+                Ok(vec![Classification {
                     name: String::from("classification"),
 
                     label: self.labels[index].clone(),
                     score,
-                    spans: vec![Span::Text(Offset::new(0, text.chars().count() as u32))],
+                    spans: vec![Span::Offset(Offset::new(0, text.chars().count() as u32))],
                 }])
             })
             .collect()
@@ -207,7 +212,12 @@ impl Forward for ZeroShotClassifier {
 }
 
 impl Classify for ZeroShotClassifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn classify(
+        &self,
+        ctx: &Context,
+        input: &[&[u8]],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>> {
         let text = input
             .iter()
             .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
@@ -218,18 +228,20 @@ impl Classify for ZeroShotClassifier {
             (ClassifyMode::Whole, Some(_)) => Ok(self
                 .custom_text(ctx, &text, options.clone())?
                 .into_iter()
-                .map(|annotations| zero_shot::select(annotations, options.multi_label))
+                .map(|classifications| zero_shot::select(classifications, options.multi_label))
                 .collect()),
             (ClassifyMode::Whole, None) => self.text(ctx, &text),
             (ClassifyMode::Regions, Some(_)) => zero_shot::entities(self, ctx, input, options.clone())?
                 .into_iter()
-                .map(|annotations| zero_shot::retain(annotations, options.clone(), options.min_score))
+                .map(|classifications| zero_shot::retain(classifications, options.clone(), options.min_score))
                 .collect(),
             (ClassifyMode::Regions, None) => Err(nim_error::Diagnostic::message(
                 "NLI span classification requires custom labels",
             )),
         }?;
 
-        out.into_iter().map(|annotations| options.apply(annotations)).collect()
+        out.into_iter()
+            .map(|classifications| options.apply(classifications))
+            .collect()
     }
 }

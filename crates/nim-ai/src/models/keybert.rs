@@ -1,6 +1,6 @@
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed};
 use crate::tasks;
-use crate::types::{Annotation, Span};
+use crate::types::{Classification, Span};
 
 pub struct KeyBert<E: Embed> {
     embedder: E,
@@ -19,7 +19,12 @@ impl<E: Embed> Embed for KeyBert<E> {
 }
 
 impl<E: Embed> Classify for KeyBert<E> {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn classify(
+        &self,
+        ctx: &Context,
+        input: &[&[u8]],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>> {
         let text = input
             .iter()
             .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
@@ -44,27 +49,25 @@ impl<E: Embed> Classify for KeyBert<E> {
         out.into_iter()
             .zip(text)
             .map(|(keywords, text)| {
-                let mut annotations: Vec<(String, Annotation)> = Vec::new();
+                let mut classifications: Vec<(String, Classification)> = Vec::new();
 
                 for keyword in keywords
                     .into_iter()
                     .filter(|keyword| keyword.score as f64 >= options.min_score)
                 {
                     for offset in keyword.offsets {
-                        let span = Span::Text(offset);
-                        let source = span
-                            .text(text.as_bytes())?
-                            .ok_or_else(|| nim_error::Diagnostic::message("keyword requires a text span"))?;
+                        let span = Span::Offset(offset);
+                        let source = span.text(text.as_bytes())?;
 
-                        if let Some((_, annotation)) = annotations
+                        if let Some((_, classification)) = classifications
                             .iter_mut()
-                            .find(|(source_text, annotation)| source_text == source && annotation.label == keyword.text)
+                            .find(|(source_text, classification)| source_text == source && classification.label == keyword.text)
                         {
-                            annotation.spans.push(span);
+                            classification.spans.push(span);
                         } else {
-                            annotations.push((
+                            classifications.push((
                                 source.to_string(),
-                                Annotation {
+                                Classification {
                                     name: String::from("keyword"),
                                     label: keyword.text.clone(),
                                     score: keyword.score as f64,
@@ -75,7 +78,12 @@ impl<E: Embed> Classify for KeyBert<E> {
                     }
                 }
 
-                options.apply(annotations.into_iter().map(|(_, annotation)| annotation).collect())
+                options.apply(
+                    classifications
+                        .into_iter()
+                        .map(|(_, classification)| classification)
+                        .collect(),
+                )
             })
             .collect()
     }

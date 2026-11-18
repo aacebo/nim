@@ -1,10 +1,15 @@
 use crate::{
     models::Context,
-    types::{Annotation, Span},
+    types::{Classification, Span},
 };
 
 pub trait Classify: Send + Sync {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>>;
+    fn classify(
+        &self,
+        ctx: &Context,
+        input: &[&[u8]],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>>;
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -68,34 +73,34 @@ impl ClassifyOptions<'_> {
         Ok(())
     }
 
-    pub fn apply(&self, mut annotations: Vec<Annotation>) -> nim_error::Result<Vec<Annotation>> {
+    pub fn apply(&self, mut classifications: Vec<Classification>) -> nim_error::Result<Vec<Classification>> {
         self.validate()?;
 
-        if annotations.iter().any(|annotation| {
-            !annotation.score.is_finite()
-                || !(0.0..=1.0).contains(&annotation.score)
-                || self.labels.is_some_and(|labels| !labels.contains(&annotation.label))
+        if classifications.iter().any(|classification| {
+            !classification.score.is_finite()
+                || !(0.0..=1.0).contains(&classification.score)
+                || self.labels.is_some_and(|labels| !labels.contains(&classification.label))
         }) {
             return Err(nim_error::Diagnostic::message(
                 "classification returned an invalid label or score",
             ));
         }
 
-        annotations.retain(|annotation| annotation.score >= self.min_score);
+        classifications.retain(|classification| classification.score >= self.min_score);
 
         if let Some(limit) = self.limit {
-            annotations.sort_by(|left, right| right.score.total_cmp(&left.score));
-            annotations.truncate(limit);
+            classifications.sort_by(|left, right| right.score.total_cmp(&left.score));
+            classifications.truncate(limit);
         }
 
         if self.mode == ClassifyMode::Regions
-            && annotations.iter().all(|annotation| {
-                !annotation.spans.is_empty() && annotation.spans.iter().all(|span| matches!(span, Span::Text(_)))
+            && classifications.iter().all(|classification| {
+                !classification.spans.is_empty() && classification.spans.iter().all(|span| matches!(span, Span::Offset(_)))
             })
         {
-            annotations.sort_by_key(|annotation| annotation.spans[0].as_text().map(|offset| offset.begin));
+            classifications.sort_by_key(|classification| classification.spans[0].as_offset().map(|offset| offset.begin));
         }
 
-        Ok(annotations)
+        Ok(classifications)
     }
 }

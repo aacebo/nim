@@ -3,7 +3,7 @@ use candle_nn::{Linear, Module, VarBuilder, ops};
 
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::{aggregation, classification, decode_entities};
-use crate::types::Annotation;
+use crate::types::Classification;
 
 use super::config::Config;
 use super::model::DistilBert;
@@ -34,7 +34,7 @@ impl Classifier {
         })
     }
 
-    fn text(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn text(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Classification>>> {
         if text.is_empty() {
             return Ok(Vec::new());
         }
@@ -59,7 +59,7 @@ impl Classifier {
             .collect()
     }
 
-    fn spans(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn spans(&self, ctx: &Context, text: &[&str]) -> nim_error::Result<Vec<Vec<Classification>>> {
         text.iter()
             .map(|text| {
                 let encoding = ctx.encode_one(text)?;
@@ -99,7 +99,12 @@ impl Forward for Classifier {
 }
 
 impl Classify for Classifier {
-    fn classify(&self, ctx: &Context, input: &[&[u8]], options: ClassifyOptions<'_>) -> nim_error::Result<Vec<Vec<Annotation>>> {
+    fn classify(
+        &self,
+        ctx: &Context,
+        input: &[&[u8]],
+        options: ClassifyOptions<'_>,
+    ) -> nim_error::Result<Vec<Vec<Classification>>> {
         let text = input
             .iter()
             .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
@@ -129,6 +134,8 @@ impl Classify for Classifier {
             ClassifyMode::Regions => self.spans(ctx, &text),
         }?;
 
-        out.into_iter().map(|annotations| options.apply(annotations)).collect()
+        out.into_iter()
+            .map(|classifications| options.apply(classifications))
+            .collect()
     }
 }

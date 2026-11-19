@@ -10,8 +10,6 @@ use crate::models::{Chat, ChatOptions, Context, Summarize, SummarizeOptions};
 
 use super::Config;
 
-const PROMPT: &str = "You are NIM, a helpful assistant. Answer the user's message directly.";
-
 pub struct Generator {
     model: Mutex<Runtime>,
     context_limit: usize,
@@ -66,8 +64,13 @@ impl Generator {
 
     fn one(&self, ctx: &Context, text: &str, options: &ChatOptions<'_>) -> nim_error::Result<TextOutput> {
         let tokenizer = ctx.tokenizer()?;
-        let prompt = options.prompt.unwrap_or(PROMPT);
-        let text = format!("<|im_start|>system\n{prompt}<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n");
+        let system = options
+            .prompt
+            .map(|prompt| format!("<|im_start|>system\n{prompt}<|im_end|>\n"));
+        let text = format!(
+            "{}<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n",
+            system.unwrap_or_default()
+        );
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_len = crate::models::output_limit("Qwen", self.context_limit, ids.len(), options.max_len)?;

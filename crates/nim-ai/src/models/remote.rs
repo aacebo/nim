@@ -271,11 +271,8 @@ impl Chat for RemoteModel {
             .iter()
             .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
             .collect::<Result<Vec<_>, _>>()?;
-        let prompt = options
-            .prompt
-            .unwrap_or("You are NIM, a helpful assistant. Answer the user's message directly.");
         text.iter()
-            .map(|text| self.client().complete(prompt, text, options.max_len))
+            .map(|text| self.client().complete(options.prompt, text, options.max_len))
             .map(|result| result.map(|text| TextOutput { text, confidence: None }))
             .collect()
     }

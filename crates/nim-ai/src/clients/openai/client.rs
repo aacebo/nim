@@ -58,10 +58,18 @@ impl OpenAI {
 
     /// A plain chat completion. Generation returns prose, so unlike `json` it is not constrained
     /// to a schema -- wrapping a summary in a JSON envelope only to unwrap it buys nothing.
-    pub fn complete(&self, prompt: &str, input: &str, max_len: Option<usize>) -> nim_error::Result<String> {
+    pub fn complete(&self, prompt: Option<&str>, input: &str, max_len: Option<usize>) -> nim_error::Result<String> {
+        let mut messages = Vec::new();
+
+        if let Some(prompt) = prompt {
+            messages.push(Message::system(prompt));
+        }
+
+        messages.push(Message::user(input));
+
         let mut body = serde_json::json!({
             "model": self.model.to_string(),
-            "messages": [Message::system(prompt), Message::user(input)],
+            "messages": messages,
         });
 
         if let Some(max_len) = max_len {

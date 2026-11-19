@@ -2,6 +2,8 @@ use nim_ai::{models::ModelRef, types::TextOutput};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
+const BASE_PROMPT: &str = "You are NIM, a helpful assistant. Answer the user's message directly.";
+
 #[derive(Debug, Clone)]
 pub struct TextChatOptions {
     pub model: ModelRef,
@@ -17,7 +19,7 @@ impl Default for TextChatOptions {
 
         Self {
             model: options.model,
-            system: options.system,
+            system: String::new(),
             beams: options.beams,
             max_len: options.max_len,
             task: Default::default(),
@@ -29,7 +31,11 @@ impl From<TextChatOptions> for nim_ai::pipelines::text::chat::Options {
     fn from(options: TextChatOptions) -> Self {
         Self {
             model: options.model,
-            system: options.system,
+            system: if options.system.is_empty() {
+                BASE_PROMPT.to_string()
+            } else {
+                format!("{BASE_PROMPT}\n{}", options.system)
+            },
             beams: options.beams,
             max_len: options.max_len,
         }

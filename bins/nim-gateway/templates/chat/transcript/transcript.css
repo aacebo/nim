@@ -5,15 +5,15 @@ nim-chat-transcript {
 #chat-transcript {
     position: absolute;
     top: 50%;
-    right: max(18px, env(safe-area-inset-right));
-    width: clamp(240px, 27vw, 340px);
-    max-height: min(60dvh, 440px);
+    left: 50%;
+    width: min(760px, calc(100% - max(28px, env(safe-area-inset-left) + env(safe-area-inset-right))));
+    max-height: min(68dvh, calc(100dvh - 130px));
     box-sizing: border-box;
     border: 1px solid rgb(214 226 235 / 24%);
-    background: rgb(255 255 255 / 10%);
+    background: linear-gradient(rgb(0 0 0 / 50%), rgb(0 0 0 / 50%)), rgb(255 255 255 / 10%);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
-    transform: translateY(-50%);
+    transform: translate(-50%, -50%);
     pointer-events: auto;
 }
 #chat-transcript:not([hidden]) {
@@ -43,6 +43,10 @@ nim-chat-transcript {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-color: #526b7b transparent;
+}
+.chat-scroll.has-earlier-messages {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 140px);
+    mask-image: linear-gradient(to bottom, transparent, black 140px);
 }
 .chat-scroll:focus-visible {
     outline: 1px solid var(--hud-line);

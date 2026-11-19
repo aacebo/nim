@@ -12,12 +12,13 @@ pub const QUANTIZED_MODEL: &str = "Qwen/Qwen3-32B-GGUF";
 pub const WEIGHTS: &str = "Qwen3-32B-Q4_K_M.gguf";
 
 pub struct Embedder {
+    max_position_embeddings: usize,
     model: candle_transformers::models::qwen3::Model,
 }
 
 impl Embedder {
     pub fn new(loader: &Loader) -> nim_error::Result<Self> {
-        let config = loader.config()?;
+        let config: Config = loader.config()?;
         let vars = loader.vars()?;
         let vars = if vars.contains_tensor("embed_tokens.weight") {
             vars.rename_f(|name: &str| name.strip_prefix("model.").unwrap_or(name).to_string())
@@ -26,6 +27,7 @@ impl Embedder {
         };
 
         Ok(Self {
+            max_position_embeddings: config.max_position_embeddings,
             model: candle_transformers::models::qwen3::Model::new(&config, vars)?,
         })
     }
@@ -52,7 +54,7 @@ impl Embed for Embedder {
         tokenizer.with_padding(None);
         tokenizer
             .with_truncation(Some(tokenizers::TruncationParams {
-                max_length: 32768,
+                max_length: self.max_position_embeddings,
                 ..Default::default()
             }))
             .map_err(nim_error::Diagnostic::message)?;

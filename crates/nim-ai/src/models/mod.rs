@@ -48,6 +48,22 @@ use crate::resources::Repository;
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
 
+fn output_limit(model: &str, context: usize, prompt: usize, requested: Option<usize>) -> nim_error::Result<usize> {
+    let remaining = context
+        .checked_sub(prompt)
+        .filter(|remaining| *remaining > 0)
+        .ok_or_else(|| nim_error::Diagnostic::message(format!("{model} prompt exceeds the available context")))?;
+    let limit = requested.unwrap_or(remaining);
+
+    if limit > remaining {
+        return Err(nim_error::Diagnostic::message(format!(
+            "{model} prompt and output allowance exceed the {context}-token context limit"
+        )));
+    }
+
+    Ok(limit)
+}
+
 fn device() -> nim_error::Result<Device> {
     #[cfg(target_os = "macos")]
     {
@@ -475,6 +491,14 @@ impl Model {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn output_limit_uses_remaining_context() {
+        assert_eq!(super::output_limit("model", 32768, 100, None).unwrap(), 32668);
+        assert_eq!(super::output_limit("model", 32768, 100, Some(512)).unwrap(), 512);
+        assert!(super::output_limit("model", 32768, 32768, None).is_err());
+        assert!(super::output_limit("model", 32768, 100, Some(32669)).is_err());
+    }
+
     use super::*;
 
     #[test]

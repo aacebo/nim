@@ -5,13 +5,14 @@ use candle_core::Tensor;
 use crate::models::{Context, Embed, EmbedMode, EmbedOptions, Loader};
 
 pub struct Embedder {
+    max_position_embeddings: usize,
     model: model::Model,
     dense: Vec<candle_nn::Linear>,
 }
 
 impl Embedder {
     pub fn new(loader: &Loader) -> nim_error::Result<Self> {
-        let config = loader.config()?;
+        let config: model::Config = loader.config()?;
         let vars = loader.vars()?;
         let vars = if vars.contains_tensor("embed_tokens.weight") {
             vars.rename_f(|name: &str| name.strip_prefix("model.").unwrap_or(name).to_string())
@@ -20,6 +21,7 @@ impl Embedder {
         };
 
         Ok(Self {
+            max_position_embeddings: config.max_position_embeddings,
             model: model::Model::new(false, &config, vars)?,
             dense: ["2_Dense", "3_Dense"]
                 .iter()
@@ -71,7 +73,7 @@ impl Embed for Embedder {
         tokenizer.with_padding(None);
         tokenizer
             .with_truncation(Some(tokenizers::TruncationParams {
-                max_length: 2048,
+                max_length: self.max_position_embeddings,
                 ..Default::default()
             }))
             .map_err(nim_error::Diagnostic::message)?;

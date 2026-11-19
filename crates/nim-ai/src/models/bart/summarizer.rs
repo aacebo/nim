@@ -50,10 +50,16 @@ impl Summarize for Summarizer {
         if let Some(beams) = options.beams {
             decoding = decoding.beams(beams);
         }
-        if let Some(max_len) = options.max_len {
-            decoding = decoding.max_length(max_len);
+
+        let max_len = options.max_len.unwrap_or(self.max_position_embeddings);
+
+        if max_len > self.max_position_embeddings {
+            return Err(nim_error::Diagnostic::message(
+                "summary length exceeds model position embeddings",
+            ));
         }
 
+        decoding = decoding.max_length(max_len);
         text.iter().map(|text| self.one(ctx, text, &decoding)).collect()
     }
 }

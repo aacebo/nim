@@ -10,7 +10,6 @@ use super::model::Model;
 
 const BOS: u32 = 1;
 const EOS: u32 = 2;
-const MAX_LEN: usize = 20;
 
 pub struct Captioner {
     model: Mutex<Model>,
@@ -61,6 +60,7 @@ impl Captioner {
                 let mut next: Vec<_> = probabilities.iter().enumerate().collect();
 
                 next.sort_by(|(_, left), (_, right)| right.total_cmp(left));
+
                 for (token, probability) in next.into_iter().take(beams) {
                     candidates.push((*score + *probability as f64, tokens.clone(), token as u32));
                 }
@@ -76,6 +76,16 @@ impl Captioner {
                     done.push((score, tokens));
                 } else if live.len() < beams {
                     live.push((score, tokens));
+                }
+            }
+
+            if done.len() >= beams {
+                let mut scores = done.iter().map(|(score, _)| *score).collect::<Vec<_>>();
+
+                scores.sort_by(|left, right| right.total_cmp(left));
+
+                if live.iter().all(|(score, _)| *score <= scores[beams - 1]) {
+                    break;
                 }
             }
         }
@@ -98,7 +108,7 @@ impl Caption for Captioner {
         let beams = options.beams;
         let max_len = options.max_len;
         let beams = beams.unwrap_or(3).max(1);
-        let max_len = max_len.unwrap_or(MAX_LEN).min(MAX_LEN).clamp(1, MAX_LEN);
+        let max_len = max_len.unwrap_or(usize::MAX);
         input
             .iter()
             .map(|bytes| self.one(ctx, bytes, beams, max_len))

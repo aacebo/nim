@@ -10,8 +10,6 @@ use crate::models::{Chat, ChatOptions, Context, Summarize, SummarizeOptions};
 
 use super::Config;
 
-const CONTEXT_LIMIT: usize = 4096;
-const MAX_LEN: usize = 128;
 const PROMPT: &str = "You are NIM, a helpful assistant. Answer the user's message directly.";
 
 pub struct Generator {
@@ -46,18 +44,23 @@ impl Generator {
     pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Runtime::Safetensors(qwen2::ModelForCausalLM::new(config, vars)?)),
-            context_limit: CONTEXT_LIMIT.min(config.max_position_embeddings),
+            context_limit: config.max_position_embeddings,
         })
     }
 
     pub fn quantized(config: &Config, path: impl AsRef<Path>, device: &Device) -> nim_error::Result<Self> {
         let mut file = std::fs::File::open(path)?;
         let content = gguf_file::Content::read(&mut file)?;
+        let context_limit = content
+            .metadata
+            .get("qwen2.context_length")
+            .ok_or_else(|| nim_error::Diagnostic::message("GGUF is missing qwen2.context_length"))?
+            .to_u32()? as usize;
         let model = quantized_qwen2::ModelWeights::from_gguf(content, &mut file, device)?;
 
         Ok(Self {
             model: Mutex::new(Runtime::Quantized(model)),
-            context_limit: CONTEXT_LIMIT.min(config.max_position_embeddings),
+            context_limit: config.max_position_embeddings.min(context_limit),
         })
     }
 
@@ -67,15 +70,7 @@ impl Generator {
         let text = format!("<|im_start|>system\n{prompt}<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n");
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
-        let max_len = options.max_len.unwrap_or(MAX_LEN);
-
-        if ids.len().saturating_add(max_len) > self.context_limit {
-            return Err(nim_error::Diagnostic::message(format!(
-                "Qwen prompt and output allowance exceed the {}-token context limit",
-                self.context_limit
-            )));
-        }
-
+        let max_len = crate::models::output_limit("Qwen", self.context_limit, ids.len(), options.max_len)?;
         let stops = ["<|im_end|>", "<|endoftext|>"]
             .iter()
             .map(|token| {
@@ -118,6 +113,7 @@ impl Generator {
                 let value = (sum / tokens.len() as f64).exp();
                 value.is_finite().then(|| value.clamp(0.0, 1.0))
             };
+
             let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
 
             Ok(TextOutput {
@@ -150,11 +146,13 @@ impl Chat for Generator {
 impl Summarize for Generator {
     fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
+
         let responses = self.chat(ctx, input, ChatOptions {
             prompt: Some("Summarize the text concisely and accurately, using only information present in the text. Return only the summary."),
             beams: options.beams,
             max_len: options.max_len,
         })?;
+
         Ok(responses)
     }
 }

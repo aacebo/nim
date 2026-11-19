@@ -254,8 +254,8 @@
         width: 100%;
     }
     #chat-transcript {
-        max-width: 430px;
-        max-height: 34dvh;
+        max-width: 760px;
+        max-height: min(68dvh, calc(100dvh - 130px));
         transform: none;
     }
 }

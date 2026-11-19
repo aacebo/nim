@@ -101,7 +101,7 @@ impl Caption for Captioner {
         let max_len = options.max_len;
         input
             .iter()
-            .map(|image| self.one(ctx, image, beams.unwrap_or(1), max_len.unwrap_or(20)))
+            .map(|image| self.one(ctx, image, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
             .map(|result| result.map(|text| TextOutput { text, confidence: None }))
             .collect()
     }

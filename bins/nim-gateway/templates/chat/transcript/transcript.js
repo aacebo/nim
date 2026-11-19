@@ -1,4 +1,19 @@
 customElements.define("nim-chat-transcript", class extends HTMLElement {
+    constructor() {
+        super();
+        this.followLatest = true;
+        this.scrollPosition = 0;
+
+        this.addEventListener("scroll", (event) => {
+            const scroll = event.target;
+            if (!scroll.classList.contains("chat-scroll") || this.querySelector("#chat-transcript").hidden) return;
+
+            this.scrollPosition = scroll.scrollTop;
+            this.followLatest = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop < 16;
+            scroll.classList.toggle("has-earlier-messages", scroll.scrollTop > 0);
+        }, true);
+    }
+
     messageText(content) {
         if (typeof content === "string") return content;
         if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("\n");
@@ -20,14 +35,19 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         const chatScroll = this.querySelector(".chat-scroll");
         const chatMessageList = this.querySelector("#chat-messages");
         const chatHistoryStatus = this.querySelector("#chat-history-status");
+        const wasHidden = chatTranscript.hidden;
+
+        if (!wasHidden) {
+            this.scrollPosition = chatScroll.scrollTop;
+            this.followLatest = chatScroll.scrollHeight - chatScroll.clientHeight - chatScroll.scrollTop < 16;
+        }
+
         chatTranscript.hidden = !open || chatMessages.size === 0;
 
         if (chatTranscript.hidden) {
             return;
         }
 
-        const scrollTop = chatScroll.scrollTop;
-        const stickToEnd = chatScroll.scrollHeight - chatScroll.clientHeight - scrollTop < 16;
         const messages = [...chatMessages.values()].sort((a, b) => this.messageOrder(a).localeCompare(this.messageOrder(b)));
         const rows = document.createDocumentFragment();
 
@@ -49,6 +69,8 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         chatMessageList.replaceChildren(rows);
         chatHistoryStatus.textContent = historyLoading ? "Loading history…"
             : historyError ? "Unable to load chat history." : "";
-        chatScroll.scrollTop = stickToEnd ? chatScroll.scrollHeight : scrollTop;
+        chatScroll.scrollTop = this.followLatest ? chatScroll.scrollHeight : this.scrollPosition;
+        this.scrollPosition = chatScroll.scrollTop;
+        chatScroll.classList.toggle("has-earlier-messages", chatScroll.scrollTop > 0);
     }
 });

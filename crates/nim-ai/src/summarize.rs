@@ -1,5 +1,4 @@
-use crate::models::Context;
-use crate::types::TextOutput;
+use crate::{Context, types::TextOutput};
 
 pub trait Summarize: Send + Sync {
     fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>>;

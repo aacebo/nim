@@ -1,16 +1,26 @@
-use nim::{runtime::Render, signals::Signal, state::Message};
+use nim::{runtime::Transform, signals::Signal, state::Message};
 
 use crate::SignalContext;
 
 #[tracing::instrument(skip(ctx, signal))]
 pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Result<()> {
     let message = signal.content;
-    let content = message.content.render(&ctx.services()).await?;
-    let artifacts = ctx
+    let mut messages = ctx.services().messages().find_history(message.id, 20).await?.data;
+
+    messages.sort_by_key(|a| a.created_at);
+    messages.extend([message.clone()]);
+
+    let assistant = ctx
         .runtime()
         .pipelines()
         .text()
-        .chat(&[&content], nim::runtime::ai::TextChatOptions::default())
+        .chat(nim::runtime::ai::TextChatOptions {
+            chat: nim::ai::ChatOptions {
+                messages: messages.transform(&ctx.services()).await?,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
         .await?;
 
     let response = ctx
@@ -20,12 +30,15 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
             chat_id: message.chat_id,
             parent_id: message.parent_id,
             role: nim::state::Role::Agent,
-            content: nim::state::MessageContent::Array(
-                artifacts
-                    .into_iter()
-                    .map(|v| nim::state::MessageContent::String(v.text))
-                    .collect(),
-            ),
+            content: nim::state::MessageContent::Single(nim::state::MessageContentPart::String(
+                assistant
+                    .content
+                    .and_then(|content| match content {
+                        nim::ai::ChatMessageContent::Text(text) => Some(text),
+                        nim::ai::ChatMessageContent::Parts(_) => None,
+                    })
+                    .unwrap_or_default(),
+            )),
         })
         .await?;
 

@@ -133,18 +133,9 @@ pub(crate) fn decode_entities(words: Vec<Word>, text: &str, labels: &[String]) -
     }
 }
 
-pub fn chat<M: Chat + ?Sized>(
-    model: &M,
-    ctx: &Context,
-    input: &[&[u8]],
-    options: ChatOptions<'_>,
-) -> nim_error::Result<Vec<TextOutput>> {
+pub fn chat<M: Chat + ?Sized>(model: &M, ctx: &Context, options: ChatOptions) -> nim_error::Result<crate::ChatAssistantMessage> {
     options.validate()?;
-    let output = model.chat(ctx, input, options)?;
-    if output.len() != input.len() {
-        return Err(nim_error::Diagnostic::message("chat output does not match input count"));
-    }
-    Ok(output)
+    model.chat(ctx, options)
 }
 
 pub fn summarize<M: Summarize + ?Sized>(
@@ -203,15 +194,13 @@ mod capability_tests {
     struct TestModel;
 
     impl Chat for TestModel {
-        fn chat(&self, _: &Context, input: &[&[u8]], options: ChatOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
-            assert_eq!(options.prompt, Some("chat prompt"));
-            Ok(input
-                .iter()
-                .map(|_| TextOutput {
-                    text: "reply".into(),
-                    confidence: None,
-                })
-                .collect())
+        fn chat(&self, _: &Context, _: ChatOptions) -> nim_error::Result<crate::ChatAssistantMessage> {
+            Ok(crate::ChatAssistantMessage {
+                content: Some(crate::ChatMessageContent::Text("reply".into())),
+                reasoning: None,
+                tool_calls: Vec::new(),
+                annotations: Vec::new(),
+            })
         }
     }
 
@@ -226,16 +215,12 @@ mod capability_tests {
         let device = Device::Cpu;
         let ctx = Context::new(None, &device, "test");
         let input = [b"input".as_slice()];
-        let options = ChatOptions {
-            prompt: Some("chat prompt"),
-            ..Default::default()
-        };
-        assert_eq!(chat(&TestModel, &ctx, &input, options).unwrap()[0].text, "reply");
+        let options = ChatOptions::default();
+        assert!(chat(&TestModel, &ctx, options).is_ok());
         assert!(
             chat(
                 &TestModel,
                 &ctx,
-                &input,
                 ChatOptions {
                     max_len: Some(0),
                     ..Default::default()

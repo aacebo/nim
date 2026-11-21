@@ -1,4 +1,4 @@
-use crate::models::Context;
+use crate::Context;
 
 pub trait Embed: Send + Sync {
     fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>>;
@@ -14,7 +14,6 @@ pub trait Embed: Send + Sync {
     }
 }
 
-/// A sentence vector per input.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EmbedMode {
     #[default]

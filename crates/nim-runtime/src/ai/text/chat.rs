@@ -1,15 +1,11 @@
-use nim_ai::{models::ModelRef, types::TextOutput};
+use nim_ai::{ChatAssistantMessage, ChatOptions, models::ModelRef};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
-
-const BASE_PROMPT: &str = "You are NIM, a helpful assistant. Answer the user's message directly.";
 
 #[derive(Debug, Clone)]
 pub struct TextChatOptions {
     pub model: ModelRef,
-    pub system: String,
-    pub beams: Option<usize>,
-    pub max_len: Option<usize>,
+    pub chat: ChatOptions,
     pub task: TaskOptions,
 }
 
@@ -19,9 +15,7 @@ impl Default for TextChatOptions {
 
         Self {
             model: options.model,
-            system: String::new(),
-            beams: options.beams,
-            max_len: options.max_len,
+            chat: options.chat,
             task: Default::default(),
         }
     }
@@ -31,22 +25,41 @@ impl From<TextChatOptions> for nim_ai::pipelines::text::chat::Options {
     fn from(options: TextChatOptions) -> Self {
         Self {
             model: options.model,
-            system: if options.system.is_empty() {
-                BASE_PROMPT.to_string()
-            } else {
-                format!("{BASE_PROMPT}\n{}", options.system)
-            },
-            beams: options.beams,
-            max_len: options.max_len,
+            chat: options.chat,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TextChatSummarizeOptions {
+    pub model: ModelRef,
+    pub chat: ChatOptions,
+    pub task: TaskOptions,
+}
+
+impl Default for TextChatSummarizeOptions {
+    fn default() -> Self {
+        let options = nim_ai::pipelines::text::chat::Options::default();
+
+        Self {
+            model: options.model,
+            chat: options.chat,
+            task: Default::default(),
+        }
+    }
+}
+
+impl From<TextChatSummarizeOptions> for nim_ai::pipelines::text::chat::Options {
+    fn from(options: TextChatSummarizeOptions) -> Self {
+        Self {
+            model: options.model,
+            chat: options.chat,
         }
     }
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn chat<T>(&self, input: &[T], options: TextChatOptions) -> nim_error::Result<Vec<TextOutput>>
-    where
-        T: AsRef<str>,
-    {
+    pub async fn chat(&self, options: TextChatOptions) -> nim_error::Result<ChatAssistantMessage> {
         let model = crate::models::assert(&self._services, &options.model).await?;
         let mut options = options;
 
@@ -55,8 +68,7 @@ impl<'a> TextPipelines<'a> {
         }
 
         let out = task_run!(self, "text_chat", &options, {
-            let input = input.iter().map(|v| v.as_ref().as_bytes()).collect::<Vec<_>>();
-            nim_ai::pipelines::text::chat::run_with(&input, options.into())
+            nim_ai::pipelines::text::chat::run(options.into())
         })?;
 
         Ok(out)

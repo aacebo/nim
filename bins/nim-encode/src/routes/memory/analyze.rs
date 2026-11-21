@@ -40,8 +40,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Memory>) -> nim::error::Resu
             nim::runtime::ai::TextSummarizeOptions {
                 embedding: nim::ai::pipelines::text::embeddings::Options {
                     model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
-                    embedding: nim::ai::models::EmbedOptions {
-                        mode: nim::ai::models::EmbedMode::Document,
+                    embedding: nim::ai::EmbedOptions {
+                        mode: nim::ai::EmbedMode::Document,
                         dimensions: Some(768),
                         ..Default::default()
                     },

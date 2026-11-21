@@ -122,6 +122,45 @@ impl<'a> MessageStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn find_history(&self, id: uuid::Uuid, count: usize) -> Result<PageResponse<types::MessageRow>, sqlx::Error> {
+        let message = self.find_by_id(id).await?;
+        let data: Vec<types::MessageRow> = sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                chat_id,
+                parent_id,
+                version,
+                role,
+                content,
+                summary,
+                embedding,
+                confidence,
+                created_at,
+                updated_at
+            FROM messages
+            WHERE (created_at, id) < ($2, $1::uuid)
+            ORDER BY created_at, id DESC
+            LIMIT $3
+            "#,
+        )
+        .bind(message.id)
+        .bind(message.created_at)
+        .bind(i64::try_from(count).unwrap_or(i64::MAX))
+        .fetch_all(self.pool)
+        .await?;
+
+        Ok(PageResponse {
+            size: count,
+            next: data.last().filter(|_| data.len() == count).map(|v| Cursor {
+                id: v.id,
+                timestamp: v.created_at,
+            }),
+            data,
+        })
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: types::MessageRow) -> Result<types::MessageRow, sqlx::Error> {
         sqlx::query_as(
             r#"

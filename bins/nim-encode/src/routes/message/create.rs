@@ -6,7 +6,8 @@ use crate::SignalContext;
 #[tracing::instrument(skip(ctx, signal))]
 pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Result<()> {
     let message = signal.content;
-    let content = message.content.render(&ctx.services()).await?.to_lowercase();
+    let content = message.render(&ctx.services()).await?;
+
     let artifacts = ctx
         .runtime()
         .pipelines()
@@ -16,8 +17,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
             nim::runtime::ai::TextSummarizeOptions {
                 embedding: nim::ai::pipelines::text::embeddings::Options {
                     model: nim::ai::models::refer("unsloth/embeddinggemma-300m")?,
-                    embedding: nim::ai::models::EmbedOptions {
-                        mode: nim::ai::models::EmbedMode::Document,
+                    embedding: nim::ai::EmbedOptions {
+                        mode: nim::ai::EmbedMode::Document,
                         dimensions: Some(768),
                         ..Default::default()
                     },
@@ -109,8 +110,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
                 .embed(
                     &labels,
                     nim::runtime::ai::TextEmbedOptions {
-                        embedding: nim::ai::models::EmbedOptions {
-                            mode: nim::ai::models::EmbedMode::Document,
+                        embedding: nim::ai::EmbedOptions {
+                            mode: nim::ai::EmbedMode::Document,
                             dimensions: Some(768),
                             ..Default::default()
                         },

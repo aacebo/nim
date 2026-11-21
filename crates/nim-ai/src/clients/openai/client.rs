@@ -3,6 +3,7 @@ use std::time::Duration;
 use reqwest::blocking::Client;
 
 use crate::models::{ModelId, Provider};
+use crate::{ChatAssistantMessage, ChatMessageContent, ToolCall};
 
 use super::types::{ChatResponse, EmbeddingsResponse, Message};
 
@@ -84,6 +85,86 @@ impl OpenAI {
             .next()
             .map(|choice| choice.message.content.trim().to_string())
             .ok_or_else(|| nim_error::Diagnostic::message("no completion returned"))
+    }
+
+    pub fn chat(
+        &self,
+        messages: Vec<serde_json::Value>,
+        tools: Vec<serde_json::Value>,
+        max_len: Option<usize>,
+    ) -> nim_error::Result<ChatAssistantMessage> {
+        let mut body = serde_json::json!({
+            "model": self.model.to_string(),
+            "messages": messages,
+        });
+
+        if !tools.is_empty() {
+            body["tools"] = serde_json::Value::Array(tools);
+        }
+
+        if let Some(max_len) = max_len {
+            body["max_completion_tokens"] = serde_json::json!(max_len);
+        }
+
+        let response: serde_json::Value = self.post("chat/completions", &body)?;
+        let message = response
+            .get("choices")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|choices| choices.first())
+            .and_then(|choice| choice.get("message"))
+            .ok_or_else(|| nim_error::Diagnostic::message("no completion returned"))?;
+        let content = message
+            .get("content")
+            .and_then(serde_json::Value::as_str)
+            .map(|value| ChatMessageContent::Text(value.trim().to_string()));
+        let reasoning = message
+            .get("reasoning_content")
+            .or_else(|| message.get("reasoning"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string);
+        let tool_calls = message
+            .get("tool_calls")
+            .and_then(serde_json::Value::as_array)
+            .map(|calls| {
+                calls
+                    .iter()
+                    .map(|call| {
+                        let function = call
+                            .get("function")
+                            .and_then(serde_json::Value::as_object)
+                            .ok_or_else(|| nim_error::Diagnostic::message("tool call is missing function"))?;
+                        let name = function
+                            .get("name")
+                            .and_then(serde_json::Value::as_str)
+                            .ok_or_else(|| nim_error::Diagnostic::message("tool call is missing name"))?
+                            .to_string();
+                        let args = function
+                            .get("arguments")
+                            .and_then(serde_json::Value::as_str)
+                            .map(serde_json::from_str)
+                            .transpose()?
+                            .unwrap_or_default();
+                        Ok(ToolCall {
+                            id: call
+                                .get("id")
+                                .and_then(serde_json::Value::as_str)
+                                .unwrap_or_default()
+                                .to_string(),
+                            name,
+                            args,
+                        })
+                    })
+                    .collect::<nim_error::Result<Vec<_>>>()
+            })
+            .transpose()?
+            .unwrap_or_default();
+
+        Ok(ChatAssistantMessage {
+            content,
+            reasoning,
+            tool_calls,
+            annotations: Vec::new(),
+        })
     }
 
     pub fn embeddings(&self, text: &[&str]) -> nim_error::Result<Vec<Vec<f32>>> {

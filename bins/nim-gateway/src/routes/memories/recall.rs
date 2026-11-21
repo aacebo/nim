@@ -19,8 +19,8 @@ pub async fn route(ctx: HttpContext, body: axum::extract::Json<Body>) -> nim::er
         .embed(
             &[&body.text],
             nim::runtime::ai::TextEmbedOptions {
-                embedding: nim::ai::models::EmbedOptions {
-                    mode: nim::ai::models::EmbedMode::Query,
+                embedding: nim::ai::EmbedOptions {
+                    mode: nim::ai::EmbedMode::Query,
                     dimensions: Some(768),
                     ..Default::default()
                 },

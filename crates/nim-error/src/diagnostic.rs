@@ -12,6 +12,17 @@ pub struct Diagnostic {
 
 impl Diagnostic {
     #[track_caller]
+    pub fn new() -> Self {
+        Self {
+            _span: tracing::Span::current(),
+            _source: Source::None,
+            _location: std::panic::Location::caller(),
+            _backtrace: std::backtrace::Backtrace::capture(),
+            _children: Vec::new(),
+        }
+    }
+
+    #[track_caller]
     pub fn message<T: std::fmt::Display>(message: T) -> Self {
         Self {
             _span: tracing::Span::current(),
@@ -35,6 +46,16 @@ impl Diagnostic {
 
     pub fn child<T: Send + Sync + std::error::Error + 'static>(mut self, error: T) -> Self {
         self._children.push(Arc::new(error));
+        self
+    }
+
+    pub fn append<T: Send + Sync + std::error::Error + 'static>(mut self, errors: impl IntoIterator<Item = T>) -> Self {
+        self._children.extend(
+            errors
+                .into_iter()
+                .map(|v| Arc::new(v) as Arc<dyn std::error::Error + Send + Sync>),
+        );
+
         self
     }
 }
@@ -61,12 +82,31 @@ impl Diagnostic {
     }
 }
 
+impl<T: Send + Sync + std::error::Error + 'static> From<T> for Diagnostic {
+    fn from(value: T) -> Self {
+        Self::error(value)
+    }
+}
+
 impl IntoIterator for Diagnostic {
     type Item = Arc<dyn Send + Sync + std::error::Error + 'static>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         self._children.into_iter()
+    }
+}
+
+impl<V: Send + Sync + std::error::Error + 'static> FromIterator<V> for Diagnostic {
+    fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
+        let mut diagnostic = Self::new();
+
+        diagnostic._children.extend(
+            iter.into_iter()
+                .map(|v| Arc::new(v) as Arc<dyn std::error::Error + Send + Sync>),
+        );
+
+        diagnostic
     }
 }
 
@@ -149,11 +189,5 @@ impl std::fmt::Display for Diagnostic {
         }
 
         Ok(())
-    }
-}
-
-impl<T: Send + Sync + std::error::Error + 'static> From<T> for Diagnostic {
-    fn from(value: T) -> Self {
-        Self::error(value)
     }
 }

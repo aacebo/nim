@@ -1,28 +1,8 @@
-mod caption;
-mod chat;
-mod classify;
-mod embed;
-mod summarize;
-mod transcribe;
-
-pub use caption::*;
-pub use chat::*;
-pub use classify::*;
-pub use embed::*;
-pub use summarize::*;
-pub use transcribe::*;
-
 use candle_core::Device;
 use tokenizers::Tokenizer;
 
-use super::Batch;
+use crate::models::Batch;
 
-/// Borrows what a model needs to turn text into tensors. A loaded model owns its weights; the
-/// tokenizer and device are lent per call, so one set of weights can serve several capabilities.
-///
-/// The tokenizer is optional because a hosted model has none -- it is handed text and returns
-/// text. Its capability impls never touch the context, and `tokenizer()` is the error a local
-/// model would raise if its tokenizer were somehow missing.
 pub struct Context<'a> {
     name: &'a str,
     device: &'a Device,

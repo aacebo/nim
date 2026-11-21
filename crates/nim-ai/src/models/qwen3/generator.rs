@@ -6,13 +6,14 @@ use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::{quantized_qwen3, qwen3};
 
-use crate::models::{Chat, ChatOptions, Context, Summarize, SummarizeOptions};
+use crate::{Chat, ChatAssistantMessage, ChatOptions, Context, Summarize, SummarizeOptions};
 
 use super::Config;
 
 pub struct Generator {
     model: Mutex<Runtime>,
     context_limit: usize,
+    template: hf_chat_template::ChatTemplate,
 }
 
 enum Runtime {
@@ -39,14 +40,20 @@ impl Runtime {
 }
 
 impl Generator {
-    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
+    pub fn new(config: &Config, vars: VarBuilder, template: hf_chat_template::ChatTemplate) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Runtime::Safetensors(qwen3::ModelForCausalLM::new(config, vars)?)),
             context_limit: config.max_position_embeddings,
+            template,
         })
     }
 
-    pub fn quantized(config: &Config, path: impl AsRef<Path>, device: &Device) -> nim_error::Result<Self> {
+    pub fn quantized(
+        config: &Config,
+        path: impl AsRef<Path>,
+        device: &Device,
+        template: hf_chat_template::ChatTemplate,
+    ) -> nim_error::Result<Self> {
         let mut file = std::fs::File::open(path)?;
         let content = gguf_file::Content::read(&mut file)?;
         let context_limit = content
@@ -59,18 +66,19 @@ impl Generator {
         Ok(Self {
             model: Mutex::new(Runtime::Quantized(model)),
             context_limit: config.max_position_embeddings.min(context_limit),
+            template,
         })
     }
 
-    fn one(&self, ctx: &Context, text: &str, options: &ChatOptions<'_>) -> nim_error::Result<TextOutput> {
+    fn one(&self, ctx: &Context, options: ChatOptions) -> nim_error::Result<ChatAssistantMessage> {
         let tokenizer = ctx.tokenizer()?;
-        let prompt = options.prompt.unwrap_or_default();
-        let text = format!(
-            "<|im_start|>system\n{prompt}\n/no_think<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n"
-        );
+        let compat = options.compat;
+        let max_len = options.max_len;
+        let input: hf_chat_template::RenderInput = options.try_into()?;
+        let text = self.template.render(&input).map_err(nim_error::Diagnostic::message)?;
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
-        let max_len = crate::models::output_limit("Qwen3", self.context_limit, ids.len(), options.max_len)?;
+        let max_len = crate::models::output_limit("Qwen3", self.context_limit, ids.len(), max_len)?;
 
         let stops = ["<|im_end|>", "<|endoftext|>"]
             .iter()
@@ -116,11 +124,9 @@ impl Generator {
             };
 
             let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
+            let _ = confidence;
 
-            Ok(TextOutput {
-                text: text.trim().to_string(),
-                confidence,
-            })
+            ChatAssistantMessage::from_qwen(text, compat)
         })();
 
         model.clear_kv_cache();
@@ -129,18 +135,14 @@ impl Generator {
 }
 
 impl Chat for Generator {
-    fn chat(&self, ctx: &Context, input: &[&[u8]], options: ChatOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
+    fn chat(&self, ctx: &Context, options: ChatOptions) -> nim_error::Result<ChatAssistantMessage> {
         options.validate()?;
 
         if options.beams.is_some_and(|beams| beams != 1) {
             return Err(nim_error::Diagnostic::message("Qwen3 chat supports one beam"));
         }
 
-        let text = input
-            .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
-            .collect::<Result<Vec<_>, _>>()?;
-        text.iter().map(|text| self.one(ctx, text, &options)).collect()
+        self.one(ctx, options)
     }
 }
 
@@ -148,12 +150,18 @@ impl Summarize for Generator {
     fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 
-        let responses = self.chat(ctx, input, ChatOptions {
-            prompt: Some("Summarize the text concisely and accurately, using only information present in the text. Return only the summary."),
-            beams: options.beams,
-            max_len: options.max_len,
-        })?;
-
-        Ok(responses)
+        input.iter().map(|bytes| {
+            let text = std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from)?;
+            let response = self.chat(ctx, ChatOptions {
+                messages: vec![crate::ChatUserMessage { content: crate::ChatMessageContent::Text(format!("Summarize the text concisely and accurately, using only information present in the text. Return only the summary.\n\n{text}")) }.into()],
+                beams: options.beams,
+                max_len: options.max_len,
+                ..Default::default()
+            })?;
+            Ok(TextOutput {
+                text: match response.content { Some(crate::ChatMessageContent::Text(text)) => text, _ => String::new() },
+                confidence: None,
+            })
+        }).collect()
     }
 }

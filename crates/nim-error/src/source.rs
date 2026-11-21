@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub enum Source {
     None,
     Message(String),
@@ -36,6 +37,15 @@ impl std::fmt::Display for Source {
             Self::None => write!(f, "null"),
             Self::Message(v) => write!(f, "{v}"),
             Self::Error(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl std::error::Error for Source {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Error(v) => Some(v),
+            _ => None,
         }
     }
 }

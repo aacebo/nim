@@ -79,6 +79,19 @@ impl Loader {
         Ok(std::fs::read_to_string(self.resolve(Path::new(file))?)?)
     }
 
+    pub fn chat_template(&self) -> nim_error::Result<hf_chat_template::ChatTemplate> {
+        let config: hf_chat_template::TokenizerConfig = self.json("tokenizer_config.json")?;
+
+        if self.repo.exists(Path::new("chat_template.jinja")) {
+            return Ok(hf_chat_template::ChatTemplate::from_template_and_config(
+                &self.string("chat_template.jinja")?,
+                &config,
+            )?);
+        }
+
+        Ok(hf_chat_template::ChatTemplate::from_tokenizer_config(&config)?)
+    }
+
     pub(crate) fn resolve(&self, path: &Path) -> nim_error::Result<PathBuf> {
         Ok(self.repo.resolve(path)?.local_path()?.to_path_buf())
     }

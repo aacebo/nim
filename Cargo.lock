@@ -2596,6 +2596,7 @@ name = "nim-runtime"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "futures-util",
  "nim-ai",
  "nim-error",
  "nim-signals",

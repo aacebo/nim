@@ -21,7 +21,6 @@ pub mod whisper;
 mod architecture;
 mod batch;
 mod cache;
-mod capability;
 mod loader;
 mod model_config;
 mod model_id;
@@ -34,7 +33,6 @@ mod tokenizer;
 pub use architecture::*;
 pub use batch::Batch;
 use cache::*;
-pub use capability::*;
 pub use loader::*;
 pub use model_config::*;
 pub use model_id::*;
@@ -45,6 +43,10 @@ pub use provider::*;
 use candle_core::{DType, Device};
 
 use crate::resources::Repository;
+pub(crate) use crate::{
+    Caption, CaptionOptions, Chat, ChatOptions, Classify, ClassifyMedia, ClassifyMode, ClassifyOptions, Context, Embed,
+    EmbedMode, EmbedOptions, Summarize, SummarizeOptions, Transcribe, TranscribeOptions,
+};
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
 
@@ -99,15 +101,6 @@ pub trait Forward: Send + Sync {
     type Output;
 
     fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output>;
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum ClassifyMedia {
-    Text,
-    #[cfg(feature = "vision")]
-    Image,
-    #[cfg(feature = "audio")]
-    Audio,
 }
 
 /// A model with its weights loaded (or, for a remote model, its endpoint bound). The variant
@@ -181,7 +174,12 @@ impl Model {
 
             return Ok(Self {
                 name,
-                model: AnyModel::QwenGenerator(qwen2::Generator::quantized(&config, weights, &device)?),
+                model: AnyModel::QwenGenerator(qwen2::Generator::quantized(
+                    &config,
+                    weights,
+                    &device,
+                    companion.chat_template()?,
+                )?),
                 device,
                 tokenizer: Some(companion.tokenizer()?),
                 config: Some(companion.config()?),
@@ -196,7 +194,12 @@ impl Model {
 
             return Ok(Self {
                 name,
-                model: AnyModel::Qwen3Generator(qwen3::Generator::quantized(&config, weights, &device)?),
+                model: AnyModel::Qwen3Generator(qwen3::Generator::quantized(
+                    &config,
+                    weights,
+                    &device,
+                    companion.chat_template()?,
+                )?),
                 device,
                 tokenizer: Some(companion.tokenizer()?),
                 config: Some(companion.config()?),
@@ -208,7 +211,7 @@ impl Model {
         let model = match model_config.model_type {
             ModelType::Qwen2 => {
                 let config: qwen2::Config = repo.config()?;
-                AnyModel::QwenGenerator(qwen2::Generator::new(&config, repo.vars()?)?)
+                AnyModel::QwenGenerator(qwen2::Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn8rnn_audio_classification() => {
@@ -248,7 +251,7 @@ impl Model {
                     .any(|architecture| matches!(architecture, Architecture::Qwen3ForCausalLM))
                 {
                     let config: qwen3::Config = repo.config()?;
-                    AnyModel::Qwen3Generator(qwen3::Generator::new(&config, repo.vars()?)?)
+                    AnyModel::Qwen3Generator(qwen3::Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
                 } else if model_config
                     .architectures
                     .iter()

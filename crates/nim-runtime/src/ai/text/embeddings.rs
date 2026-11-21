@@ -1,4 +1,4 @@
-use nim_ai::{models::EmbedOptions, models::ModelRef, types::Artifact};
+use nim_ai::{EmbedOptions, models::ModelRef, types::Artifact};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 

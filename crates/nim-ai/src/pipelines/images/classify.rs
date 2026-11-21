@@ -1,6 +1,9 @@
-use crate::models::{ClassifyMedia, ClassifyOptions, ModelRef, load};
 use crate::tasks;
 use crate::types::Classification;
+use crate::{
+    ClassifyMedia, ClassifyOptions,
+    models::{ModelRef, load},
+};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Options {

@@ -3,8 +3,8 @@ use crate::types::TextOutput;
 use crate::types::{Classification, Offset, Span};
 
 use super::RemoteModel;
-use super::capability::{
-    Chat, ChatOptions, Classify, ClassifyMode, ClassifyOptions, Context, Embed, Summarize, SummarizeOptions,
+use crate::{
+    Chat, ChatAssistantMessage, ChatOptions, Classify, ClassifyMode, ClassifyOptions, Context, Embed, Summarize, SummarizeOptions,
 };
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
@@ -260,21 +260,32 @@ impl RemoteModel {
 /// Chat is a plain completion, not a schema-constrained one: the output is prose, and
 /// wrapping it in a JSON envelope buys nothing.
 impl Chat for RemoteModel {
-    fn chat(&self, _ctx: &Context, input: &[&[u8]], options: ChatOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
+    fn chat(&self, _ctx: &Context, options: ChatOptions) -> nim_error::Result<ChatAssistantMessage> {
         options.validate()?;
 
         if options.beams.is_some() {
             return Err(nim_error::Diagnostic::message("hosted chat does not support beams"));
         }
 
-        let text = input
-            .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
-            .collect::<Result<Vec<_>, _>>()?;
-        text.iter()
-            .map(|text| self.client().complete(options.prompt, text, options.max_len))
-            .map(|result| result.map(|text| TextOutput { text, confidence: None }))
-            .collect()
+        if !options.documents.is_empty() || options.thinking || options.vision {
+            if options.compat == crate::CompatMode::Error {
+                return Err(nim_error::Diagnostic::message(
+                    "remote chat does not support requested render options",
+                ));
+            }
+        }
+
+        let messages = options
+            .messages
+            .into_iter()
+            .map(|message| message.into_openai(options.compat))
+            .collect::<nim_error::Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect();
+        let tools = options.tools.into_iter().map(crate::Tool::into_openai).collect();
+
+        self.client().chat(messages, tools, options.max_len)
     }
 }
 
@@ -316,11 +327,18 @@ fn tokens_schema() -> serde_json::Value {
 impl Summarize for RemoteModel {
     fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
-        let responses = self.chat(ctx, input, ChatOptions {
-            prompt: Some("Summarize the text concisely and accurately, using only information present in the text. Return only the summary."),
-            beams: options.beams,
-            max_len: options.max_len,
-        })?;
-        Ok(responses)
+        input.iter().map(|bytes| {
+            let text = std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from)?;
+            let response = self.chat(ctx, ChatOptions {
+                messages: vec![crate::ChatUserMessage { content: crate::ChatMessageContent::Text(format!("Summarize the text concisely and accurately, using only information present in the text. Return only the summary.\n\n{text}")) }.into()],
+                beams: options.beams,
+                max_len: options.max_len,
+                ..Default::default()
+            })?;
+            Ok(crate::types::TextOutput {
+                text: match response.content { Some(crate::ChatMessageContent::Text(text)) => text, _ => String::new() },
+                confidence: None,
+            })
+        }).collect()
     }
 }

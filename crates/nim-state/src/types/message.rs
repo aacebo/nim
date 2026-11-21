@@ -93,38 +93,43 @@ impl TryFrom<nim_store::MessageRow> for Message {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 #[serde(untagged)]
 pub enum MessageContent {
-    Text {
-        #[validate(min_length = 1)]
-        text: String,
-    },
-    Url {
-        #[validate(custom = validate::url)]
-        url: String,
-    },
-    Base64 {
-        #[validate(min_length = 1)]
-        base64: String,
-    },
-    Artifact {
-        artifact_id: ArtifactId,
-    },
-    #[validate(min_items = 1)]
-    Array(#[validate] Vec<Self>),
     #[validate]
-    String(#[validate(min_length = 1)] String),
+    Single(#[validate] MessageContentPart),
+
+    #[validate(min_items = 1)]
+    Array(#[validate] Vec<MessageContentPart>),
 }
 
 impl MessageContent {
     pub fn artifacts(&self) -> Vec<ArtifactId> {
-        let mut items = Vec::new();
-
         match self {
-            Self::Artifact { artifact_id } => items.push(*artifact_id),
-            Self::Array(content) => items.extend(content.iter().flat_map(|v| v.artifacts())),
-            _ => {}
-        };
+            Self::Single(v) => v.artifacts(),
+            Self::Array(arr) => arr.iter().flat_map(|v| v.artifacts()).collect(),
+        }
+    }
+}
 
-        items
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
+#[serde(untagged)]
+pub enum MessageContentPart {
+    #[validate]
+    String(#[validate(min_length = 1)] String),
+    Text {
+        #[validate(min_length = 1)]
+        text: String,
+    },
+    Artifact {
+        artifact_id: ArtifactId,
+    },
+}
+
+impl MessageContentPart {
+    pub fn artifacts(&self) -> Vec<ArtifactId> {
+        match self {
+            Self::Artifact { artifact_id } => vec![*artifact_id],
+            _ => Default::default(),
+        }
     }
 }
 
@@ -157,15 +162,5 @@ impl From<nim_store::MessageAnnotationRow> for MessageAnnotation {
             created_at: value.created_at,
             updated_at: value.updated_at,
         }
-    }
-}
-
-mod validate {
-    use serde_valid::validation::Error;
-
-    pub fn url(value: &str) -> Result<(), Error> {
-        url::Url::parse(value)
-            .map(|_| ())
-            .map_err(|_| Error::Custom("invalid url".into()))
     }
 }

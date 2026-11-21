@@ -1,40 +1,55 @@
-use std::io::Write;
-
-use nim_state::{Artifact, MessageContent, Services};
+use nim_state::{Artifact, Message, MessageContent, MessageContentPart, Services};
 use nim_store::ArtifactContent;
 
-pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+use crate::BoxFuture;
 
 pub trait Render {
-    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<String>>;
+    type Error;
+
+    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Self::Error>>;
+}
+
+impl Render for Message {
+    type Error = nim_error::Diagnostic;
+
+    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Self::Error>> {
+        Box::pin(async move { self.content.render(s).await })
+    }
 }
 
 impl Render for MessageContent {
-    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<String>> {
+    type Error = nim_error::Diagnostic;
+
+    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Self::Error>> {
         Box::pin(async move {
-            match self.clone() {
-                Self::String(v) => Ok(v),
-                Self::Text { text } => Ok(text),
-                Self::Url { url } => Ok(url),
-                Self::Base64 { base64 } => Ok(base64),
-                Self::Artifact { artifact_id } => {
-                    let artifact = s.artifacts().find_by_id(artifact_id).await?;
-                    artifact.render(s).await
-                }
+            match self {
+                Self::Single(v) => v.render(s).await,
                 Self::Array(items) => {
-                    let mut f = Vec::new();
+                    let mut lines = Vec::new();
 
-                    for (i, item) in items.iter().enumerate() {
-                        let v = item.render(s).await?;
-
-                        if i < items.len() - 1 {
-                            writeln!(&mut f, "{v}")?;
-                        } else {
-                            write!(&mut f, "{v}")?;
-                        }
+                    for item in items {
+                        lines.push(item.render(s).await?);
                     }
 
-                    Ok(String::from_utf8(f)?)
+                    Ok(lines.join("\n"))
+                }
+                _ => Err(nim_error::Diagnostic::message("render: unsupported message content")),
+            }
+        })
+    }
+}
+
+impl Render for MessageContentPart {
+    type Error = nim_error::Diagnostic;
+
+    fn render<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Self::Error>> {
+        Box::pin(async move {
+            match self {
+                Self::String(v) => Ok(v.clone()),
+                Self::Text { text } => Ok(text.clone()),
+                Self::Artifact { artifact_id } => {
+                    let artifact = s.artifacts().find_by_id(*artifact_id).await?;
+                    artifact.render(s).await
                 }
                 _ => Err(nim_error::Diagnostic::message("render: unsupported message content")),
             }
@@ -43,7 +58,9 @@ impl Render for MessageContent {
 }
 
 impl Render for Artifact {
-    fn render<'a>(&'a self, _s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<String>> {
+    type Error = nim_error::Diagnostic;
+
+    fn render<'a>(&'a self, _s: &'a Services<'_>) -> BoxFuture<'a, Result<String, Self::Error>> {
         Box::pin(async move {
             match &self.summary {
                 Some(summary) => Ok(summary.clone()),

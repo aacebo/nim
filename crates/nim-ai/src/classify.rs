@@ -1,5 +1,5 @@
 use crate::{
-    models::Context,
+    Context,
     types::{Classification, Span},
 };
 
@@ -17,6 +17,15 @@ pub enum ClassifyMode {
     #[default]
     Whole,
     Regions,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ClassifyMedia {
+    Text,
+    #[cfg(feature = "vision")]
+    Image,
+    #[cfg(feature = "audio")]
+    Audio,
 }
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,21 @@
+pub mod caption;
+pub mod chat;
+pub mod classify;
 pub mod clients;
+pub mod context;
+pub mod embed;
 pub mod models;
 pub mod pipelines;
 pub mod resources;
+pub mod summarize;
 pub mod tasks;
+pub mod transcribe;
 pub mod types;
+
+pub use caption::*;
+pub use chat::*;
+pub use classify::*;
+pub use context::*;
+pub use embed::*;
+pub use summarize::*;
+pub use transcribe::*;

@@ -150,6 +150,8 @@ impl Render<ChatMessageContentPart> for Qwen3Template {
     fn render(&self, value: &ChatMessageContentPart) -> nim_error::Result<String> {
         match value {
             ChatMessageContentPart::Text { text } => Ok(text.clone()),
+            ChatMessageContentPart::Json { json } => Ok(serde_json::to_string(json)?),
+            ChatMessageContentPart::Url { url } => Ok(url.to_string()),
             ChatMessageContentPart::Image(value) => Ok(format!("[image: {}]", self.render(value)?)),
             ChatMessageContentPart::Audio(value) => Ok(format!("[audio: {}]", self.render(value)?)),
             ChatMessageContentPart::Video(value) => Ok(format!("[video: {}]", self.render(value)?)),

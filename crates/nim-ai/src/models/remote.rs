@@ -4,7 +4,8 @@ use crate::types::{Classification, Offset, Span};
 
 use super::RemoteModel;
 use crate::{
-    Chat, ChatAssistantMessage, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, Summarize, SummarizeOptions,
+    Chat, ChatAssistantMessage, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, Render, Summarize,
+    SummarizeOptions,
 };
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
@@ -275,15 +276,13 @@ impl Complete for RemoteModel {
             }
         }
 
-        let messages = chat
-            .messages
-            .into_iter()
-            .map(|message| message.into_openai(chat.compat))
-            .collect::<nim_error::Result<Vec<_>>>()?
-            .into_iter()
-            .flatten()
-            .collect();
-        let tools = chat.tools.into_iter().map(crate::Tool::into_openai).collect();
+        let template = crate::clients::openai::OpenAITemplate::new(chat.compat);
+        let messages = template.render(&chat)?;
+        let tools = chat
+            .tools
+            .iter()
+            .map(|tool| template.render(tool))
+            .collect::<nim_error::Result<Vec<_>>>()?;
         self.client().complete(messages, tools, chat.max_len)
     }
 }

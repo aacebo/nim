@@ -17,7 +17,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
     messageText(content) {
         if (typeof content === "string") return content;
         if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("\n");
-        return content?.text ?? content?.url ?? (content?.artifact_id ? "" : "Message content");
+        return content?.text ?? content?.url ?? (content?.json ? JSON.stringify(content.json) : content?.artifact_id ? "" : "Message content");
     }
 
     renderMarkdown(content) {

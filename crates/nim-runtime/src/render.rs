@@ -40,6 +40,8 @@ impl Render for MessageContentPart {
         Box::pin(async move {
             match self {
                 Self::Text { text } => Ok(text.clone()),
+                Self::Url { url } => Ok(url.to_string()),
+                Self::Json { json } => Ok(json.to_string()),
                 Self::Artifact { artifact_id } => {
                     let artifact = s.artifacts().find_by_id(*artifact_id).await?;
                     artifact.render(s).await

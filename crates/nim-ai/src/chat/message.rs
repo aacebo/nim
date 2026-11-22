@@ -28,56 +28,6 @@ impl ChatMessage {
             Self::Tool(v) => v.content.as_ref(),
         }
     }
-
-    pub fn retain_supported_parts(&mut self, vision: bool, audio: bool) {
-        let content = match self {
-            Self::System(message) => Some(&mut message.content),
-            Self::User(message) => Some(&mut message.content),
-            Self::Assistant(message) => message.content.as_mut(),
-            Self::Tool(message) => message.content.as_mut(),
-        };
-
-        if let Some(ChatMessageContent::Parts(parts)) = content {
-            parts.retain(|part| match part {
-                ChatMessageContentPart::Text { .. } => true,
-                ChatMessageContentPart::Image(_) | ChatMessageContentPart::Video(_) => vision,
-                ChatMessageContentPart::Audio(_) => audio,
-            });
-        }
-    }
-
-    pub fn has_unsupported_parts(&self, vision: bool, audio: bool) -> bool {
-        self.content().is_some_and(|content| {
-            matches!(content, ChatMessageContent::Parts(parts) if parts.iter().any(|part| match part {
-                ChatMessageContentPart::Text { .. } => false,
-                ChatMessageContentPart::Image(_) | ChatMessageContentPart::Video(_) => !vision,
-                ChatMessageContentPart::Audio(_) => !audio,
-            }))
-        })
-    }
-
-    pub fn into_openai(self, compat: super::CompatMode) -> nim_error::Result<Option<serde_json::Value>> {
-        let content = |content: ChatMessageContent| content.into_openai(compat);
-
-        match self {
-            Self::System(message) => {
-                Ok(content(message.content)?.map(|content| serde_json::json!({ "role": "system", "content": content })))
-            }
-            Self::User(message) => {
-                Ok(content(message.content)?.map(|content| serde_json::json!({ "role": "user", "content": content })))
-            }
-            Self::Assistant(message) => Ok(Some(serde_json::json!({
-                "role": "assistant",
-                "content": message.content.map(content).transpose()?,
-                "tool_calls": message.tool_calls.into_iter().map(ToolCall::into_openai).collect::<Vec<_>>(),
-            }))),
-            Self::Tool(message) => Ok(Some(serde_json::json!({
-                "role": "tool",
-                "tool_call_id": message.tool_call_id,
-                "content": message.content.map(content).transpose()?,
-            }))),
-        }
-    }
 }
 
 impl From<ChatSystemMessage> for ChatMessage {
@@ -139,76 +89,12 @@ pub enum ChatMessageContent {
     Parts(Vec<ChatMessageContentPart>),
 }
 
-impl ChatMessageContent {
-    pub fn into_openai(self, compat: super::CompatMode) -> nim_error::Result<Option<serde_json::Value>> {
-        match self {
-            Self::Text(text) => Ok(Some(serde_json::Value::String(text))),
-            Self::Parts(parts) => {
-                let mut output = Vec::new();
-
-                for part in parts {
-                    match part {
-                        ChatMessageContentPart::Text { text } => output.push(serde_json::json!({ "type": "text", "text": text })),
-                        ChatMessageContentPart::Image(Media::Url { name, url, summary }) => {
-                            output.push(serde_json::json!({
-                                "type": "image",
-                                "name": name,
-                                "image": url,
-                                "summary": summary,
-                            }));
-                        }
-                        ChatMessageContentPart::Image(Media::Path { name, path, summary }) => {
-                            output.push(serde_json::json!({
-                                "type": "image",
-                                "name": name,
-                                "image": path,
-                                "summary": summary,
-                            }));
-                        }
-                        ChatMessageContentPart::Audio(Media::Url { name, url, summary }) => {
-                            output.push(serde_json::json!({
-                                "type": "audio",
-                                "name": name,
-                                "image": url ,
-                                "summary": summary,
-                            }));
-                        }
-                        ChatMessageContentPart::Audio(Media::Path { name, path, summary }) => {
-                            output.push(serde_json::json!({
-                                "type": "audio",
-                                "name": name,
-                                "image": path,
-                                "summary": summary,
-                            }));
-                        }
-                        part if compat == super::CompatMode::Ignore => {
-                            let _ = part;
-                        }
-                        _ => {
-                            return Err(nim_error::Diagnostic::message(
-                                "remote completion does not support this media content",
-                            ));
-                        }
-                    }
-                }
-
-                if output.is_empty() && compat == super::CompatMode::Ignore {
-                    Ok(None)
-                } else {
-                    (!output.is_empty())
-                        .then_some(serde_json::Value::Array(output))
-                        .ok_or_else(|| nim_error::Diagnostic::message("message has no supported content"))
-                        .map(Some)
-                }
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatMessageContentPart {
     Text { text: String },
+    Json { json: serde_json::Value },
+    Url { url: url::Url },
     Image(Media),
     Audio(Media),
     Video(Media),

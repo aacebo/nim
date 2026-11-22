@@ -262,6 +262,81 @@ customElements.define("nim-chat", class extends HTMLElement {
             renderAttachments();
         }
 
+        function parseContent(text) {
+            const content = [];
+            let start = 0;
+            let index = 0;
+
+            const pushText = (value) => {
+                if (!value) return;
+                const previous = content.at(-1);
+                if (previous?.text) previous.text += value;
+                else content.push({ text: value });
+            };
+            const fencedEnd = (offset) => {
+                if (offset !== 0 && text[offset - 1] !== "\n") return null;
+                if (!text.startsWith("```", offset)) return null;
+                const end = text.indexOf("\n```", offset + 3);
+                return end < 0 ? text.length : end + 4;
+            };
+            const jsonEnd = (offset) => {
+                const stack = [];
+                let quoted = false;
+                let escaped = false;
+                for (let cursor = offset; cursor < text.length; cursor++) {
+                    const character = text[cursor];
+                    if (quoted) {
+                        if (escaped) escaped = false;
+                        else if (character === "\\") escaped = true;
+                        else if (character === '"') quoted = false;
+                    } else if (character === '"') quoted = true;
+                    else if (character === "{" || character === "[") stack.push(character);
+                    else if (character === "}" || character === "]") {
+                        if (!stack.length) return null;
+                        stack.pop();
+                        if (!stack.length) return cursor + 1;
+                    }
+                }
+                return null;
+            };
+
+            while (index < text.length) {
+                const fence = fencedEnd(index);
+                if (fence) {
+                    index = fence;
+                    continue;
+                }
+                const boundary = index === 0 || !/[A-Za-z0-9_]/.test(text[index - 1]);
+                if (boundary && text.startsWith("http://", index) || boundary && text.startsWith("https://", index)) {
+                    const match = text.slice(index).match(/^https?:\/\/[^\s<]+/);
+                    const url = match?.[0].replace(/[.,;:!?)}\]]+$/, "");
+                    if (url) {
+                        pushText(text.slice(start, index));
+                        content.push({ url });
+                        index += url.length;
+                        start = index;
+                        continue;
+                    }
+                }
+                if (text[index] === "{" || text[index] === "[") {
+                    const end = jsonEnd(index);
+                    if (end) {
+                        try {
+                            const json = JSON.parse(text.slice(index, end));
+                            pushText(text.slice(start, index));
+                            content.push({ json });
+                            index = end;
+                            start = index;
+                            continue;
+                        } catch {}
+                    }
+                }
+                index++;
+            }
+            pushText(text.slice(start));
+            return content;
+        }
+
         async function uploadAttachment(attachment) {
             if (attachment.artifactId) return;
             // Some text extensions have an empty or application/* browser MIME type.
@@ -313,8 +388,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                     setChatStatus(`Uploading ${index + 1}/${uploads.length}…`);
                     await uploadAttachment(attachment);
                 }
-                const content = [];
-                if (text) content.push({ text });
+                const content = parseContent(text);
                 content.push(...pendingAttachments.map(({ artifactId }) => ({ artifact_id: artifactId })));
                 setChatStatus("Sending…");
                 const path = chatId ? `/chats/${encodeURIComponent(chatId)}/messages` : "/chats/messages";

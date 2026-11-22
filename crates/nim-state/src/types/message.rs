@@ -111,7 +111,7 @@ impl MessageContent {
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
-#[serde(untagged)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum MessageContentPart {
     #[validate]
     Text {
@@ -120,6 +120,12 @@ pub enum MessageContentPart {
     },
     Artifact {
         artifact_id: ArtifactId,
+    },
+    Json {
+        json: serde_json::Value,
+    },
+    Url {
+        url: url::Url,
     },
 }
 

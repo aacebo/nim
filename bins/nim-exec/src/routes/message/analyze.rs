@@ -57,6 +57,12 @@ async fn persist_content(
                     nim::ai::ChatMessageContentPart::Text { text } => {
                         output.push(nim::state::MessageContentPart::Text { text });
                     }
+                    nim::ai::ChatMessageContentPart::Json { json } => {
+                        output.push(nim::state::MessageContentPart::Json { json });
+                    }
+                    nim::ai::ChatMessageContentPart::Url { url } => {
+                        output.push(nim::state::MessageContentPart::Url { url });
+                    }
                     nim::ai::ChatMessageContentPart::Image(media) => {
                         output.push(nim::state::MessageContentPart::Artifact {
                             artifact_id: persist_media(ctx, media, "image/png").await?,

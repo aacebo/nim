@@ -87,6 +87,8 @@ impl Transform for MessageContentPart {
         Box::pin(async move {
             match self {
                 Self::Text { text } => Ok(nim_ai::ChatMessageContentPart::Text { text: text.clone() }),
+                Self::Json { json } => Ok(nim_ai::ChatMessageContentPart::Json { json: json.clone() }),
+                Self::Url { url } => Ok(nim_ai::ChatMessageContentPart::Url { url: url.clone() }),
                 Self::Artifact { artifact_id } => {
                     let artifact = s.artifacts().find_by_id(*artifact_id).await?;
 

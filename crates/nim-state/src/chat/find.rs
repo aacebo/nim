@@ -6,4 +6,9 @@ impl<'a> ChatService<'a> {
         let rows = self.storage.chats().find(page).await?;
         Ok(rows.into())
     }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn find_latest(&self) -> nim_error::Result<Option<Chat>> {
+        Ok(self.storage.chats().find_latest().await?.map(Into::into))
+    }
 }

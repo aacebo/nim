@@ -39,20 +39,15 @@ impl Qwen2Runtime {
 }
 
 impl Qwen2Generator {
-    pub fn new(config: &Config, vars: VarBuilder, template: hf_chat_template::ChatTemplate) -> nim_error::Result<Self> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Qwen2Runtime::Safetensors(qwen2::ModelForCausalLM::new(config, vars)?)),
             context_limit: config.max_position_embeddings,
-            template: Qwen2Template::new(template),
+            template: Qwen2Template::new(),
         })
     }
 
-    pub fn quantized(
-        config: &Config,
-        path: impl AsRef<Path>,
-        device: &Device,
-        template: hf_chat_template::ChatTemplate,
-    ) -> nim_error::Result<Self> {
+    pub fn quantized(config: &Config, path: impl AsRef<Path>, device: &Device) -> nim_error::Result<Self> {
         let mut file = std::fs::File::open(path)?;
         let content = gguf_file::Content::read(&mut file)?;
         let context_limit = content
@@ -65,7 +60,7 @@ impl Qwen2Generator {
         Ok(Self {
             model: Mutex::new(Qwen2Runtime::Quantized(model)),
             context_limit: config.max_position_embeddings.min(context_limit),
-            template: Qwen2Template::new(template),
+            template: Qwen2Template::new(),
         })
     }
 

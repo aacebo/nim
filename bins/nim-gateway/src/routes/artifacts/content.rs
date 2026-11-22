@@ -16,6 +16,25 @@ pub async fn route(
 
     match artifact.content {
         nim::state::ArtifactContent::Text { text } => Ok(text.into_response()),
+        nim::state::ArtifactContent::Resource { url, headers } => {
+            let client = reqwest::Client::new();
+            let mut request = client.get(url);
+
+            for (name, value) in headers {
+                request = request.header(name, value);
+            }
+
+            let response = request.send().await?;
+            let status = axum::http::StatusCode::from_u16(response.status().as_u16())?;
+            let content_type = response
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .unwrap_or("application/octet-stream")
+                .to_string();
+            let body = response.bytes().await?;
+            Ok((status, [(axum::http::header::CONTENT_TYPE, content_type)], body).into_response())
+        }
         nim::state::ArtifactContent::File {
             path,
             size: _,

@@ -149,30 +149,34 @@ impl ChatMessageContent {
                 for part in parts {
                     match part {
                         ChatMessageContentPart::Text { text } => output.push(serde_json::json!({ "type": "text", "text": text })),
-                        ChatMessageContentPart::Image(Media::Url { url, summary }) => {
+                        ChatMessageContentPart::Image(Media::Url { name, url, summary }) => {
                             output.push(serde_json::json!({
                                 "type": "image",
+                                "name": name,
                                 "image": url,
                                 "summary": summary,
                             }));
                         }
-                        ChatMessageContentPart::Image(Media::Path { path, summary }) => {
+                        ChatMessageContentPart::Image(Media::Path { name, path, summary }) => {
                             output.push(serde_json::json!({
                                 "type": "image",
+                                "name": name,
                                 "image": path,
                                 "summary": summary,
                             }));
                         }
-                        ChatMessageContentPart::Audio(Media::Url { url, summary }) => {
+                        ChatMessageContentPart::Audio(Media::Url { name, url, summary }) => {
                             output.push(serde_json::json!({
                                 "type": "audio",
+                                "name": name,
                                 "image": url ,
                                 "summary": summary,
                             }));
                         }
-                        ChatMessageContentPart::Audio(Media::Path { path, summary }) => {
+                        ChatMessageContentPart::Audio(Media::Path { name, path, summary }) => {
                             output.push(serde_json::json!({
                                 "type": "audio",
+                                "name": name,
                                 "image": path,
                                 "summary": summary,
                             }));

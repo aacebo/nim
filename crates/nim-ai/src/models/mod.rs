@@ -174,32 +174,39 @@ impl Model {
 
             return Ok(Self {
                 name,
-                model: AnyModel::QwenGenerator(qwen2::Qwen2Generator::quantized(
-                    &config,
-                    weights,
-                    &device,
-                    companion.chat_template()?,
-                )?),
+                model: AnyModel::QwenGenerator(qwen2::Qwen2Generator::quantized(&config, weights, &device)?),
                 device,
                 tokenizer: Some(companion.tokenizer()?),
                 config: Some(companion.config()?),
             });
         }
 
-        if matches!(model, LocalModel::Hub(id) if id.to_string() == qwen3::QUANTIZED_MODEL) {
-            let companion = LocalModel::Hub(qwen3::MODEL.parse()?);
+        let qwen3_completion = matches!(model, LocalModel::Hub(id) if id.to_string() == qwen3::COMPLETION_QUANTIZED_MODEL);
+        let qwen3_quantized = matches!(model, LocalModel::Hub(id) if {
+            let id = id.to_string();
+            id == qwen3::QUANTIZED_MODEL || id == qwen3::COMPLETION_QUANTIZED_MODEL
+        });
+
+        if qwen3_quantized {
+            let companion = LocalModel::Hub(
+                if qwen3_completion {
+                    qwen3::COMPLETION_MODEL
+                } else {
+                    qwen3::MODEL
+                }
+                .parse()?,
+            );
             let companion = companion.loader(device.clone(), dtype)?;
             let config: qwen3::Config = companion.config()?;
-            let weights = repo.resolve(std::path::Path::new(qwen3::WEIGHTS))?;
+            let weights = repo.resolve(std::path::Path::new(if qwen3_completion {
+                qwen3::COMPLETION_WEIGHTS
+            } else {
+                qwen3::WEIGHTS
+            }))?;
 
             return Ok(Self {
                 name,
-                model: AnyModel::Qwen3Generator(qwen3::Qwen3Generator::quantized(
-                    &config,
-                    weights,
-                    &device,
-                    companion.chat_template()?,
-                )?),
+                model: AnyModel::Qwen3Generator(qwen3::Qwen3Generator::quantized(&config, weights, &device)?),
                 device,
                 tokenizer: Some(companion.tokenizer()?),
                 config: Some(companion.config()?),
@@ -207,11 +214,10 @@ impl Model {
         }
 
         let model_config: ModelConfig = repo.config()?;
-
         let model = match model_config.model_type {
             ModelType::Qwen2 => {
                 let config: qwen2::Config = repo.config()?;
-                AnyModel::QwenGenerator(qwen2::Qwen2Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
+                AnyModel::QwenGenerator(qwen2::Qwen2Generator::new(&config, repo.vars()?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn8rnn_audio_classification() => {
@@ -251,7 +257,7 @@ impl Model {
                     .any(|architecture| matches!(architecture, Architecture::Qwen3ForCausalLM))
                 {
                     let config: qwen3::Config = repo.config()?;
-                    AnyModel::Qwen3Generator(qwen3::Qwen3Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
+                    AnyModel::Qwen3Generator(qwen3::Qwen3Generator::new(&config, repo.vars()?)?)
                 } else if model_config
                     .architectures
                     .iter()

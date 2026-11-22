@@ -22,11 +22,17 @@ customElements.define("nim-chat", class extends HTMLElement {
         const chatError = host.querySelector("#chat-error");
         const chatStatus = host.querySelector("#chat-status");
         const chatHistoryStatus = host.querySelector("#chat-history-status");
-        const chatMessages = new Map();
+        const initialState = host.querySelector(".action-view").dataset;
+        const initialChat = JSON.parse(initialState.chat);
+        const initialMessages = JSON.parse(initialState.messages);
+        const initialArtifacts = JSON.parse(initialState.artifacts);
+        const chatMessages = new Map(initialMessages.map((message) => [message.id, message]));
         const signalDecoder = new TextDecoder();
         const historyLimit = 100;
 
-        let chatId;
+        let chatId = initialChat?.id;
+        let artifactsLoaded = false;
+        let historyLoaded = Boolean(chatId);
         let historyLoading = false;
         let historyError = false;
         let chatStatusTimer;
@@ -71,6 +77,13 @@ customElements.define("nim-chat", class extends HTMLElement {
             actionPanel.classList.toggle("chat-panel", isChat);
             renderChatTranscript();
             if (isChat) {
+                if (initialArtifacts.length && !artifactsLoaded) {
+                    artifactsLoaded = true;
+                    void loadView("artifacts").then(() => {
+                        host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(initialArtifacts);
+                        renderChatTranscript();
+                    }).catch(() => { artifactsLoaded = false; });
+                }
                 if (!chatSend.disabled) setChatStatus("");
                 Alpine.nextTick(() => {
                     let attempts = 0;
@@ -132,7 +145,7 @@ customElements.define("nim-chat", class extends HTMLElement {
         }
 
         async function loadChatHistory() {
-            if (!chatId || historyLoading) {
+            if (!chatId || historyLoading || historyLoaded) {
                 return;
             }
 
@@ -165,6 +178,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
                     query.set("cursor", cursor);
                 }
+                historyLoaded = true;
             } catch {
                 historyError = true;
             } finally {

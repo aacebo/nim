@@ -48,6 +48,29 @@ impl<'a> ChatStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn find_latest(&self) -> Result<Option<types::ChatRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                version,
+                summary,
+                embedding,
+                confidence,
+                last_analyzed_id,
+                last_analyzed_at,
+                created_at,
+                updated_at
+            FROM chats
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            "#,
+        )
+        .fetch_optional(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_id(&self, id: uuid::Uuid) -> Result<types::ChatRow, sqlx::Error> {
         sqlx::query_as(
             r#"

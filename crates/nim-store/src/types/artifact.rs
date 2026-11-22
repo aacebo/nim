@@ -39,6 +39,10 @@ pub enum ArtifactContent {
         size: u64,
         media_type: Option<String>,
     },
+    Resource {
+        url: String,
+        headers: std::collections::BTreeMap<String, String>,
+    },
 }
 
 impl ArtifactContent {
@@ -72,6 +76,7 @@ impl ArtifactContent {
         match self {
             Self::Text { text } => Some(text),
             Self::File { path, .. } => path.to_str(),
+            Self::Resource { url, headers: _ } => Some(url),
         }
     }
 }
@@ -81,6 +86,7 @@ impl std::fmt::Display for ArtifactContent {
         match self {
             Self::Text { text } => write!(f, "{text}"),
             Self::File { path, .. } => write!(f, "{}", path.display()),
+            Self::Resource { url, headers: _ } => write!(f, "{url}"),
         }
     }
 }

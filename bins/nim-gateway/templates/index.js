@@ -47,7 +47,15 @@ socket.addEventListener("message", (event) => {
 
 const viewAssets = {
     artifacts: { css: ["artifacts/artifacts.css"], js: ["artifacts/artifacts.js?v=5"] },
-    chat: { css: ["chat/transcript/transcript.css?v=6", "chat/chat.css?v=4"], js: ["chat/transcript/transcript.js?v=4", "chat/chat.js?v=11"] },
+    chat: {
+        css: ["chat/transcript/transcript.css?v=9", "chat/chat.css?v=4"],
+        js: [
+            "https://unpkg.com/marked@15.0.7/marked.min.js",
+            "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",
+            "chat/transcript/transcript.js?v=6",
+            "chat/chat.js?v=12",
+        ],
+    },
     memory: {
         css: ["memory/timeline/timeline.css", "memory/graph/graph.css?v=2", "memory/details/details.css", "memory/memory.css?v=3"],
         js: ["memory/timeline/timeline.js", "memory/graph/graph.js", "memory/details/details.js?v=2", "memory/memory.js?v=9"],
@@ -61,11 +69,12 @@ function loadAsset(path, type) {
     if (assetLoads.has(path)) return assetLoads.get(path);
     const load = new Promise((resolve, reject) => {
         const element = document.createElement(type === "css" ? "link" : "script");
+        const url = path.startsWith("http") ? path : `/web/views/${path}`;
         if (type === "css") {
             element.rel = "stylesheet";
-            element.href = `/web/views/${path}`;
+            element.href = url;
         } else {
-            element.src = `/web/views/${path}`;
+            element.src = url;
         }
         element.onload = resolve;
         element.onerror = () => { element.remove(); reject(new Error(`Unable to load ${path}`)); };

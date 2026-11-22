@@ -12,6 +12,15 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
             size: _,
             media_type: _,
         } => tokio::fs::read(path).await?.to_vec(),
+        nim::state::ArtifactContent::Resource { url, headers } => {
+            let mut request = reqwest::Client::new().get(url);
+
+            for (name, value) in headers {
+                request = request.header(name, value);
+            }
+
+            request.send().await?.error_for_status()?.bytes().await?.to_vec()
+        }
     };
 
     // Extract Captions (ex. "a dog running")

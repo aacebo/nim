@@ -12,6 +12,9 @@ pub use template::Qwen3Template;
 pub const MODEL: &str = "Qwen/Qwen3-32B";
 pub const QUANTIZED_MODEL: &str = "Qwen/Qwen3-32B-GGUF";
 pub const WEIGHTS: &str = "Qwen3-32B-Q4_K_M.gguf";
+pub const COMPLETION_MODEL: &str = "Qwen/Qwen3-8B";
+pub const COMPLETION_QUANTIZED_MODEL: &str = "Qwen/Qwen3-8B-GGUF";
+pub const COMPLETION_WEIGHTS: &str = "Qwen3-8B-Q4_K_M.gguf";
 
 pub struct Qwen3Embedder {
     max_position_embeddings: usize,

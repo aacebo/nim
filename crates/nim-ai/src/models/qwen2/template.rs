@@ -1,15 +1,13 @@
 use crate::{
-    Chat, ChatAssistantMessage, ChatMessage, ChatMessageContent, ChatSystemMessage, ChatToolMessage, ChatUserMessage, CompatMode,
-    Document, Parse, Parser, Render, Tool, ToolCall,
+    Chat, ChatAssistantMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatToolMessage,
+    ChatUserMessage, CompatMode, Document, Media, Parse, Parser, Render, Tool, ToolCall,
 };
 
-pub struct Qwen2Template {
-    template: hf_chat_template::ChatTemplate,
-}
+pub struct Qwen2Template;
 
 impl Qwen2Template {
-    pub fn new(template: hf_chat_template::ChatTemplate) -> Self {
-        Self { template }
+    pub fn new() -> Self {
+        Self
     }
 
     pub fn render_chat(&self, chat: &Chat) -> nim_error::Result<String> {
@@ -21,80 +19,53 @@ impl Render<Chat> for Qwen2Template {
     type Output = String;
 
     fn render(&self, value: &Chat) -> nim_error::Result<String> {
-        let mut value = value.clone();
+        let mut out = String::new();
 
-        if matches!(value.mode, crate::RenderMode::Continue) && value.compat == CompatMode::Error {
-            return Err(nim_error::Diagnostic::message(
-                "local completion does not support continuation mode",
-            ));
-        }
+        if !value.tools.is_empty() {
+            out.push_str("<|im_start|>system\n<tools>\n");
 
-        if value
-            .messages
-            .iter()
-            .any(|message| message.has_unsupported_parts(value.vision, value.audio))
-        {
-            if value.compat == CompatMode::Error {
-                return Err(nim_error::Diagnostic::message(
-                    "local Qwen completion does not support requested media content",
-                ));
+            for tool in &value.tools {
+                out.push_str(&self.render(tool)?);
+                out.push('\n');
             }
 
-            for message in &mut value.messages {
-                message.retain_supported_parts(value.vision, value.audio);
+            out.push_str("</tools><|im_end|>\n");
+        }
+
+        if !value.documents.is_empty() {
+            out.push_str("<|im_start|>system\n<documents>\n");
+
+            for document in &value.documents {
+                out.push_str(&self.render(document)?);
+                out.push('\n');
             }
+
+            out.push_str("</documents><|im_end|>\n");
         }
 
-        let messages: Vec<hf_chat_template::Message> = value
-            .messages
-            .into_iter()
-            .map(|value| self.render(&value))
-            .collect::<nim_error::Result<_>>()?;
-        let tools: Vec<serde_json::Value> = value
-            .tools
-            .into_iter()
-            .map(|value| self.render(&value))
-            .collect::<nim_error::Result<_>>()?;
-        let documents: Vec<serde_json::Value> = value
-            .documents
-            .into_iter()
-            .map(|value| self.render(&value))
-            .collect::<nim_error::Result<_>>()?;
-        let add_generation_prompt = match value.mode {
-            crate::RenderMode::None => false,
-            crate::RenderMode::Respond => true,
-            crate::RenderMode::Continue => false,
-            crate::RenderMode::Auto => messages.last().map(|value| value.role != "assistant").unwrap_or_default(),
-        };
-        let mut extra = serde_json::Map::new();
-
-        if value.vision {
-            extra.insert("vision".into(), true.into());
+        for message in &value.messages {
+            out.push_str(&self.render(message)?);
         }
 
-        if value.audio {
-            extra.insert("audio".into(), true.into());
+        let respond = matches!(value.mode, crate::RenderMode::Respond)
+            || matches!(value.mode, crate::RenderMode::Auto)
+                && value
+                    .messages
+                    .last()
+                    .is_none_or(|message| !matches!(message, ChatMessage::Assistant(_)));
+
+        if respond {
+            out.push_str("<|im_start|>assistant\n");
         }
 
-        if value.thinking {
-            extra.insert("enable_thinking".into(), true.into());
-        }
-
-        let input = hf_chat_template::RenderInput {
-            messages,
-            tools,
-            documents,
-            add_generation_prompt,
-            extra,
-        };
-        self.template.render(&input).map_err(nim_error::Diagnostic::message)
+        Ok(out)
     }
 }
 
 impl Render<ChatMessage> for Qwen2Template {
-    type Output = hf_chat_template::Message;
+    type Output = String;
 
-    fn render(&self, value: &ChatMessage) -> nim_error::Result<Self::Output> {
+    fn render(&self, value: &ChatMessage) -> nim_error::Result<String> {
         match value {
             ChatMessage::System(value) => self.render(value),
             ChatMessage::User(value) => self.render(value),
@@ -105,114 +76,134 @@ impl Render<ChatMessage> for Qwen2Template {
 }
 
 impl Render<ChatSystemMessage> for Qwen2Template {
-    type Output = hf_chat_template::Message;
+    type Output = String;
 
-    fn render(&self, value: &ChatSystemMessage) -> nim_error::Result<Self::Output> {
-        Ok(hf_chat_template::Message {
-            role: "system".into(),
-            content: Some(self.render(&value.content)?),
-            ..Default::default()
-        })
+    fn render(&self, value: &ChatSystemMessage) -> nim_error::Result<String> {
+        Ok(format!("<|im_start|>system\n{}<|im_end|>\n", self.render(&value.content)?))
     }
 }
 
 impl Render<ChatUserMessage> for Qwen2Template {
-    type Output = hf_chat_template::Message;
+    type Output = String;
 
-    fn render(&self, value: &ChatUserMessage) -> nim_error::Result<Self::Output> {
-        Ok(hf_chat_template::Message {
-            role: "user".into(),
-            content: Some(self.render(&value.content)?),
-            ..Default::default()
-        })
+    fn render(&self, value: &ChatUserMessage) -> nim_error::Result<String> {
+        Ok(format!("<|im_start|>user\n{}<|im_end|>\n", self.render(&value.content)?))
     }
 }
 
 impl Render<ChatAssistantMessage> for Qwen2Template {
-    type Output = hf_chat_template::Message;
+    type Output = String;
 
-    fn render(&self, value: &ChatAssistantMessage) -> nim_error::Result<Self::Output> {
-        let mut extra = serde_json::Map::new();
+    fn render(&self, value: &ChatAssistantMessage) -> nim_error::Result<String> {
+        let mut out = String::from("<|im_start|>assistant\n");
 
         if let Some(reasoning) = &value.reasoning {
-            extra.extend([
-                ("reasoning".into(), serde_json::to_value(reasoning)?),
-                ("reasoning_content".into(), serde_json::to_value(reasoning)?),
-                ("thinking".into(), serde_json::to_value(reasoning)?),
-            ]);
+            out.push_str("<think>\n");
+            out.push_str(reasoning);
+            out.push_str("\n</think>\n");
         }
 
-        Ok(hf_chat_template::Message {
-            role: "assistant".into(),
-            content: value.content.as_ref().map(|value| self.render(value)).transpose()?,
-            tool_calls: value
-                .tool_calls
-                .iter()
-                .map(|value| self.render(value))
-                .collect::<nim_error::Result<_>>()?,
-            extra,
-        })
+        if let Some(content) = &value.content {
+            out.push_str(&self.render(content)?);
+        }
+
+        for call in &value.tool_calls {
+            out.push_str(&self.render(call)?);
+        }
+
+        out.push_str("<|im_end|>\n");
+        Ok(out)
     }
 }
 
 impl Render<ChatToolMessage> for Qwen2Template {
-    type Output = hf_chat_template::Message;
+    type Output = String;
 
-    fn render(&self, value: &ChatToolMessage) -> nim_error::Result<Self::Output> {
-        Ok(hf_chat_template::Message {
-            role: "tool".into(),
-            content: value.content.as_ref().map(|value| self.render(value)).transpose()?,
-            extra: [("tool_call_id".into(), serde_json::to_value(&value.tool_call_id)?)]
-                .into_iter()
-                .collect(),
-            ..Default::default()
-        })
+    fn render(&self, value: &ChatToolMessage) -> nim_error::Result<String> {
+        Ok(format!(
+            "<|im_start|>tool\n<tool_response id=\"{}\">{}</tool_response><|im_end|>\n",
+            value.tool_call_id,
+            value
+                .content
+                .as_ref()
+                .map(|value| self.render(value))
+                .transpose()?
+                .unwrap_or_default()
+        ))
     }
 }
-
 impl Render<ChatMessageContent> for Qwen2Template {
-    type Output = hf_chat_template::Content;
+    type Output = String;
 
-    fn render(&self, value: &ChatMessageContent) -> nim_error::Result<Self::Output> {
+    fn render(&self, value: &ChatMessageContent) -> nim_error::Result<String> {
         match value {
-            ChatMessageContent::Text(value) => Ok(hf_chat_template::Content::Text(value.clone())),
-            ChatMessageContent::Parts(value) => Ok(hf_chat_template::Content::Parts(
-                value.iter().map(serde_json::to_value).collect::<Result<_, _>>()?,
+            ChatMessageContent::Text(value) => Ok(format!("{value}\n")),
+            ChatMessageContent::Parts(values) => Ok(format!(
+                "{}\n",
+                values
+                    .iter()
+                    .map(|value| self.render(value))
+                    .collect::<Result<String, nim_error::Diagnostic>>()?
             )),
         }
     }
 }
+impl Render<ChatMessageContentPart> for Qwen2Template {
+    type Output = String;
 
+    fn render(&self, value: &ChatMessageContentPart) -> nim_error::Result<String> {
+        match value {
+            ChatMessageContentPart::Text { text } => Ok(text.clone()),
+            ChatMessageContentPart::Image(value) => Ok(format!("[image: {}]", self.render(value)?)),
+            ChatMessageContentPart::Audio(value) => Ok(format!("[audio: {}]", self.render(value)?)),
+            ChatMessageContentPart::Video(value) => Ok(format!("[video: {}]", self.render(value)?)),
+        }
+    }
+}
+impl Render<Media> for Qwen2Template {
+    type Output = String;
+
+    fn render(&self, value: &Media) -> nim_error::Result<String> {
+        match value {
+            Media::Path { name, path, summary } => Ok(format!(
+                "name={} summary={} path={}",
+                name.as_deref().unwrap_or_default(),
+                summary.as_deref().unwrap_or_default(),
+                path.display()
+            )),
+            Media::Url { name, url, summary } => Ok(format!(
+                "name={} summary={} url={url}",
+                name.as_deref().unwrap_or_default(),
+                summary.as_deref().unwrap_or_default()
+            )),
+        }
+    }
+}
 impl Render<Tool> for Qwen2Template {
-    type Output = serde_json::Value;
+    type Output = String;
 
-    fn render(&self, value: &Tool) -> nim_error::Result<Self::Output> {
-        Ok(
-            serde_json::json!({ "type": "function", "function": { "name": value.name, "description": value.description, "parameters": value.params } }),
-        )
+    fn render(&self, value: &Tool) -> nim_error::Result<String> {
+        Ok(serde_json::to_string(value)?)
     }
 }
-
 impl Render<ToolCall> for Qwen2Template {
-    type Output = serde_json::Value;
+    type Output = String;
 
-    fn render(&self, value: &ToolCall) -> nim_error::Result<Self::Output> {
-        Ok(serde_json::json!({ "id": value.id, "type": "function", "function": { "name": value.name, "arguments": value.args } }))
+    fn render(&self, value: &ToolCall) -> nim_error::Result<String> {
+        Ok(format!("<tool_call>{}</tool_call>\n", serde_json::to_string(value)?))
     }
 }
-
 impl Render<Document> for Qwen2Template {
-    type Output = serde_json::Value;
+    type Output = String;
 
-    fn render(&self, value: &Document) -> nim_error::Result<Self::Output> {
-        Ok(serde_json::to_value(value)?)
+    fn render(&self, value: &Document) -> nim_error::Result<String> {
+        Ok(serde_json::to_string(value)?)
     }
 }
 
 impl Parse<ChatMessage> for Qwen2Template {
     fn parse(&self, parser: Parser<'_>) -> nim_error::Result<ChatMessage> {
         let message: ChatAssistantMessage = self.parse(parser)?;
-
         Ok(message.into())
     }
 }

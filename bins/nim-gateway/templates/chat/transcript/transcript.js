@@ -20,6 +20,12 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         return content?.text ?? content?.url ?? (content?.artifact_id ? "" : "Message content");
     }
 
+    renderMarkdown(content) {
+        const renderer = new marked.Renderer();
+        renderer.html = () => "";
+        return DOMPurify.sanitize(marked.parse(content, { gfm: true, renderer }));
+    }
+
     messageArtifacts(content, artifactView) {
         if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item, artifactView));
         return content?.artifact_id ? [artifactView?.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
@@ -54,13 +60,20 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         for (const message of messages) {
             const row = document.createElement("li");
             const role = document.createElement("span");
-            const text = document.createElement("p");
+            const content = this.messageText(message.content);
+            const text = document.createElement("div");
+            const isUser = message.role === "user";
+            row.className = isUser ? "chat-message-user" : "chat-message-agent";
             role.className = "chat-message-role";
-            role.textContent = message.role === "user" ? "You" : message.role;
+            role.textContent = isUser ? "You" : message.role;
             text.className = "chat-message-text";
-            text.textContent = this.messageText(message.content);
+            text.innerHTML = this.renderMarkdown(content);
+            for (const link of text.querySelectorAll("a")) {
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+            }
             row.append(role);
-            if (text.textContent) row.append(text);
+            if (content) row.append(text);
             const artifacts = this.messageArtifacts(message.content, artifactView);
             if (artifacts.length && artifactView) row.append(artifactView.list(artifacts));
             rows.append(row);

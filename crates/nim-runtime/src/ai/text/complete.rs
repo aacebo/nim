@@ -7,6 +7,7 @@ pub struct TextCompleteOptions {
     pub model: ModelRef,
     pub chat: Chat,
     pub task: TaskOptions,
+    pub instructions: Option<Vec<String>>,
 }
 
 impl Default for TextCompleteOptions {
@@ -17,40 +18,13 @@ impl Default for TextCompleteOptions {
             model: options.model,
             chat: options.chat,
             task: Default::default(),
+            instructions: Default::default(),
         }
     }
 }
 
 impl From<TextCompleteOptions> for nim_ai::pipelines::text::complete::Options {
     fn from(options: TextCompleteOptions) -> Self {
-        Self {
-            model: options.model,
-            chat: options.chat,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TextCompleteSummarizeOptions {
-    pub model: ModelRef,
-    pub chat: Chat,
-    pub task: TaskOptions,
-}
-
-impl Default for TextCompleteSummarizeOptions {
-    fn default() -> Self {
-        let options = nim_ai::pipelines::text::complete::Options::default();
-
-        Self {
-            model: options.model,
-            chat: options.chat,
-            task: Default::default(),
-        }
-    }
-}
-
-impl From<TextCompleteSummarizeOptions> for nim_ai::pipelines::text::complete::Options {
-    fn from(options: TextCompleteSummarizeOptions) -> Self {
         Self {
             model: options.model,
             chat: options.chat,
@@ -65,6 +39,18 @@ impl<'a> TextPipelines<'a> {
 
         if !options.task.sources.contains(&TaskSource::Model(model.id)) {
             options.task.sources.push(TaskSource::Model(model.id));
+        }
+
+        if let Some(instructions) = &options.instructions {
+            let mut messages = vec![
+                nim_ai::chat::ChatSystemMessage {
+                    content: nim_ai::chat::ChatMessageContent::Text(instructions.join("\n")),
+                }
+                .into(),
+            ];
+
+            messages.extend(options.chat.messages);
+            options.chat.messages = messages;
         }
 
         let out = task_run!(self, "text_complete", &options, {

@@ -2,10 +2,12 @@
 #[serde(untagged)]
 pub enum Media {
     Path {
+        name: Option<String>,
         path: std::path::PathBuf,
         summary: Option<String>,
     },
     Url {
+        name: Option<String>,
         url: url::Url,
         summary: Option<String>,
     },

@@ -99,23 +99,63 @@ impl Transform for MessageContentPart {
                         } => Ok(match media_type {
                             Some(media_type) if media_type.starts_with("image") => {
                                 nim_ai::ChatMessageContentPart::Image(nim_ai::Media::Path {
+                                    name: Some(artifact.name),
                                     path: path.clone(),
                                     summary: artifact.summary,
                                 })
                             }
                             Some(media_type) if media_type.starts_with("audio") => {
                                 nim_ai::ChatMessageContentPart::Audio(nim_ai::Media::Path {
+                                    name: Some(artifact.name),
                                     path: path.clone(),
                                     summary: artifact.summary,
                                 })
                             }
                             Some(media_type) if media_type.starts_with("video") => {
                                 nim_ai::ChatMessageContentPart::Video(nim_ai::Media::Path {
+                                    name: Some(artifact.name),
                                     path: path.clone(),
                                     summary: artifact.summary,
                                 })
                             }
                             _ => return Err(nim_error::Diagnostic::message("render: invalid artifact without media_type")),
+                        }),
+                        ArtifactContent::Resource { url, headers: _ } => Ok(match url::Url::parse(url) {
+                            Err(err) => return Err(nim_error::Diagnostic::error(err)),
+                            Ok(url) => {
+                                let Some(ext) = url
+                                    .path_segments()
+                                    .and_then(|mut segments| segments.next_back())
+                                    .and_then(|filename| std::path::Path::new(filename).extension())
+                                    .and_then(|ext| ext.to_str())
+                                else {
+                                    return Err(nim_error::Diagnostic::message(
+                                        "render: no artifact file extension for resource",
+                                    ));
+                                };
+
+                                let guess = mime_guess::from_ext(ext);
+
+                                match guess.first_or_text_plain().type_() {
+                                    mime_guess::mime::TEXT => nim_ai::ChatMessageContentPart::Text { text: url.to_string() },
+                                    mime_guess::mime::IMAGE => nim_ai::ChatMessageContentPart::Image(nim_ai::Media::Url {
+                                        name: Some(artifact.name),
+                                        url,
+                                        summary: artifact.summary,
+                                    }),
+                                    mime_guess::mime::AUDIO => nim_ai::ChatMessageContentPart::Audio(nim_ai::Media::Url {
+                                        name: Some(artifact.name),
+                                        url,
+                                        summary: artifact.summary,
+                                    }),
+                                    mime_guess::mime::VIDEO => nim_ai::ChatMessageContentPart::Video(nim_ai::Media::Url {
+                                        name: Some(artifact.name),
+                                        url,
+                                        summary: artifact.summary,
+                                    }),
+                                    v => return Err(nim_error::Diagnostic::message(format!("unsupported mime_type {v}"))),
+                                }
+                            }
                         }),
                     }
                 }

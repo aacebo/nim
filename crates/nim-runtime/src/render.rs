@@ -59,13 +59,14 @@ impl Render for Artifact {
                 Some(summary) => Ok(summary.clone()),
                 None => match &self.content {
                     ArtifactContent::Text { text } => Ok(text.clone()),
+                    ArtifactContent::Resource { url, headers: _ } => Ok(format!("[{}]({})", self.name, url,)),
                     ArtifactContent::File {
                         path,
                         size: _,
                         media_type,
                     } => {
                         let mime_type = media_type.as_ref().map(|t| format!(r#" "{t}""#)).unwrap_or("".into());
-                        Ok(format!("[{}](artifact://{}{})", self.name, path.display(), mime_type))
+                        Ok(format!("[{}](file://{}{})", self.name, path.display(), mime_type))
                     }
                 },
             }

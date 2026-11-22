@@ -40,20 +40,15 @@ impl Qwen3Runtime {
 }
 
 impl Qwen3Generator {
-    pub fn new(config: &Config, vars: VarBuilder, template: hf_chat_template::ChatTemplate) -> nim_error::Result<Self> {
+    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             model: Mutex::new(Qwen3Runtime::Safetensors(qwen3::ModelForCausalLM::new(config, vars)?)),
             context_limit: config.max_position_embeddings,
-            template: Qwen3Template::new(template),
+            template: Qwen3Template::new(),
         })
     }
 
-    pub fn quantized(
-        config: &Config,
-        path: impl AsRef<Path>,
-        device: &Device,
-        template: hf_chat_template::ChatTemplate,
-    ) -> nim_error::Result<Self> {
+    pub fn quantized(config: &Config, path: impl AsRef<Path>, device: &Device) -> nim_error::Result<Self> {
         let mut file = std::fs::File::open(path)?;
         let content = gguf_file::Content::read(&mut file)?;
         let context_limit = content
@@ -66,7 +61,7 @@ impl Qwen3Generator {
         Ok(Self {
             model: Mutex::new(Qwen3Runtime::Quantized(model)),
             context_limit: config.max_position_embeddings.min(context_limit),
-            template: Qwen3Template::new(template),
+            template: Qwen3Template::new(),
         })
     }
 
@@ -75,7 +70,6 @@ impl Qwen3Generator {
         let compat = chat.compat;
         let max_len = chat.max_len;
         let text = self.template.render_chat(&chat)?;
-        tracing::info!(text);
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_len = crate::models::output_limit("Qwen3", self.context_limit, ids.len(), max_len)?;
@@ -157,6 +151,7 @@ impl Summarize for Qwen3Generator {
                 max_len: options.max_len,
                 ..Default::default()
             })?;
+
             Ok(TextOutput {
                 text: match response.content { Some(crate::ChatMessageContent::Text(text)) => text, _ => String::new() },
                 confidence: None,

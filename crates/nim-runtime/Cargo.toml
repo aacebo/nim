@@ -21,6 +21,8 @@ chrono = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }
 tracing = { workspace = true }
 futures-util = { workspace = true }
+url = { workspace = true }
+mime_guess = { workspace = true }
 
 nim-ai = { workspace = true }
 nim-error = { workspace = true }

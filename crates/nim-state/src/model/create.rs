@@ -25,12 +25,12 @@ impl<'a> ModelService<'a> {
                 name: value.name,
                 tasks: value.tasks,
                 architectures: value.architectures,
-                source: nim_store::Json(value.source),
+                source: serde_json::to_value(value.source)?,
                 created_at: now,
                 updated_at: now,
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

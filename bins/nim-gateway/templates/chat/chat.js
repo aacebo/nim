@@ -38,6 +38,25 @@ customElements.define("nim-chat", class extends HTMLElement {
         let chatStatusTimer;
         let chatErrorTimer;
 
+        async function openMessageView(id, trigger) {
+            const response = await fetch(`/web/views/messages/${encodeURIComponent(id)}`);
+            if (!response.ok) throw new Error("Unable to load message details");
+            const documentView = new DOMParser().parseFromString(await response.text(), "text/html");
+            const template = documentView.getElementById("message-template");
+            if (!template) throw new Error("Message details are unavailable");
+            document.getElementById("message-template")?.remove();
+            document.querySelector("nim-message")?.remove();
+            document.body.append(template);
+            await Promise.all([loadAsset("message/message.css?v=23", "css"), loadAsset("message/message.js?v=23", "js")]);
+            const view = document.createElement("nim-message");
+            document.body.append(view);
+            view.open(trigger);
+        }
+
+        host.addEventListener("nim-message-inspect", (event) => {
+            void openMessageView(event.detail.id, event.detail.trigger).catch(() => setChatError("Unable to load message details."));
+        }, { signal });
+
         function setChatStatus(text, dismiss = false) {
             clearTimeout(chatStatusTimer);
             chatStatus.classList.remove("is-fading");
@@ -270,14 +289,17 @@ customElements.define("nim-chat", class extends HTMLElement {
             const pushText = (value) => {
                 if (!value) return;
                 const previous = content.at(-1);
-                if (previous?.text) previous.text += value;
-                else content.push({ text: value });
+                if (previous?.type === "text") previous.text += value;
+                else content.push({ type: "text", text: value });
             };
             const fencedEnd = (offset) => {
                 if (offset !== 0 && text[offset - 1] !== "\n") return null;
-                if (!text.startsWith("```", offset)) return null;
-                const end = text.indexOf("\n```", offset + 3);
-                return end < 0 ? text.length : end + 4;
+                const marker = text.slice(offset, offset + 3);
+                if (marker !== "```" && marker !== "~~~") return null;
+                const end = text.indexOf(`\n${marker}`, offset + 3);
+                if (end < 0) return text.length;
+                const lineEnd = text.indexOf("\n", end + 4);
+                return lineEnd < 0 ? text.length : lineEnd + 1;
             };
             const jsonEnd = (offset) => {
                 const stack = [];
@@ -312,7 +334,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                     const url = match?.[0].replace(/[.,;:!?)}\]]+$/, "");
                     if (url) {
                         pushText(text.slice(start, index));
-                        content.push({ url });
+                        content.push({ type: "url", url });
                         index += url.length;
                         start = index;
                         continue;
@@ -324,7 +346,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                         try {
                             const json = JSON.parse(text.slice(index, end));
                             pushText(text.slice(start, index));
-                            content.push({ json });
+                            content.push({ type: "json", json });
                             index = end;
                             start = index;
                             continue;
@@ -389,7 +411,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                     await uploadAttachment(attachment);
                 }
                 const content = parseContent(text);
-                content.push(...pendingAttachments.map(({ artifactId }) => ({ artifact_id: artifactId })));
+                content.push(...pendingAttachments.map(({ artifactId }) => ({ type: "artifact", artifact_id: artifactId })));
                 setChatStatus("Sending…");
                 const path = chatId ? `/chats/${encodeURIComponent(chatId)}/messages` : "/chats/messages";
                 const response = await fetch(path, {

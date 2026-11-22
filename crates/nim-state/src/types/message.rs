@@ -1,6 +1,23 @@
-pub use nim_store::Role;
-
 use crate::{AnnotationId, ArtifactId, ChatId, Embedding, Label, Span, Version};
+
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
+#[serde(rename_all = "snake_case")]
+pub enum Role {
+    System,
+    Agent,
+    User,
+}
+
+impl std::fmt::Display for Role {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::System => write!(f, "system"),
+            Self::Agent => write!(f, "agent"),
+            Self::User => write!(f, "user"),
+        }
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Message {
@@ -78,7 +95,7 @@ impl TryFrom<nim_store::MessageRow> for Message {
             chat_id: value.chat_id.into(),
             parent_id: value.parent_id.map(Into::into),
             version: value.version.into(),
-            role: value.role,
+            role: serde_json::from_value(serde_json::Value::String(value.role))?,
             content: serde_json::from_value(value.content)?,
             summary: value.summary,
             embedding: value.embedding.map(Into::into),
@@ -153,19 +170,21 @@ pub struct MessageAnnotation {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl From<nim_store::MessageAnnotationRow> for MessageAnnotation {
-    fn from(value: nim_store::MessageAnnotationRow) -> Self {
-        Self {
+impl TryFrom<nim_store::MessageAnnotationRow> for MessageAnnotation {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::MessageAnnotationRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
             version: value.version.into(),
             message_id: value.message_id.into(),
-            label: value.label.into(),
+            label: serde_json::from_value(serde_json::Value::String(value.label))?,
             text: value.text,
-            spans: value.spans.into_inner(),
+            spans: serde_json::from_value(value.spans)?,
             confidence: value.confidence,
             embedding: value.embedding.map(Into::into),
             created_at: value.created_at,
             updated_at: value.updated_at,
-        }
+        })
     }
 }

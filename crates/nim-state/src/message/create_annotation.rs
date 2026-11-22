@@ -26,9 +26,9 @@ impl<'a> MessageService<'a> {
                 id: uuid::Uuid::now_v7(),
                 version: 0,
                 message_id: message_id.into(),
-                label: value.label.into(),
+                label: value.label.to_string(),
                 text: value.text,
-                spans: nim_store::Json(value.spans.to_vec()),
+                spans: serde_json::to_value(value.spans)?,
                 confidence: value.confidence,
                 embedding: value.embedding.map(|v| v.to_vec().into()),
                 created_at: now,
@@ -36,6 +36,6 @@ impl<'a> MessageService<'a> {
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

@@ -1,6 +1,67 @@
-pub use nim_store::ArtifactContent;
-
 use crate::{AnnotationId, AnnotationPartial, Embedding, Label, MemoryId, Span, Version};
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ArtifactContent {
+    Text {
+        text: String,
+    },
+    File {
+        path: std::path::PathBuf,
+        size: u64,
+        media_type: Option<String>,
+    },
+    Resource {
+        url: String,
+        headers: std::collections::BTreeMap<String, String>,
+    },
+}
+
+impl ArtifactContent {
+    pub fn text(value: impl Into<String>) -> Self {
+        Self::Text { text: value.into() }
+    }
+
+    pub fn file(path: impl Into<std::path::PathBuf>, size: u64, media_type: Option<String>) -> Self {
+        Self::File {
+            path: path.into(),
+            size,
+            media_type,
+        }
+    }
+
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Text { text } => Some(text),
+            _ => None,
+        }
+    }
+
+    pub fn as_file(&self) -> Option<&std::path::PathBuf> {
+        match self {
+            Self::File { path, .. } => Some(path),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::Text { text } => Some(text),
+            Self::File { path, .. } => path.to_str(),
+            Self::Resource { url, .. } => Some(url),
+        }
+    }
+}
+
+impl std::fmt::Display for ArtifactContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Text { text } => write!(f, "{text}"),
+            Self::File { path, .. } => write!(f, "{}", path.display()),
+            Self::Resource { url, .. } => write!(f, "{url}"),
+        }
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Artifact {
@@ -20,13 +81,15 @@ pub struct Artifact {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl From<nim_store::ArtifactRow> for Artifact {
-    fn from(value: nim_store::ArtifactRow) -> Self {
-        Self {
+impl TryFrom<nim_store::ArtifactRow> for Artifact {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::ArtifactRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
             version: value.version.into(),
             name: value.name,
-            content: value.content.into_inner(),
+            content: serde_json::from_value(value.content)?,
             summary: value.summary,
             embedding: value.embedding.map(Into::into),
             confidence: value.confidence,
@@ -35,7 +98,7 @@ impl From<nim_store::ArtifactRow> for Artifact {
             annotations: Default::default(),
             created_at: value.created_at,
             updated_at: value.updated_at,
-        }
+        })
     }
 }
 
@@ -122,19 +185,21 @@ pub struct ArtifactAnnotation {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl From<nim_store::ArtifactAnnotationRow> for ArtifactAnnotation {
-    fn from(value: nim_store::ArtifactAnnotationRow) -> Self {
-        Self {
+impl TryFrom<nim_store::ArtifactAnnotationRow> for ArtifactAnnotation {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::ArtifactAnnotationRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
             version: value.version.into(),
             artifact_id: value.artifact_id.into(),
-            label: value.label.into(),
+            label: serde_json::from_value(serde_json::Value::String(value.label))?,
             text: value.text,
-            spans: value.spans.into_inner(),
+            spans: serde_json::from_value(value.spans)?,
             confidence: value.confidence,
             embedding: value.embedding.map(Into::into),
             created_at: value.created_at,
             updated_at: value.updated_at,
-        }
+        })
     }
 }

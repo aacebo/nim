@@ -8,11 +8,11 @@ impl<'a> MessageService<'a> {
         label: Label,
         text: &str,
     ) -> nim_error::Result<Option<MessageAnnotation>> {
-        Ok(self
-            .storage
+        self.storage
             .message_annotations()
-            .find_by_message_label(message_id.into(), label.into(), text)
+            .find_by_message_label(message_id.into(), label.to_string(), text)
             .await?
-            .map(Into::into))
+            .map(TryInto::try_into)
+            .transpose()
     }
 }

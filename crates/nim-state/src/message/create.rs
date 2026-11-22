@@ -22,7 +22,7 @@ impl<'a> MessageService<'a> {
                 chat_id: value.chat_id.into(),
                 parent_id: value.parent_id.map(Into::into),
                 version: 0,
-                role: value.role,
+                role: value.role.to_string(),
                 content: serde_json::to_value(&value.content)?,
                 summary: None,
                 embedding: None,

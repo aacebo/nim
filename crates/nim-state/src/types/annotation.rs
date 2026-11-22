@@ -1,6 +1,12 @@
-pub use nim_store::Span;
-
 use crate::{ArtifactAnnotation, MessageAnnotation};
+
+#[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum Span {
+    Text { start: u32, end: u32 },
+    Image { xmin: f32, ymin: f32, xmax: f32, ymax: f32 },
+    Audio { start: f64, end: f64 },
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AnnotationPartial {
@@ -11,15 +17,17 @@ pub struct AnnotationPartial {
     pub confidence: f32,
 }
 
-impl From<nim_store::ArtifactAnnotationRow> for AnnotationPartial {
-    fn from(value: nim_store::ArtifactAnnotationRow) -> Self {
-        Self {
+impl TryFrom<nim_store::ArtifactAnnotationRow> for AnnotationPartial {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::ArtifactAnnotationRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
-            label: value.label.into(),
+            label: serde_json::from_value(serde_json::Value::String(value.label))?,
             text: value.text,
-            spans: value.spans.into_inner(),
+            spans: serde_json::from_value(value.spans)?,
             confidence: value.confidence,
-        }
+        })
     }
 }
 
@@ -35,15 +43,17 @@ impl From<ArtifactAnnotation> for AnnotationPartial {
     }
 }
 
-impl From<nim_store::MessageAnnotationRow> for AnnotationPartial {
-    fn from(value: nim_store::MessageAnnotationRow) -> Self {
-        Self {
+impl TryFrom<nim_store::MessageAnnotationRow> for AnnotationPartial {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::MessageAnnotationRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
-            label: value.label.into(),
+            label: serde_json::from_value(serde_json::Value::String(value.label))?,
             text: value.text,
-            spans: value.spans.into_inner(),
+            spans: serde_json::from_value(value.spans)?,
             confidence: value.confidence,
-        }
+        })
     }
 }
 
@@ -253,49 +263,6 @@ impl std::fmt::Display for Label {
             Self::Temporal => write!(f, "temporal"),
             Self::Spatial => write!(f, "spatial"),
             Self::Unknown => write!(f, "unknown"),
-        }
-    }
-}
-
-impl From<nim_store::Label> for Label {
-    fn from(value: nim_store::Label) -> Self {
-        match value {
-            nim_store::Label::Entity => Self::Entity,
-            nim_store::Label::Valence => Self::Valence,
-            nim_store::Label::Emotion => Self::Emotion,
-            nim_store::Label::Salience => Self::Salience,
-            nim_store::Label::Threat => Self::Threat,
-            nim_store::Label::Reward => Self::Reward,
-            nim_store::Label::Novelty => Self::Novelty,
-            nim_store::Label::Familiarity => Self::Familiarity,
-            nim_store::Label::Confidence => Self::Confidence,
-            nim_store::Label::SelfRelevance => Self::SelfRelevance,
-            nim_store::Label::SocialRelevance => Self::SocialRelevance,
-            nim_store::Label::Temporal => Self::Temporal,
-            nim_store::Label::Spatial => Self::Spatial,
-            nim_store::Label::Unknown => Self::Unknown,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<Label> for nim_store::Label {
-    fn from(value: Label) -> Self {
-        match value {
-            Label::Entity => Self::Entity,
-            Label::Valence => Self::Valence,
-            Label::Emotion => Self::Emotion,
-            Label::Salience => Self::Salience,
-            Label::Threat => Self::Threat,
-            Label::Reward => Self::Reward,
-            Label::Novelty => Self::Novelty,
-            Label::Familiarity => Self::Familiarity,
-            Label::Confidence => Self::Confidence,
-            Label::SelfRelevance => Self::SelfRelevance,
-            Label::SocialRelevance => Self::SocialRelevance,
-            Label::Temporal => Self::Temporal,
-            Label::Spatial => Self::Spatial,
-            Label::Unknown => Self::Unknown,
         }
     }
 }

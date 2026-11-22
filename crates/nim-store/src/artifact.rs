@@ -108,6 +108,33 @@ impl<'a> ArtifactStorage<'a> {
         .await
     }
 
+    #[tracing::instrument(skip(self))]
+    pub async fn find_by_message_id(&self, message_id: uuid::Uuid) -> Result<Vec<types::ArtifactRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                artifacts.id,
+                artifacts.version,
+                artifacts.name,
+                artifacts.content,
+                artifacts.summary,
+                artifacts.embedding,
+                artifacts.confidence,
+                artifacts.salience,
+                artifacts.strength,
+                artifacts.created_at,
+                artifacts.updated_at
+            FROM artifacts
+            JOIN messages_artifacts ON messages_artifacts.artifact_id = artifacts.id
+            WHERE messages_artifacts.message_id = $1
+            ORDER BY artifacts.created_at, artifacts.id
+            "#,
+        )
+        .bind(message_id)
+        .fetch_all(self.pool)
+        .await
+    }
+
     #[tracing::instrument(skip(self, value))]
     pub async fn create(&self, value: types::ArtifactRow) -> Result<types::ArtifactRow, sqlx::Error> {
         sqlx::query_as(
@@ -378,7 +405,7 @@ impl<'a> ArtifactAnnotationStorage<'a> {
     pub async fn find_by_artifact_label(
         &self,
         artifact_id: uuid::Uuid,
-        label: types::Label,
+        label: String,
         text: &str,
     ) -> Result<Option<types::ArtifactAnnotationRow>, sqlx::Error> {
         sqlx::query_as(

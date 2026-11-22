@@ -12,6 +12,10 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
         .route("/", axum::routing::get(crate::diagnose(get::route)))
         .route("/connect", axum::routing::any(crate::diagnose(connect::route)))
         .route("/views/chat", axum::routing::get(crate::diagnose(views::chat::route)))
+        .route(
+            "/views/messages/{message_id}",
+            axum::routing::get(crate::diagnose(views::message::route)),
+        )
         .route("/views/memory", axum::routing::get(crate::diagnose(views::memory::route)))
         .route(
             "/views/artifacts",
@@ -31,6 +35,7 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
         )
         .nest_service("/views/orb/", static_assets("orb"))
         .nest_service("/views/chat/", static_assets("chat"))
+        .nest_service("/views/message/", static_assets("message"))
         .nest_service("/views/memory/", static_assets("memory"))
         .route(
             "/views/dev-tools/dev-tools.js",

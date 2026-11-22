@@ -48,12 +48,12 @@ socket.addEventListener("message", (event) => {
 const viewAssets = {
     artifacts: { css: ["artifacts/artifacts.css"], js: ["artifacts/artifacts.js?v=5"] },
     chat: {
-        css: ["chat/transcript/transcript.css?v=9", "chat/chat.css?v=4"],
+        css: ["chat/transcript/transcript.css?v=13", "chat/chat.css?v=4"],
         js: [
             "https://unpkg.com/marked@15.0.7/marked.min.js",
             "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",
-            "chat/transcript/transcript.js?v=7",
-            "chat/chat.js?v=13",
+            "chat/transcript/transcript.js?v=13",
+            "chat/chat.js?v=16",
         ],
     },
     memory: {

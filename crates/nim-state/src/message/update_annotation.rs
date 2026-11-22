@@ -24,7 +24,7 @@ impl<'a> MessageService<'a> {
             .await?;
 
         if let Some(value) = value.label {
-            row.label = value.into();
+            row.label = value.to_string();
         }
 
         if let Some(value) = value.text {
@@ -32,7 +32,7 @@ impl<'a> MessageService<'a> {
         }
 
         if let Some(value) = value.spans {
-            row.spans = nim_store::Json(value);
+            row.spans = serde_json::to_value(value)?;
         }
 
         if let Some(value) = value.confidence {
@@ -43,6 +43,6 @@ impl<'a> MessageService<'a> {
             row.embedding = Some(value.into());
         }
 
-        Ok(self.storage.message_annotations().update(row).await?.into())
+        self.storage.message_annotations().update(row).await?.try_into()
     }
 }

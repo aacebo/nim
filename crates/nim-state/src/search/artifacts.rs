@@ -7,9 +7,8 @@ impl<'a> SearchService<'a> {
     pub async fn artifacts(&self, embedding: &[f32], filter: Filter) -> nim_error::Result<Vec<SearchItem<Artifact>>> {
         let rows = self.storage.search().artifacts(embedding, filter).await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| SearchItem::new(row.score, row.into_inner().into()))
-            .collect())
+        rows.into_iter()
+            .map(|row| Ok(SearchItem::new(row.score, row.into_inner().try_into()?)))
+            .collect()
     }
 }

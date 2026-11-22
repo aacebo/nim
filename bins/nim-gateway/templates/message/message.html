@@ -1,0 +1,22 @@
+<template id="message-template" data-message="{{ self.message|json }}" data-annotations="{{ self.annotations|json }}" data-artifacts="{{ self.artifacts|json }}">
+    <dialog class="message-view">
+        <header class="message-view-header">
+            <div class="message-view-heading">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.75h14v10.5H9.5L5 20.25V5.75Z"></path><path d="M8.5 9.5h7M8.5 12.5h5"></path></svg>
+                <h3>Message</h3>
+                <span data-role></span>
+            </div>
+            <button type="button" data-close aria-label="Close message details">×</button>
+            <div class="message-view-context">
+                <span data-id></span>
+                <time></time>
+            </div>
+        </header>
+        <div class="message-view-tabs" role="tablist" aria-label="Message view">
+            <button type="button" role="tab" data-tab="content">Content</button>
+            <button type="button" role="tab" data-tab="details">Details</button>
+            <button type="button" role="tab" data-tab="json">JSON</button>
+        </div>
+        <div class="message-view-body"></div>
+    </dialog>
+</template>

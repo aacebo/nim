@@ -1,4 +1,4 @@
-use crate::{MemoryType, Role, TimeRange};
+use crate::TimeRange;
 
 #[derive(Debug, Default)]
 pub struct Filter {
@@ -14,7 +14,7 @@ pub struct ChatFilter {
 
 #[derive(Debug, Default)]
 pub struct MemoryFilter {
-    pub ty: Option<MemoryType>,
+    pub ty: Option<String>,
     pub limit: Option<usize>,
     pub min_score: Option<f32>,
     pub created_at: Option<TimeRange>,
@@ -23,7 +23,7 @@ pub struct MemoryFilter {
 #[derive(Debug, Default)]
 pub struct MessageFilter {
     pub chat_id: Option<uuid::Uuid>,
-    pub role: Option<Role>,
+    pub role: Option<String>,
     pub limit: Option<usize>,
     pub min_score: Option<f32>,
 }

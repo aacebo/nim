@@ -4,7 +4,7 @@ pub struct MessageRow {
     pub chat_id: uuid::Uuid,
     pub parent_id: Option<uuid::Uuid>,
     pub version: i32,
-    pub role: Role,
+    pub role: String,
     pub content: sqlx::types::JsonValue,
     pub summary: Option<String>,
     #[serde(skip)]
@@ -14,34 +14,14 @@ pub struct MessageRow {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, sqlx::Type, serde_valid::Validate)]
-#[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "text", rename_all = "snake_case")]
-pub enum Role {
-    System,
-    Agent,
-    User,
-}
-
-impl std::fmt::Display for Role {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::System => write!(f, "system"),
-            Self::User => write!(f, "user"),
-            Self::Agent => write!(f, "agent"),
-        }
-    }
-}
-
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct MessageAnnotationRow {
     pub id: uuid::Uuid,
     pub version: i32,
     pub message_id: uuid::Uuid,
-    pub label: crate::Label,
+    pub label: String,
     pub text: String,
-    pub spans: sqlx::types::Json<Vec<crate::Span>>,
+    pub spans: sqlx::types::JsonValue,
     pub confidence: f32,
     pub embedding: Option<pgvector::Vector>,
     pub created_at: chrono::DateTime<chrono::Utc>,

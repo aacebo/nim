@@ -7,31 +7,8 @@ impl<'a> SearchService<'a> {
     pub async fn memories(&self, embedding: &[f32], filter: MemoryFilter) -> nim_error::Result<Vec<SearchItem<Memory>>> {
         let rows = self.storage.search().memories(embedding, filter).await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| {
-                SearchItem::new(
-                    row.score,
-                    Memory {
-                        id: row.id.into(),
-                        version: row.version.into(),
-                        ty: row.ty.into(),
-                        contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
-                        sources: row.sources.iter().map(|v| (*v).into()).collect(),
-                        artifacts: Default::default(),
-                        relations: Default::default(),
-                        summary: row.summary.clone(),
-                        embedding: row.embedding.clone().map(Into::into),
-                        salience: row.salience,
-                        strength: row.strength,
-                        confidence: row.confidence,
-                        recalls: row.recalls as u64,
-                        recalled_at: row.recalled_at,
-                        created_at: row.created_at,
-                        updated_at: row.updated_at,
-                    },
-                )
-            })
-            .collect())
+        rows.into_iter()
+            .map(|row| Ok(SearchItem::new(row.score, row.into_inner().try_into()?)))
+            .collect()
     }
 }

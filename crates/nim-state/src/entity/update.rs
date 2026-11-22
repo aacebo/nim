@@ -17,7 +17,7 @@ impl<'a> EntityService<'a> {
         let mut row = self.storage.entities().find_by_id(id.into()).await?;
 
         if let Some(value) = value.ty {
-            row.ty = value.into();
+            row.ty = value.to_string();
         }
 
         if let Some(value) = value.name {
@@ -44,6 +44,6 @@ impl<'a> EntityService<'a> {
             row.recalled_at = Some(value);
         }
 
-        Ok(self.storage.entities().update(row).await?.into())
+        self.storage.entities().update(row).await?.try_into()
     }
 }

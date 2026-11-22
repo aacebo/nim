@@ -17,7 +17,7 @@ impl<'a> EntityService<'a> {
             .entities()
             .create(EntityRow {
                 id: uuid::Uuid::now_v7(),
-                ty: value.ty.into(),
+                ty: value.ty.to_string(),
                 version: 0,
                 name: value.name,
                 summary: None,
@@ -30,6 +30,6 @@ impl<'a> EntityService<'a> {
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

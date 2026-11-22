@@ -26,3 +26,9 @@ weight updates.
 ## Platt Scaling
 
 Add platt scaling weights to models in database and read/write to them.
+
+## Debt
+
+1. Message::parent_id -> Message::reply_to_id
+2. move message content mapping from exec -> state service
+3. agent messages should be processed and parsed the same way we do user messages

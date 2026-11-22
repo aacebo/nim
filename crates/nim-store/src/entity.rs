@@ -80,7 +80,7 @@ impl<'a> EntityStorage<'a> {
             "#,
         )
         .bind(value.id)
-        .bind(value.ty)
+        .bind(&value.ty)
         .bind(value.version)
         .bind(value.name)
         .bind(value.summary)
@@ -250,7 +250,7 @@ impl<'a> EntityRelationsStorage<'a> {
         &self,
         source_id: uuid::Uuid,
         target_id: uuid::Uuid,
-        ty: types::EntityRelationType,
+        ty: String,
     ) -> Result<types::EntityRelationRow, sqlx::Error> {
         sqlx::query_as(
             r#"
@@ -296,7 +296,7 @@ impl<'a> EntityRelationsStorage<'a> {
         )
         .bind(value.source_id)
         .bind(value.target_id)
-        .bind(value.ty)
+        .bind(&value.ty)
         .bind(value.created_at)
         .fetch_optional(self.pool)
         .await?;
@@ -308,7 +308,7 @@ impl<'a> EntityRelationsStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid, types::EntityRelationType)) -> Result<(), sqlx::Error> {
+    pub async fn delete(&self, id: (uuid::Uuid, uuid::Uuid, String)) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
             DELETE FROM entities_relations

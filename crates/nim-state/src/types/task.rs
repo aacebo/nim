@@ -1,6 +1,4 @@
-use nim_store::Span;
-
-use crate::{ArtifactId, ChatId, MessageId, ModelId, Source, Version};
+use crate::{ArtifactId, ChatId, MessageId, ModelId, Source, Span, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Task {
@@ -75,7 +73,7 @@ impl TryFrom<nim_store::TaskRow> for Task {
             parent_id: value.parent_id.map(Into::into),
             version: value.version.into(),
             name: value.name,
-            source: value.source.into_inner().into(),
+            source: serde_json::from_value(value.source)?,
             status: serde_json::from_value(value.status)?,
             created_at: value.created_at,
             updated_at: value.updated_at,

@@ -1,5 +1,5 @@
+use nim_state::{ArtifactContent, Role};
 use nim_state::{Message, MessageContent, MessageContentPart, Services};
-use nim_store::{ArtifactContent, Role};
 
 use crate::{BoxFuture, Transform};
 

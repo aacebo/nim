@@ -9,7 +9,7 @@ pub struct ArtifactRow {
     pub confidence: f32,
     pub salience: f32,
     pub strength: f32,
-    pub content: sqlx::types::Json<ArtifactContent>,
+    pub content: sqlx::types::JsonValue,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -28,77 +28,14 @@ pub struct MessageArtifactRow {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ArtifactContent {
-    Text {
-        text: String,
-    },
-    File {
-        path: std::path::PathBuf,
-        size: u64,
-        media_type: Option<String>,
-    },
-    Resource {
-        url: String,
-        headers: std::collections::BTreeMap<String, String>,
-    },
-}
-
-impl ArtifactContent {
-    pub fn text(value: impl Into<String>) -> Self {
-        Self::Text { text: value.into() }
-    }
-
-    pub fn file(path: impl Into<std::path::PathBuf>, size: u64, media_type: Option<String>) -> Self {
-        Self::File {
-            path: path.into(),
-            size,
-            media_type,
-        }
-    }
-
-    pub fn as_text(&self) -> Option<&str> {
-        match self {
-            Self::Text { text } => Some(text),
-            _ => None,
-        }
-    }
-
-    pub fn as_file(&self) -> Option<&std::path::PathBuf> {
-        match self {
-            Self::File { path, .. } => Some(path),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> Option<&str> {
-        match self {
-            Self::Text { text } => Some(text),
-            Self::File { path, .. } => path.to_str(),
-            Self::Resource { url, headers: _ } => Some(url),
-        }
-    }
-}
-
-impl std::fmt::Display for ArtifactContent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Text { text } => write!(f, "{text}"),
-            Self::File { path, .. } => write!(f, "{}", path.display()),
-            Self::Resource { url, headers: _ } => write!(f, "{url}"),
-        }
-    }
-}
-
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ArtifactAnnotationRow {
     pub id: uuid::Uuid,
     pub version: i32,
     pub artifact_id: uuid::Uuid,
-    pub label: crate::Label,
+    pub label: String,
     pub text: String,
-    pub spans: sqlx::types::Json<Vec<crate::Span>>,
+    pub spans: sqlx::types::JsonValue,
     pub confidence: f32,
     pub embedding: Option<pgvector::Vector>,
     pub created_at: chrono::DateTime<chrono::Utc>,

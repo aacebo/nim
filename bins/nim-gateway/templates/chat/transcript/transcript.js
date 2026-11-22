@@ -17,7 +17,13 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
     messageText(content) {
         if (typeof content === "string") return content;
         if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("\n");
-        return content?.text ?? content?.url ?? (content?.json ? JSON.stringify(content.json) : content?.artifact_id ? "" : "Message content");
+        switch (content?.type) {
+            case "text": return content.text;
+            case "url": return content.url;
+            case "json": return JSON.stringify(content.json);
+            case "artifact": return "";
+            default: return "Message content";
+        }
     }
 
     renderMarkdown(content) {
@@ -28,12 +34,19 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
 
     messageArtifacts(content, artifactView) {
         if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item, artifactView));
-        return content?.artifact_id ? [artifactView?.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
+        return content?.type === "artifact" ? [artifactView?.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
     }
 
     messageOrder(message) {
         const timestamp = message.created_at.replace(/(?:\.(\d+))?Z$/, (_, fraction = "") => `.${fraction.padEnd(9, "0")}Z`);
         return `${timestamp} ${message.id}`;
+    }
+
+    messageTimestamp(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.valueOf()) ? value : date.toLocaleString([], {
+            month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+        });
     }
 
     render({ open, chatMessages, historyLoading, historyError, artifactView }) {
@@ -60,19 +73,35 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         for (const message of messages) {
             const row = document.createElement("li");
             const role = document.createElement("span");
+            const header = document.createElement("div");
+            const timestamp = document.createElement("time");
+            const actions = document.createElement("div");
             const content = this.messageText(message.content);
             const text = document.createElement("div");
             const isUser = message.role === "user";
             row.className = isUser ? "chat-message-user" : "chat-message-agent";
             role.className = "chat-message-role";
             role.textContent = isUser ? "You" : message.role;
+            timestamp.className = "chat-message-timestamp";
+            timestamp.dateTime = message.created_at;
+            timestamp.textContent = this.messageTimestamp(message.created_at);
+            actions.className = "chat-message-actions";
+            const action = document.createElement("button");
+            action.type = "button";
+            action.setAttribute("aria-label", "Inspect message");
+            action.title = "Inspect message";
+            action.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4.3 4.3"></path></svg>';
+            action.addEventListener("click", () => this.dispatchEvent(new CustomEvent("nim-message-inspect", { bubbles: true, detail: { id: message.id, trigger: action } })));
+            actions.append(action);
+            header.className = "chat-message-header";
+            header.append(role, timestamp, actions);
             text.className = "chat-message-text";
             text.innerHTML = this.renderMarkdown(content);
             for (const link of text.querySelectorAll("a")) {
                 link.target = "_blank";
                 link.rel = "noopener noreferrer";
             }
-            row.append(role);
+            row.append(header);
             if (content) row.append(text);
             const artifacts = this.messageArtifacts(message.content, artifactView);
             if (artifacts.length && artifactView) row.append(artifactView.list(artifacts));

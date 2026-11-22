@@ -1,5 +1,5 @@
+use nim_state::ArtifactContent;
 use nim_state::{Artifact, Message, MessageContent, MessageContentPart, Services};
-use nim_store::ArtifactContent;
 
 use crate::{BoxFuture, Render};
 

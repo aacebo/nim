@@ -29,17 +29,15 @@ impl<'a> MemoryService<'a> {
     #[tracing::instrument(skip(self))]
     pub async fn create<'b>(&self, value: MemoryCreate<'b>) -> nim_error::Result<Memory> {
         let now = chrono::Utc::now();
-        let sources = value.sources.iter().map(|v| (*v).into()).collect();
-        let contexts = value.contexts.iter().map(|c| c.clone().into()).collect();
         let row = self
             .storage
             .memories()
             .create(MemoryRow {
                 id: uuid::Uuid::now_v7(),
                 version: 0,
-                ty: value.ty.into(),
-                sources: nim_store::Json(sources),
-                contexts: nim_store::Json(contexts),
+                ty: value.ty.to_string(),
+                sources: serde_json::to_value(value.sources)?,
+                contexts: serde_json::to_value(value.contexts)?,
                 summary: value.summary,
                 embedding: value.embedding.map(Into::into),
                 salience: 0.0,
@@ -52,23 +50,6 @@ impl<'a> MemoryService<'a> {
             })
             .await?;
 
-        Ok(Memory {
-            id: row.id.into(),
-            version: row.version.into(),
-            ty: row.ty.into(),
-            sources: row.sources.iter().map(|v| (*v).into()).collect(),
-            artifacts: Default::default(),
-            contexts: row.contexts.iter().map(|c| c.clone().into()).collect(),
-            relations: Default::default(),
-            summary: row.summary,
-            embedding: row.embedding.map(Into::into),
-            salience: row.salience,
-            strength: row.strength,
-            confidence: row.confidence,
-            recalls: row.recalls as u64,
-            recalled_at: row.recalled_at,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        })
+        row.try_into()
     }
 }

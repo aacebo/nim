@@ -340,7 +340,7 @@ impl<'a> MessageAnnotationStorage<'a> {
     pub async fn find_by_message_label(
         &self,
         message_id: uuid::Uuid,
-        label: types::Label,
+        label: String,
         text: &str,
     ) -> Result<Option<types::MessageAnnotationRow>, sqlx::Error> {
         sqlx::query_as(

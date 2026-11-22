@@ -76,7 +76,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
             .memories(
                 embedding,
                 nim::store::MemoryFilter {
-                    ty: Some(nim::store::MemoryType::Working),
+                    ty: Some(nim::state::MemoryType::Working.to_string()),
                     limit: Some(10),
                     min_score: Some(0.2),
                     ..Default::default()

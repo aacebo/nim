@@ -24,7 +24,7 @@ impl<'a> ArtifactService<'a> {
                 id: uuid::Uuid::now_v7(),
                 version: 0,
                 name: value.name,
-                content: nim_store::Json(value.content),
+                content: serde_json::to_value(value.content)?,
                 summary: value.summary,
                 embedding: value.embedding.map(Into::into),
                 confidence: value.confidence.unwrap_or_default(),
@@ -35,6 +35,6 @@ impl<'a> ArtifactService<'a> {
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

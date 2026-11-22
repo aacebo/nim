@@ -22,7 +22,7 @@ impl<'a> TaskService<'a> {
         }
 
         if let Some(value) = value.source {
-            row.source = nim_store::Json(value.into());
+            row.source = serde_json::to_value(value)?;
         }
 
         if let Some(value) = value.status {

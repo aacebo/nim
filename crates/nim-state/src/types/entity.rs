@@ -95,11 +95,13 @@ impl std::fmt::Display for EntityType {
     }
 }
 
-impl From<nim_store::EntityRow> for Entity {
-    fn from(value: nim_store::EntityRow) -> Self {
-        Self {
+impl TryFrom<nim_store::EntityRow> for Entity {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::EntityRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
-            ty: value.ty.into(),
+            ty: serde_json::from_value(serde_json::Value::String(value.ty))?,
             version: value.version.into(),
             name: value.name,
             summary: value.summary,
@@ -109,36 +111,7 @@ impl From<nim_store::EntityRow> for Entity {
             recalled_at: value.recalled_at,
             created_at: value.created_at,
             updated_at: value.updated_at,
-        }
-    }
-}
-
-impl From<nim_store::EntityType> for EntityType {
-    fn from(value: nim_store::EntityType) -> Self {
-        match value {
-            nim_store::EntityType::Person => Self::Person,
-            nim_store::EntityType::Place => Self::Place,
-            nim_store::EntityType::Organization => Self::Organization,
-            nim_store::EntityType::Project => Self::Project,
-            nim_store::EntityType::Object => Self::Object,
-            nim_store::EntityType::Event => Self::Event,
-            nim_store::EntityType::Other => Self::Other,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<EntityType> for nim_store::EntityType {
-    fn from(value: EntityType) -> Self {
-        match value {
-            EntityType::Person => Self::Person,
-            EntityType::Place => Self::Place,
-            EntityType::Organization => Self::Organization,
-            EntityType::Project => Self::Project,
-            EntityType::Object => Self::Object,
-            EntityType::Event => Self::Event,
-            EntityType::Other => Self::Other,
-        }
+        })
     }
 }
 
@@ -192,39 +165,15 @@ impl From<nim_store::EntityMemoryRow> for EntityMemory {
     }
 }
 
-impl From<nim_store::EntityRelationRow> for EntityRelation {
-    fn from(value: nim_store::EntityRelationRow) -> Self {
-        Self {
-            ty: value.ty.into(),
+impl TryFrom<nim_store::EntityRelationRow> for EntityRelation {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::EntityRelationRow) -> Result<Self, Self::Error> {
+        Ok(Self {
+            ty: serde_json::from_value(serde_json::Value::String(value.ty))?,
             source: value.source_id.into(),
             target: value.target_id.into(),
             created_at: value.created_at,
-        }
-    }
-}
-
-impl From<nim_store::EntityRelationType> for EntityRelationType {
-    fn from(value: nim_store::EntityRelationType) -> Self {
-        match value {
-            nim_store::EntityRelationType::PartOf => Self::PartOf,
-            nim_store::EntityRelationType::MemberOf => Self::MemberOf,
-            nim_store::EntityRelationType::LocatedIn => Self::LocatedIn,
-            nim_store::EntityRelationType::WorksOn => Self::WorksOn,
-            nim_store::EntityRelationType::Owns => Self::Owns,
-            nim_store::EntityRelationType::RelatedTo => Self::RelatedTo,
-        }
-    }
-}
-
-impl From<EntityRelationType> for nim_store::EntityRelationType {
-    fn from(value: EntityRelationType) -> Self {
-        match value {
-            EntityRelationType::PartOf => Self::PartOf,
-            EntityRelationType::MemberOf => Self::MemberOf,
-            EntityRelationType::LocatedIn => Self::LocatedIn,
-            EntityRelationType::WorksOn => Self::WorksOn,
-            EntityRelationType::Owns => Self::Owns,
-            EntityRelationType::RelatedTo => Self::RelatedTo,
-        }
+        })
     }
 }

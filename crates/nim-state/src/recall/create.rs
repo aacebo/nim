@@ -18,13 +18,13 @@ impl<'a> RecallService<'a> {
             .recalls()
             .create(RecallRow {
                 id: uuid::Uuid::now_v7(),
-                trigger: value.trigger.into(),
-                source: value.source.into(),
+                trigger: value.trigger.to_string(),
+                source: value.source.to_string(),
                 query: value.query,
                 created_at: now,
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

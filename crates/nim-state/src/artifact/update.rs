@@ -21,7 +21,7 @@ impl<'a> ArtifactService<'a> {
         }
 
         if let Some(value) = value.content {
-            row.content = nim_store::Json(value);
+            row.content = serde_json::to_value(value)?;
         }
 
         if let Some(value) = value.summary {
@@ -44,6 +44,6 @@ impl<'a> ArtifactService<'a> {
             row.strength = value;
         }
 
-        Ok(self.storage.artifacts().update(row).await?.into())
+        self.storage.artifacts().update(row).await?.try_into()
     }
 }

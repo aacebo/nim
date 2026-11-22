@@ -31,9 +31,9 @@ impl<'a> ModelService<'a> {
         }
 
         if let Some(value) = value.source {
-            row.source = nim_store::Json(value);
+            row.source = serde_json::to_value(value)?;
         }
 
-        Ok(self.storage.models().update(row).await?.into())
+        self.storage.models().update(row).await?.try_into()
     }
 }

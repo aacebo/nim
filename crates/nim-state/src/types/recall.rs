@@ -83,31 +83,6 @@ impl std::fmt::Display for RecallTrigger {
     }
 }
 
-impl From<nim_store::RecallTrigger> for RecallTrigger {
-    fn from(value: nim_store::RecallTrigger) -> Self {
-        match value {
-            nim_store::RecallTrigger::Explicit => Self::Explicit,
-            nim_store::RecallTrigger::Contextual => Self::Contextual,
-            nim_store::RecallTrigger::Associative => Self::Associative,
-            nim_store::RecallTrigger::Sensory => Self::Sensory,
-            nim_store::RecallTrigger::Temporal => Self::Temporal,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<RecallTrigger> for nim_store::RecallTrigger {
-    fn from(value: RecallTrigger) -> Self {
-        match value {
-            RecallTrigger::Explicit => Self::Explicit,
-            RecallTrigger::Contextual => Self::Contextual,
-            RecallTrigger::Associative => Self::Associative,
-            RecallTrigger::Sensory => Self::Sensory,
-            RecallTrigger::Temporal => Self::Temporal,
-        }
-    }
-}
-
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -127,27 +102,6 @@ impl std::fmt::Display for RecallSource {
     }
 }
 
-impl From<nim_store::RecallSource> for RecallSource {
-    fn from(value: nim_store::RecallSource) -> Self {
-        match value {
-            nim_store::RecallSource::User => Self::User,
-            nim_store::RecallSource::Agent => Self::Agent,
-            nim_store::RecallSource::System => Self::System,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<RecallSource> for nim_store::RecallSource {
-    fn from(value: RecallSource) -> Self {
-        match value {
-            RecallSource::User => Self::User,
-            RecallSource::Agent => Self::Agent,
-            RecallSource::System => Self::System,
-        }
-    }
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MemoryRecall {
     pub memory_id: MemoryId,
@@ -156,15 +110,17 @@ pub struct MemoryRecall {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl From<nim_store::RecallRow> for Recall {
-    fn from(value: nim_store::RecallRow) -> Self {
-        Self {
+impl TryFrom<nim_store::RecallRow> for Recall {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::RecallRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
-            trigger: value.trigger.into(),
-            source: value.source.into(),
+            trigger: serde_json::from_value(serde_json::Value::String(value.trigger))?,
+            source: serde_json::from_value(serde_json::Value::String(value.source))?,
             query: value.query,
             created_at: value.created_at,
-        }
+        })
     }
 }
 

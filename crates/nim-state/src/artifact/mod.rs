@@ -8,6 +8,7 @@ mod find_annotations;
 mod find_by_chat_id;
 mod find_by_id;
 mod find_by_memory_id;
+mod find_by_message_id;
 mod link;
 mod unlink;
 mod update;

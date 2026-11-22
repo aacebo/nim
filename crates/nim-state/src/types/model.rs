@@ -1,6 +1,39 @@
-pub use nim_store::{LocalModelSource, ModelResource, ModelSource};
-
 use crate::Version;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+pub enum ModelSource {
+    Local(LocalModelSource),
+    Remote {
+        provider: String,
+        id: String,
+        base_url: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum LocalModelSource {
+    Hub {
+        id: String,
+        #[serde(default)]
+        resource: Option<ModelResource>,
+    },
+    Path {
+        uri: String,
+        format: String,
+        path: Option<std::path::PathBuf>,
+        size: u64,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModelResource {
+    pub uri: String,
+    pub format: String,
+    pub path: Option<std::path::PathBuf>,
+    pub size: u64,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Model {
@@ -67,19 +100,21 @@ impl<'de> serde::Deserialize<'de> for ModelId {
     }
 }
 
-impl From<nim_store::ModelRow> for Model {
-    fn from(value: nim_store::ModelRow) -> Self {
-        Self {
+impl TryFrom<nim_store::ModelRow> for Model {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::ModelRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: value.id.into(),
             version: value.version.into(),
             ty: value.ty,
             name: value.name,
             tasks: value.tasks,
             architectures: value.architectures,
-            source: value.source.into_inner(),
+            source: serde_json::from_value(value.source)?,
             created_at: value.created_at,
             updated_at: value.updated_at,
-        }
+        })
     }
 }
 

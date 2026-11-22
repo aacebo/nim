@@ -59,6 +59,31 @@ pub struct Memory {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl TryFrom<nim_store::MemoryRow> for Memory {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::MemoryRow) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: value.id.into(),
+            version: value.version.into(),
+            ty: serde_json::from_value(serde_json::Value::String(value.ty))?,
+            sources: serde_json::from_value(value.sources)?,
+            artifacts: Default::default(),
+            relations: Default::default(),
+            contexts: serde_json::from_value(value.contexts)?,
+            summary: value.summary,
+            embedding: value.embedding.map(Into::into),
+            salience: value.salience,
+            strength: value.strength,
+            confidence: value.confidence,
+            recalls: value.recalls as u64,
+            recalled_at: value.recalled_at,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemoryId(uuid::Uuid);
 
@@ -160,28 +185,6 @@ impl std::fmt::Display for MemoryType {
             Self::Semantic => write!(f, "semantic"),
             Self::Procedural => write!(f, "procedural"),
             Self::Working => write!(f, "working"),
-        }
-    }
-}
-
-impl From<nim_store::MemoryType> for MemoryType {
-    fn from(value: nim_store::MemoryType) -> Self {
-        match value {
-            nim_store::MemoryType::Episodic => Self::Episodic,
-            nim_store::MemoryType::Semantic => Self::Semantic,
-            nim_store::MemoryType::Procedural => Self::Procedural,
-            nim_store::MemoryType::Working => Self::Working,
-        }
-    }
-}
-
-impl From<MemoryType> for nim_store::MemoryType {
-    fn from(value: MemoryType) -> Self {
-        match value {
-            MemoryType::Episodic => Self::Episodic,
-            MemoryType::Semantic => Self::Semantic,
-            MemoryType::Procedural => Self::Procedural,
-            MemoryType::Working => Self::Working,
         }
     }
 }

@@ -16,11 +16,11 @@ impl<'a> EntityService<'a> {
             .create(EntityRelationRow {
                 source_id: source_id.into(),
                 target_id: target_id.into(),
-                ty: ty.into(),
+                ty: ty.to_string(),
                 created_at: chrono::Utc::now(),
             })
             .await?;
 
-        Ok(row.into())
+        row.try_into()
     }
 }

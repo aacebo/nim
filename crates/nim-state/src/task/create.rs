@@ -21,7 +21,7 @@ impl<'a> TaskService<'a> {
                 parent_id: value.parent_id.map(Into::into),
                 version: 0,
                 name: value.name,
-                source: nim_store::Json(value.source.into()),
+                source: serde_json::to_value(value.source)?,
                 status: serde_json::to_value(TaskStatus::Pending)?,
                 created_at: now,
                 updated_at: now,

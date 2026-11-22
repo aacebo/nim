@@ -8,11 +8,11 @@ impl<'a> ArtifactService<'a> {
         label: Label,
         text: &str,
     ) -> nim_error::Result<Option<ArtifactAnnotation>> {
-        Ok(self
-            .storage
+        self.storage
             .artifact_annotations()
-            .find_by_artifact_label(artifact_id.into(), label.into(), text)
+            .find_by_artifact_label(artifact_id.into(), label.to_string(), text)
             .await?
-            .map(Into::into))
+            .map(TryInto::try_into)
+            .transpose()
     }
 }

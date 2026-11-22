@@ -8,7 +8,7 @@ pub struct ChatView {
     pub artifacts: Vec<ArtifactView>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Clone, serde::Serialize)]
 pub struct ArtifactView {
     pub id: nim::state::ArtifactId,
     pub version: nim::state::Version,
@@ -26,6 +26,7 @@ impl From<nim::state::Artifact> for ArtifactView {
             nim::state::ArtifactContent::File { media_type, size, .. } => ("file", media_type, Some(size)),
             nim::state::ArtifactContent::Resource { .. } => ("resource", None, None),
         };
+
         Self {
             id: value.id,
             version: value.version,
@@ -80,6 +81,7 @@ impl ChatView {
                 .artifacts()
                 .find_by_chat_id(chat.id, nim::state::Page { cursor, limit: 100 })
                 .await?;
+
             artifacts.extend(page.data);
             let Some(next) = page.next else { break };
 

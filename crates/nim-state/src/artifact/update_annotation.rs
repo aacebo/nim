@@ -24,7 +24,7 @@ impl<'a> ArtifactService<'a> {
             .await?;
 
         if let Some(value) = value.label {
-            row.label = value.into();
+            row.label = value.to_string();
         }
 
         if let Some(value) = value.text {
@@ -32,7 +32,7 @@ impl<'a> ArtifactService<'a> {
         }
 
         if let Some(value) = value.spans {
-            row.spans = nim_store::Json(value);
+            row.spans = serde_json::to_value(value)?;
         }
 
         if let Some(value) = value.confidence {
@@ -43,6 +43,6 @@ impl<'a> ArtifactService<'a> {
             row.embedding = Some(value.into());
         }
 
-        Ok(self.storage.artifact_annotations().update(row).await?.into())
+        self.storage.artifact_annotations().update(row).await?.try_into()
     }
 }

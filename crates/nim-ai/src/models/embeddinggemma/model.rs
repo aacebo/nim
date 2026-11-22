@@ -4,7 +4,7 @@ use candle_core::{D, DType, Device, Module, Result, Tensor};
 use candle_nn::{Activation, Linear, VarBuilder, linear_b as linear};
 
 #[derive(serde::Deserialize, Debug, Clone)]
-pub struct Config {
+pub struct EmbeddingGemmaConfig {
     pub attention_bias: bool,
     pub head_dim: usize,
     pub hidden_activation: Activation,
@@ -25,19 +25,19 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone)]
-struct RmsNorm {
+struct EmbeddingGemmaRmsNorm {
     weight: Tensor,
     eps: f64,
 }
 
-impl RmsNorm {
+impl EmbeddingGemmaRmsNorm {
     fn new(dim: usize, eps: f64, vb: VarBuilder) -> Result<Self> {
         let weight = vb.get(dim, "weight")?;
         Ok(Self { weight, eps })
     }
 }
 
-impl Module for RmsNorm {
+impl Module for EmbeddingGemmaRmsNorm {
     fn forward(&self, x: &Tensor) -> Result<Tensor> {
         let x_dtype = x.dtype();
         let internal_dtype = match x_dtype {
@@ -54,13 +54,13 @@ impl Module for RmsNorm {
 }
 
 #[derive(Debug, Clone)]
-struct RotaryEmbedding {
+struct EmbeddingGemmaRotaryEmbedding {
     sin: Tensor,
     cos: Tensor,
 }
 
-impl RotaryEmbedding {
-    fn new(dtype: DType, cfg: &Config, dev: &Device, sliding_window: Option<usize>) -> Result<Self> {
+impl EmbeddingGemmaRotaryEmbedding {
+    fn new(dtype: DType, cfg: &EmbeddingGemmaConfig, dev: &Device, sliding_window: Option<usize>) -> Result<Self> {
         let dim = cfg.head_dim;
         let max_seq_len = cfg.max_position_embeddings;
         let rope_freq = if sliding_window.is_some() {
@@ -97,15 +97,15 @@ impl RotaryEmbedding {
 
 #[derive(Debug, Clone)]
 #[allow(clippy::upper_case_acronyms)]
-struct MLP {
+struct EmbeddingGemmaMLP {
     gate_proj: Linear,
     up_proj: Linear,
     down_proj: Linear,
     act_fn: candle_nn::Activation,
 }
 
-impl MLP {
-    fn new(cfg: &Config, vb: VarBuilder) -> Result<Self> {
+impl EmbeddingGemmaMLP {
+    fn new(cfg: &EmbeddingGemmaConfig, vb: VarBuilder) -> Result<Self> {
         let hidden_sz = cfg.hidden_size;
         let intermediate_sz = cfg.intermediate_size;
         let gate_proj = linear(hidden_sz, intermediate_sz, false, vb.pp("gate_proj"))?;
@@ -121,7 +121,7 @@ impl MLP {
     }
 }
 
-impl Module for MLP {
+impl Module for EmbeddingGemmaMLP {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let lhs = xs.apply(&self.gate_proj)?.apply(&self.act_fn)?;
         let rhs = xs.apply(&self.up_proj)?;
@@ -130,23 +130,28 @@ impl Module for MLP {
 }
 
 #[derive(Debug, Clone)]
-struct Attention {
+struct EmbeddingGemmaAttention {
     q_proj: Linear,
     k_proj: Linear,
     v_proj: Linear,
     o_proj: Linear,
-    q_norm: RmsNorm,
-    k_norm: RmsNorm,
+    q_norm: EmbeddingGemmaRmsNorm,
+    k_norm: EmbeddingGemmaRmsNorm,
     num_heads: usize,
     num_kv_heads: usize,
     num_kv_groups: usize,
     head_dim: usize,
     attn_logit_softcapping: Option<f64>,
-    rotary_emb: Arc<RotaryEmbedding>,
+    rotary_emb: Arc<EmbeddingGemmaRotaryEmbedding>,
 }
 
-impl Attention {
-    fn new(rotary_emb: Arc<RotaryEmbedding>, cfg: &Config, _sliding_window: Option<usize>, vb: VarBuilder) -> Result<Self> {
+impl EmbeddingGemmaAttention {
+    fn new(
+        rotary_emb: Arc<EmbeddingGemmaRotaryEmbedding>,
+        cfg: &EmbeddingGemmaConfig,
+        _sliding_window: Option<usize>,
+        vb: VarBuilder,
+    ) -> Result<Self> {
         let hidden_sz = cfg.hidden_size;
         let num_heads = cfg.num_attention_heads;
         let num_kv_heads = cfg.num_key_value_heads;
@@ -157,8 +162,8 @@ impl Attention {
         let k_proj = linear(hidden_sz, num_kv_heads * head_dim, bias, vb.pp("k_proj"))?;
         let v_proj = linear(hidden_sz, num_kv_heads * head_dim, bias, vb.pp("v_proj"))?;
         let o_proj = linear(num_heads * head_dim, hidden_sz, bias, vb.pp("o_proj"))?;
-        let q_norm = RmsNorm::new(head_dim, cfg.rms_norm_eps, vb.pp("q_norm"))?;
-        let k_norm = RmsNorm::new(head_dim, cfg.rms_norm_eps, vb.pp("k_norm"))?;
+        let q_norm = EmbeddingGemmaRmsNorm::new(head_dim, cfg.rms_norm_eps, vb.pp("q_norm"))?;
+        let k_norm = EmbeddingGemmaRmsNorm::new(head_dim, cfg.rms_norm_eps, vb.pp("k_norm"))?;
 
         Ok(Self {
             q_proj,
@@ -219,25 +224,33 @@ impl Attention {
 }
 
 #[derive(Debug, Clone)]
-struct DecoderLayer {
-    self_attn: Attention,
-    mlp: MLP,
-    input_layernorm: RmsNorm,
-    pre_feedforward_layernorm: RmsNorm,
-    post_feedforward_layernorm: RmsNorm,
-    post_attention_layernorm: RmsNorm,
+struct EmbeddingGemmaDecoderLayer {
+    self_attn: EmbeddingGemmaAttention,
+    mlp: EmbeddingGemmaMLP,
+    input_layernorm: EmbeddingGemmaRmsNorm,
+    pre_feedforward_layernorm: EmbeddingGemmaRmsNorm,
+    post_feedforward_layernorm: EmbeddingGemmaRmsNorm,
+    post_attention_layernorm: EmbeddingGemmaRmsNorm,
     sliding_window: Option<usize>,
 }
 
-impl DecoderLayer {
-    fn new(cfg: &Config, vb: VarBuilder, sliding_window: Option<usize>) -> Result<Self> {
-        let rotary_emb = Arc::new(RotaryEmbedding::new(vb.dtype(), cfg, vb.device(), sliding_window)?);
-        let self_attn = Attention::new(rotary_emb, cfg, sliding_window, vb.pp("self_attn"))?;
-        let mlp = MLP::new(cfg, vb.pp("mlp"))?;
-        let input_layernorm = RmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("input_layernorm"))?;
-        let pre_feedforward_layernorm = RmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("pre_feedforward_layernorm"))?;
-        let post_feedforward_layernorm = RmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("post_feedforward_layernorm"))?;
-        let post_attention_layernorm = RmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("post_attention_layernorm"))?;
+impl EmbeddingGemmaDecoderLayer {
+    fn new(cfg: &EmbeddingGemmaConfig, vb: VarBuilder, sliding_window: Option<usize>) -> Result<Self> {
+        let rotary_emb = Arc::new(EmbeddingGemmaRotaryEmbedding::new(
+            vb.dtype(),
+            cfg,
+            vb.device(),
+            sliding_window,
+        )?);
+        let self_attn = EmbeddingGemmaAttention::new(rotary_emb, cfg, sliding_window, vb.pp("self_attn"))?;
+        let mlp = EmbeddingGemmaMLP::new(cfg, vb.pp("mlp"))?;
+        let input_layernorm = EmbeddingGemmaRmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("input_layernorm"))?;
+        let pre_feedforward_layernorm =
+            EmbeddingGemmaRmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("pre_feedforward_layernorm"))?;
+        let post_feedforward_layernorm =
+            EmbeddingGemmaRmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("post_feedforward_layernorm"))?;
+        let post_attention_layernorm =
+            EmbeddingGemmaRmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb.pp("post_attention_layernorm"))?;
 
         Ok(Self {
             self_attn,
@@ -265,10 +278,10 @@ impl DecoderLayer {
 }
 
 #[derive(Debug, Clone)]
-pub struct Model {
+pub struct EmbeddingGemmaModel {
     embed_tokens: candle_nn::Embedding,
-    layers: Vec<DecoderLayer>,
-    norm: RmsNorm,
+    layers: Vec<EmbeddingGemmaDecoderLayer>,
+    norm: EmbeddingGemmaRmsNorm,
 
     device: Device,
     dtype: DType,
@@ -276,8 +289,8 @@ pub struct Model {
     sliding_window: usize,
 }
 
-impl Model {
-    pub fn new(_use_flash_attn: bool, cfg: &Config, vb: VarBuilder) -> Result<Self> {
+impl EmbeddingGemmaModel {
+    pub fn new(_use_flash_attn: bool, cfg: &EmbeddingGemmaConfig, vb: VarBuilder) -> Result<Self> {
         let vb_m = vb.pp("model");
         let embed_tokens = candle_nn::embedding(cfg.vocab_size, cfg.hidden_size, vb_m.pp("embed_tokens"))?;
         let mut layers = Vec::with_capacity(cfg.num_hidden_layers);
@@ -285,11 +298,11 @@ impl Model {
 
         for layer_idx in 0..cfg.num_hidden_layers {
             let sliding_window = (layer_idx + 1) % cfg.sliding_window_pattern > 0;
-            let layer = DecoderLayer::new(cfg, vb_l.pp(layer_idx), sliding_window.then_some(cfg.sliding_window))?;
+            let layer = EmbeddingGemmaDecoderLayer::new(cfg, vb_l.pp(layer_idx), sliding_window.then_some(cfg.sliding_window))?;
             layers.push(layer)
         }
 
-        let norm = RmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb_m.pp("norm"))?;
+        let norm = EmbeddingGemmaRmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb_m.pp("norm"))?;
 
         Ok(Self {
             embed_tokens,

@@ -7,19 +7,19 @@ use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::{aggregation, classification, decode_entities};
 use crate::types::Classification;
 
-use super::config::Config;
-use super::encoder::Encoder;
+use super::config::BartConfig;
+use super::encoder::BartEncoder;
 
-pub struct Classifier {
-    encoder: Mutex<Encoder>,
+pub struct BartClassifier {
+    encoder: Mutex<BartEncoder>,
     dense: Option<Linear>,
     classifier: Linear,
     labels: Vec<String>,
     mode: ClassifyMode,
 }
 
-impl Classifier {
-    pub fn new(config: &Config, vars: VarBuilder, mode: ClassifyMode) -> nim_error::Result<Self> {
+impl BartClassifier {
+    pub fn new(config: &BartConfig, vars: VarBuilder, mode: ClassifyMode) -> nim_error::Result<Self> {
         let labels = config.labels()?;
         let model = vars.pp("model");
         let embed_tokens: Embedding = embedding(config.vocab_size, config.d_model, model.pp("encoder").pp("embed_tokens"))?;
@@ -33,7 +33,7 @@ impl Classifier {
         };
 
         Ok(Self {
-            encoder: Mutex::new(Encoder::new(config, &embed_tokens, model.pp("encoder"))?),
+            encoder: Mutex::new(BartEncoder::new(config, &embed_tokens, model.pp("encoder"))?),
             dense,
             classifier,
             labels,
@@ -87,7 +87,7 @@ impl Classifier {
     }
 }
 
-impl Forward for Classifier {
+impl Forward for BartClassifier {
     type Input = Tensor;
     type Output = Tensor;
 
@@ -107,7 +107,7 @@ impl Forward for Classifier {
     }
 }
 
-impl Classify for Classifier {
+impl Classify for BartClassifier {
     fn classify(
         &self,
         ctx: &Context,

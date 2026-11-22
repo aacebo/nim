@@ -1,9 +1,9 @@
 use candle_core::{Result, Tensor};
 use candle_nn::{LayerNorm, Linear, Module, VarBuilder, layer_norm, linear, ops};
 
-use super::Config;
+use super::DetrConfig;
 
-struct Attention {
+struct DetrAttention {
     query: Linear,
     key: Linear,
     value: Linear,
@@ -12,7 +12,7 @@ struct Attention {
     head_dim: usize,
 }
 
-impl Attention {
+impl DetrAttention {
     fn new(dim: usize, heads: usize, vars: VarBuilder) -> Result<Self> {
         Ok(Self {
             query: linear(dim, dim, vars.pp("q_proj"))?,
@@ -49,18 +49,18 @@ impl Attention {
     }
 }
 
-pub struct EncoderLayer {
-    attention: Attention,
+pub struct DetrEncoderLayer {
+    attention: DetrAttention,
     attention_norm: LayerNorm,
     fc1: Linear,
     fc2: Linear,
     final_norm: LayerNorm,
 }
 
-impl EncoderLayer {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self> {
+impl DetrEncoderLayer {
+    pub fn new(config: &DetrConfig, vars: VarBuilder) -> Result<Self> {
         Ok(Self {
-            attention: Attention::new(config.d_model, config.encoder_attention_heads, vars.pp("self_attn"))?,
+            attention: DetrAttention::new(config.d_model, config.encoder_attention_heads, vars.pp("self_attn"))?,
             attention_norm: layer_norm(config.d_model, 1e-5, vars.pp("self_attn_layer_norm"))?,
             fc1: linear(config.d_model, config.encoder_ffn_dim, vars.pp("fc1"))?,
             fc2: linear(config.encoder_ffn_dim, config.d_model, vars.pp("fc2"))?,
@@ -77,22 +77,22 @@ impl EncoderLayer {
     }
 }
 
-pub struct DecoderLayer {
-    attention: Attention,
+pub struct DetrDecoderLayer {
+    attention: DetrAttention,
     attention_norm: LayerNorm,
-    cross: Attention,
+    cross: DetrAttention,
     cross_norm: LayerNorm,
     fc1: Linear,
     fc2: Linear,
     final_norm: LayerNorm,
 }
 
-impl DecoderLayer {
-    pub fn new(config: &Config, vars: VarBuilder) -> Result<Self> {
+impl DetrDecoderLayer {
+    pub fn new(config: &DetrConfig, vars: VarBuilder) -> Result<Self> {
         Ok(Self {
-            attention: Attention::new(config.d_model, config.decoder_attention_heads, vars.pp("self_attn"))?,
+            attention: DetrAttention::new(config.d_model, config.decoder_attention_heads, vars.pp("self_attn"))?,
             attention_norm: layer_norm(config.d_model, 1e-5, vars.pp("self_attn_layer_norm"))?,
-            cross: Attention::new(config.d_model, config.decoder_attention_heads, vars.pp("encoder_attn"))?,
+            cross: DetrAttention::new(config.d_model, config.decoder_attention_heads, vars.pp("encoder_attn"))?,
             cross_norm: layer_norm(config.d_model, 1e-5, vars.pp("encoder_attn_layer_norm"))?,
             fc1: linear(config.d_model, config.decoder_ffn_dim, vars.pp("fc1"))?,
             fc2: linear(config.decoder_ffn_dim, config.d_model, vars.pp("fc2"))?,

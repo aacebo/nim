@@ -8,12 +8,12 @@ use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::zero_shot::{self, softmax};
 use crate::types::{Classification, Offset, Span};
 
-use super::config::Config;
-use super::decoder::Decoder;
-use super::encoder::Encoder;
+use super::config::BartConfig;
+use super::decoder::BartDecoder;
+use super::encoder::BartEncoder;
 
-pub struct ZeroShotClassifier {
-    model: Mutex<(Encoder, Decoder)>,
+pub struct BartZeroShotClassifier {
+    model: Mutex<(BartEncoder, BartDecoder)>,
     dense: Linear,
     classifier: Linear,
     labels: Vec<String>,
@@ -24,14 +24,14 @@ pub struct ZeroShotClassifier {
     max_positions: usize,
 }
 
-impl ZeroShotClassifier {
-    pub fn supports(config: &Config) -> bool {
+impl BartZeroShotClassifier {
+    pub fn supports(config: &BartConfig) -> bool {
         ["entailment", "contradiction"]
             .iter()
             .all(|name| config.id2label.values().any(|label| label.eq_ignore_ascii_case(name)))
     }
 
-    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
+    pub fn new(config: &BartConfig, vars: VarBuilder) -> nim_error::Result<Self> {
         let labels = config.labels()?;
         let index = |name: &str| {
             labels
@@ -55,8 +55,8 @@ impl ZeroShotClassifier {
 
         Ok(Self {
             model: Mutex::new((
-                Encoder::new(config, &tokens, model.pp("encoder"))?,
-                Decoder::new(config, &tokens, model.pp("decoder"))?,
+                BartEncoder::new(config, &tokens, model.pp("encoder"))?,
+                BartDecoder::new(config, &tokens, model.pp("decoder"))?,
             )),
             dense: linear(config.d_model, config.d_model, vars.pp("classification_head").pp("dense"))?,
             classifier: linear(config.d_model, labels.len(), vars.pp("classification_head").pp("out_proj"))?,
@@ -164,7 +164,7 @@ impl ZeroShotClassifier {
     }
 }
 
-impl Forward for ZeroShotClassifier {
+impl Forward for BartZeroShotClassifier {
     type Input = Tensor;
     type Output = Tensor;
 
@@ -211,7 +211,7 @@ impl Forward for ZeroShotClassifier {
     }
 }
 
-impl Classify for ZeroShotClassifier {
+impl Classify for BartZeroShotClassifier {
     fn classify(
         &self,
         ctx: &Context,

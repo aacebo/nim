@@ -1,18 +1,18 @@
 use candle_core::{Result, Tensor};
 use candle_nn::{Embedding, VarBuilder, embedding};
 
-use super::config::Config;
+use super::config::BartConfig;
 
 /// BART's learned positional embeddings are offset by 2, a legacy artifact of `pad_token_id = 1`.
 const POSITION_OFFSET: u32 = 2;
 
 #[derive(Debug, Clone)]
-pub struct LearnedPositionalEmbedding {
+pub struct BartLearnedPositionalEmbedding {
     emb: Embedding,
 }
 
-impl LearnedPositionalEmbedding {
-    pub fn new(cfg: &Config, vb: VarBuilder) -> Result<Self> {
+impl BartLearnedPositionalEmbedding {
+    pub fn new(cfg: &BartConfig, vb: VarBuilder) -> Result<Self> {
         let positions = cfg.max_position_embeddings + POSITION_OFFSET as usize;
 
         Ok(Self {

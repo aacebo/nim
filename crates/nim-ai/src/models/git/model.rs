@@ -1,29 +1,29 @@
 use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, VarBuilder, linear};
 
-use super::config::Config;
-use super::decoder::Decoder;
-use super::vision::{Projection, Vision};
+use super::config::GitConfig;
+use super::decoder::GitDecoder;
+use super::vision::{GitProjection, GitVision};
 
-pub struct Model {
-    vision: Vision,
-    projection: Projection,
-    text: Decoder,
+pub struct GitModel {
+    vision: GitVision,
+    projection: GitProjection,
+    text: GitDecoder,
     output: Linear,
 }
 
-impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
+impl GitModel {
+    pub fn new(config: &GitConfig, vars: VarBuilder) -> nim_error::Result<Self> {
         let git = vars.pp("git");
 
         Ok(Self {
-            vision: Vision::new(&config.vision_config, git.pp("image_encoder").pp("vision_model"))?,
-            projection: Projection::new(
+            vision: GitVision::new(&config.vision_config, git.pp("image_encoder").pp("vision_model"))?,
+            projection: GitProjection::new(
                 config.hidden_size,
                 config.vision_config.layer_norm_eps,
                 git.pp("visual_projection").pp("visual_projection"),
             )?,
-            text: Decoder::new(config, git)?,
+            text: GitDecoder::new(config, git)?,
             output: linear(config.hidden_size, config.vocab_size, vars.pp("output"))?,
         })
     }

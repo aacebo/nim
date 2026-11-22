@@ -1,7 +1,7 @@
 use candle_core::Tensor;
 use candle_nn::{Linear, VarBuilder, linear};
 
-pub struct Attention {
+pub struct GitAttention {
     q: Linear,
     k: Linear,
     v: Linear,
@@ -10,7 +10,7 @@ pub struct Attention {
     head: usize,
 }
 
-impl Attention {
+impl GitAttention {
     pub fn from_parts(hidden: usize, heads: usize, qkv: VarBuilder, output: VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
             q: linear(hidden, hidden, qkv.pp("query"))?,

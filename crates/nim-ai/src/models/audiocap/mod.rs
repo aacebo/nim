@@ -3,8 +3,8 @@ mod config;
 mod model;
 mod processor;
 
-pub use captioner::*;
-pub use config::*;
+pub use captioner::AudioCapCaptioner;
+pub use config::AudioCapConfig;
 
 pub fn tokenizer() -> nim_error::Result<tokenizers::Tokenizer> {
     use std::path::Path;

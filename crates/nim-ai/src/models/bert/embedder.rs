@@ -3,15 +3,15 @@ use candle_nn::VarBuilder;
 
 use crate::models::{Context, Embed, Forward};
 
-use super::config::Config;
+use super::config::BertConfig;
 use super::model::Bert;
 
-pub struct Embedder {
+pub struct BertEmbedder {
     bert: Bert,
 }
 
-impl Embedder {
-    pub fn new(vars: VarBuilder, config: &Config) -> nim_error::Result<Self> {
+impl BertEmbedder {
+    pub fn new(vars: VarBuilder, config: &BertConfig) -> nim_error::Result<Self> {
         Ok(Self {
             bert: Bert::new(vars, config)?,
         })
@@ -38,7 +38,7 @@ fn normalize(v: &Tensor) -> nim_error::Result<Tensor> {
     Ok(v.broadcast_div(&norm)?)
 }
 
-impl Forward for Embedder {
+impl Forward for BertEmbedder {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
@@ -47,7 +47,7 @@ impl Forward for Embedder {
     }
 }
 
-impl Embed for Embedder {
+impl Embed for BertEmbedder {
     fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
         let text = input
             .iter()

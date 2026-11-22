@@ -3,15 +3,15 @@ use candle_nn::{
     Conv2d, Conv2dConfig, Embedding, LayerNorm, Linear, Module, VarBuilder, conv2d_no_bias, embedding, layer_norm, linear,
 };
 
-use super::attention::Attention;
-use super::config::VisionConfig;
+use super::attention::GitAttention;
+use super::config::GitVisionConfig;
 
-pub struct Projection {
+pub struct GitProjection {
     linear: Linear,
     norm: LayerNorm,
 }
 
-impl Projection {
+impl GitProjection {
     pub fn new(hidden: usize, eps: f64, vars: VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
             linear: linear(hidden, hidden, vars.pp(0))?,
@@ -23,23 +23,23 @@ impl Projection {
     }
 }
 
-pub struct Vision {
-    embeddings: VisionEmbeddings,
+pub struct GitVision {
+    embeddings: GitVisionEmbeddings,
     pre: LayerNorm,
-    layers: Vec<VisionLayer>,
+    layers: Vec<GitVisionLayer>,
     post: LayerNorm,
 }
 
-impl Vision {
-    pub fn new(c: &VisionConfig, vars: VarBuilder) -> candle_core::Result<Self> {
+impl GitVision {
+    pub fn new(c: &GitVisionConfig, vars: VarBuilder) -> candle_core::Result<Self> {
         let mut layers = Vec::with_capacity(c.num_hidden_layers);
 
         for i in 0..c.num_hidden_layers {
-            layers.push(VisionLayer::new(c, vars.pp("encoder").pp("layers").pp(i))?);
+            layers.push(GitVisionLayer::new(c, vars.pp("encoder").pp("layers").pp(i))?);
         }
 
         Ok(Self {
-            embeddings: VisionEmbeddings::new(c, vars.pp("embeddings"))?,
+            embeddings: GitVisionEmbeddings::new(c, vars.pp("embeddings"))?,
             pre: layer_norm(c.hidden_size, c.layer_norm_eps, vars.pp("pre_layrnorm"))?,
             layers,
             post: layer_norm(c.hidden_size, c.layer_norm_eps, vars.pp("post_layernorm"))?,
@@ -57,15 +57,15 @@ impl Vision {
     }
 }
 
-struct VisionEmbeddings {
+struct GitVisionEmbeddings {
     class: Tensor,
     patch: Conv2d,
     position: Embedding,
     hidden: usize,
 }
 
-impl VisionEmbeddings {
-    fn new(c: &VisionConfig, vars: VarBuilder) -> candle_core::Result<Self> {
+impl GitVisionEmbeddings {
+    fn new(c: &GitVisionConfig, vars: VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
             class: vars.get(c.hidden_size, "class_embedding")?,
             patch: conv2d_no_bias(
@@ -100,18 +100,18 @@ impl VisionEmbeddings {
     }
 }
 
-struct VisionLayer {
-    attention: Attention,
+struct GitVisionLayer {
+    attention: GitAttention,
     norm1: LayerNorm,
     fc1: Linear,
     fc2: Linear,
     norm2: LayerNorm,
 }
 
-impl VisionLayer {
-    fn new(c: &VisionConfig, vars: VarBuilder) -> candle_core::Result<Self> {
+impl GitVisionLayer {
+    fn new(c: &GitVisionConfig, vars: VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
-            attention: Attention::new(
+            attention: GitAttention::new(
                 c.hidden_size,
                 c.num_attention_heads,
                 vars.pp("self_attn"),

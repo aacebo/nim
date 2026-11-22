@@ -1,31 +1,31 @@
 use candle_core::{Result, Tensor};
 use candle_nn::{Embedding, LayerNorm, Linear, VarBuilder, layer_norm, linear};
 
-use super::attention::Attention;
-use super::config::Config;
-use super::embeddings::LearnedPositionalEmbedding;
+use super::attention::BartAttention;
+use super::config::BartConfig;
+use super::embeddings::BartLearnedPositionalEmbedding;
 
 #[derive(Debug, Clone)]
-pub struct Decoder {
+pub struct BartDecoder {
     embed_tokens: Embedding,
-    embed_positions: LearnedPositionalEmbedding,
+    embed_positions: BartLearnedPositionalEmbedding,
     layernorm_embedding: LayerNorm,
-    layers: Vec<DecoderLayer>,
+    layers: Vec<BartDecoderLayer>,
     embed_scale: Option<f64>,
 }
 
-impl Decoder {
-    pub fn new(cfg: &Config, embed_tokens: &Embedding, vb: VarBuilder) -> Result<Self> {
+impl BartDecoder {
+    pub fn new(cfg: &BartConfig, embed_tokens: &Embedding, vb: VarBuilder) -> Result<Self> {
         let mut layers = Vec::with_capacity(cfg.decoder_layers);
         let vb_l = vb.pp("layers");
 
         for index in 0..cfg.decoder_layers {
-            layers.push(DecoderLayer::new(cfg, vb_l.pp(index))?);
+            layers.push(BartDecoderLayer::new(cfg, vb_l.pp(index))?);
         }
 
         Ok(Self {
             embed_tokens: embed_tokens.clone(),
-            embed_positions: LearnedPositionalEmbedding::new(cfg, vb.pp("embed_positions"))?,
+            embed_positions: BartLearnedPositionalEmbedding::new(cfg, vb.pp("embed_positions"))?,
             layernorm_embedding: layer_norm(cfg.d_model, 1e-5, vb.pp("layernorm_embedding"))?,
             layers,
             embed_scale: cfg.scale_embedding.then(|| (cfg.d_model as f64).sqrt()),
@@ -75,24 +75,24 @@ impl Decoder {
 }
 
 #[derive(Debug, Clone)]
-pub struct DecoderLayer {
-    self_attn: Attention,
+pub struct BartDecoderLayer {
+    self_attn: BartAttention,
     self_attn_layer_norm: LayerNorm,
     activation_fn: candle_nn::Activation,
-    encoder_attn: Attention,
+    encoder_attn: BartAttention,
     encoder_attn_layer_norm: LayerNorm,
     fc1: Linear,
     fc2: Linear,
     final_layer_norm: LayerNorm,
 }
 
-impl DecoderLayer {
-    pub fn new(cfg: &Config, vb: VarBuilder) -> Result<Self> {
+impl BartDecoderLayer {
+    pub fn new(cfg: &BartConfig, vb: VarBuilder) -> Result<Self> {
         Ok(Self {
-            self_attn: Attention::new(cfg, true, vb.pp("self_attn"))?,
+            self_attn: BartAttention::new(cfg, true, vb.pp("self_attn"))?,
             self_attn_layer_norm: layer_norm(cfg.d_model, 1e-5, vb.pp("self_attn_layer_norm"))?,
             activation_fn: cfg.activation_function,
-            encoder_attn: Attention::new(cfg, true, vb.pp("encoder_attn"))?,
+            encoder_attn: BartAttention::new(cfg, true, vb.pp("encoder_attn"))?,
             encoder_attn_layer_norm: layer_norm(cfg.d_model, 1e-5, vb.pp("encoder_attn_layer_norm"))?,
             fc1: linear(cfg.d_model, cfg.decoder_ffn_dim, vb.pp("fc1"))?,
             fc2: linear(cfg.decoder_ffn_dim, cfg.d_model, vb.pp("fc2"))?,

@@ -5,10 +5,10 @@ use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::{aggregation, classification, decode_entities};
 use crate::types::Classification;
 
-use super::config::Config;
+use super::config::DistilBertConfig;
 use super::model::DistilBert;
 
-pub struct Classifier {
+pub struct DistilBertClassifier {
     distilbert: DistilBert,
     pre_classifier: Option<Linear>,
     classifier: Linear,
@@ -16,8 +16,8 @@ pub struct Classifier {
     mode: ClassifyMode,
 }
 
-impl Classifier {
-    pub fn new(vars: VarBuilder, config: &Config, mode: ClassifyMode) -> nim_error::Result<Self> {
+impl DistilBertClassifier {
+    pub fn new(vars: VarBuilder, config: &DistilBertConfig, mode: ClassifyMode) -> nim_error::Result<Self> {
         let hidden = config.hidden_size();
         let labels = config.labels()?;
         let pre_classifier = vars
@@ -83,7 +83,7 @@ impl Classifier {
     }
 }
 
-impl Forward for Classifier {
+impl Forward for DistilBertClassifier {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
@@ -98,7 +98,7 @@ impl Forward for Classifier {
     }
 }
 
-impl Classify for Classifier {
+impl Classify for DistilBertClassifier {
     fn classify(
         &self,
         ctx: &Context,

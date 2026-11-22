@@ -1,20 +1,20 @@
 use candle_core::{Result, Tensor};
 use candle_nn::{BatchNorm, Conv2d, Conv2dConfig, VarBuilder, batch_norm, conv2d_no_bias};
 
-use super::Config;
+use super::MobileNetConfig;
 
 pub struct MobileNetV2 {
-    stem: Stem,
-    layers: Vec<Block>,
-    head: Layer,
+    stem: MobileNetStem,
+    layers: Vec<MobileNetBlock>,
+    head: MobileNetLayer,
 }
 
 impl MobileNetV2 {
-    pub fn new(vars: VarBuilder, config: &Config) -> Result<Self> {
+    pub fn new(vars: VarBuilder, config: &MobileNetConfig) -> Result<Self> {
         let channels =
             [16, 24, 24, 32, 32, 32, 64, 64, 64, 64, 96, 96, 96, 160, 160, 160, 320].map(|channels| config.channels(channels));
         let strides = [2, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1];
-        let stem = Stem::new(
+        let stem = MobileNetStem::new(
             vars.pp("mobilenet_v2.conv_stem"),
             config,
             config.num_channels,
@@ -30,7 +30,7 @@ impl MobileNetV2 {
 
             current_stride *= stride;
 
-            layers.push(Block::new(
+            layers.push(MobileNetBlock::new(
                 vars.pp(format!("mobilenet_v2.layer.{index}")),
                 config,
                 channels[index],
@@ -42,7 +42,7 @@ impl MobileNetV2 {
         Ok(Self {
             stem,
             layers,
-            head: Layer::new(
+            head: MobileNetLayer::new(
                 vars.pp("mobilenet_v2.conv_1x1"),
                 config,
                 channels[16],
@@ -66,24 +66,33 @@ impl MobileNetV2 {
     }
 }
 
-struct Stem {
-    first: Layer,
-    expand: Option<Layer>,
-    depthwise: Layer,
-    reduce: Layer,
+struct MobileNetStem {
+    first: MobileNetLayer,
+    expand: Option<MobileNetLayer>,
+    depthwise: MobileNetLayer,
+    reduce: MobileNetLayer,
 }
 
-impl Stem {
-    fn new(vars: VarBuilder, c: &Config, input: usize, expanded: usize, output: usize) -> Result<Self> {
+impl MobileNetStem {
+    fn new(vars: VarBuilder, c: &MobileNetConfig, input: usize, expanded: usize, output: usize) -> Result<Self> {
         Ok(Self {
-            first: Layer::new(vars.pp("first_conv"), c, input, expanded, 3, 2, 1, true)?,
+            first: MobileNetLayer::new(vars.pp("first_conv"), c, input, expanded, 3, 2, 1, true)?,
             expand: if c.first_layer_is_expansion {
                 None
             } else {
-                Some(Layer::new(vars.pp("expand_1x1"), c, expanded, expanded, 1, 1, 1, true)?)
+                Some(MobileNetLayer::new(
+                    vars.pp("expand_1x1"),
+                    c,
+                    expanded,
+                    expanded,
+                    1,
+                    1,
+                    1,
+                    true,
+                )?)
             },
-            depthwise: Layer::new(vars.pp("conv_3x3"), c, expanded, expanded, 3, 1, expanded, true)?,
-            reduce: Layer::new(vars.pp("reduce_1x1"), c, expanded, output, 1, 1, 1, false)?,
+            depthwise: MobileNetLayer::new(vars.pp("conv_3x3"), c, expanded, expanded, 3, 1, expanded, true)?,
+            reduce: MobileNetLayer::new(vars.pp("reduce_1x1"), c, expanded, output, 1, 1, 1, false)?,
         })
     }
 
@@ -98,21 +107,21 @@ impl Stem {
     }
 }
 
-struct Block {
-    expand: Layer,
-    depthwise: Layer,
-    reduce: Layer,
+struct MobileNetBlock {
+    expand: MobileNetLayer,
+    depthwise: MobileNetLayer,
+    reduce: MobileNetLayer,
     residual: bool,
 }
 
-impl Block {
-    fn new(vars: VarBuilder, c: &Config, input: usize, output: usize, stride: usize) -> Result<Self> {
+impl MobileNetBlock {
+    fn new(vars: VarBuilder, c: &MobileNetConfig, input: usize, output: usize, stride: usize) -> Result<Self> {
         let expanded = c.channels((input as f64 * c.expand_ratio).round() as usize);
 
         Ok(Self {
-            expand: Layer::new(vars.pp("expand_1x1"), c, input, expanded, 1, 1, 1, true)?,
-            depthwise: Layer::new(vars.pp("conv_3x3"), c, expanded, expanded, 3, stride, expanded, true)?,
-            reduce: Layer::new(vars.pp("reduce_1x1"), c, expanded, output, 1, 1, 1, false)?,
+            expand: MobileNetLayer::new(vars.pp("expand_1x1"), c, input, expanded, 1, 1, 1, true)?,
+            depthwise: MobileNetLayer::new(vars.pp("conv_3x3"), c, expanded, expanded, 3, stride, expanded, true)?,
+            reduce: MobileNetLayer::new(vars.pp("reduce_1x1"), c, expanded, output, 1, 1, 1, false)?,
             residual: stride == 1 && input == output,
         })
     }
@@ -128,7 +137,7 @@ impl Block {
     }
 }
 
-struct Layer {
+struct MobileNetLayer {
     convolution: Conv2d,
     normalization: BatchNorm,
     activation: bool,
@@ -137,10 +146,10 @@ struct Layer {
     tf_padding: bool,
 }
 
-impl Layer {
+impl MobileNetLayer {
     fn new(
         vars: VarBuilder,
-        c: &Config,
+        c: &MobileNetConfig,
         input: usize,
         output: usize,
         kernel: usize,

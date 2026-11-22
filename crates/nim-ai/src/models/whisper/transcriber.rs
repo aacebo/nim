@@ -6,22 +6,22 @@ use candle_nn::VarBuilder;
 
 use crate::models::{Context, Transcribe, TranscribeOptions};
 
-use super::config::Config;
-use super::model::Model;
-use super::processor::Processor;
+use super::config::WhisperConfig;
+use super::model::WhisperModel;
+use super::processor::WhisperProcessor;
 
 const FIRST_LANGUAGE_TOKEN: u32 = 50_259;
 const LAST_LANGUAGE_TOKEN: u32 = 50_357;
 
-pub struct Transcriber {
-    model: Mutex<Model>,
-    processor: Processor,
-    model_config: Config,
-    config: GenerationConfig,
+pub struct WhisperTranscriber {
+    model: Mutex<WhisperModel>,
+    processor: WhisperProcessor,
+    model_config: WhisperConfig,
+    config: WhisperGenerationConfig,
 }
 
 #[derive(Clone)]
-struct GenerationConfig {
+struct WhisperGenerationConfig {
     start: u32,
     eos: u32,
     max_len: usize,
@@ -29,9 +29,9 @@ struct GenerationConfig {
     begin_suppress: Vec<u32>,
 }
 
-impl Transcriber {
-    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
-        let decoding = GenerationConfig {
+impl WhisperTranscriber {
+    pub fn new(config: WhisperConfig, processor: WhisperProcessor, vars: VarBuilder) -> nim_error::Result<Self> {
+        let decoding = WhisperGenerationConfig {
             start: config.decoder_start_token_id,
             eos: config.eos_token_id,
             max_len: config.model().max_target_positions,
@@ -40,7 +40,7 @@ impl Transcriber {
         };
 
         Ok(Self {
-            model: Mutex::new(Model::new(&config, vars)?),
+            model: Mutex::new(WhisperModel::new(&config, vars)?),
             processor,
             model_config: config,
             config: decoding,
@@ -76,7 +76,7 @@ impl Transcriber {
         Ok(transcripts.join(" "))
     }
 
-    fn detect_language(&self, model: &mut Model, audio: &Tensor) -> nim_error::Result<u32> {
+    fn detect_language(&self, model: &mut WhisperModel, audio: &Tensor) -> nim_error::Result<u32> {
         let logits = model.logits(audio, &[self.config.start])?.to_vec1::<f32>()?;
 
         (FIRST_LANGUAGE_TOKEN..=LAST_LANGUAGE_TOKEN)
@@ -87,7 +87,7 @@ impl Transcriber {
     fn decode(
         &self,
         ctx: &Context,
-        model: &mut Model,
+        model: &mut WhisperModel,
         audio: &Tensor,
         language: u32,
         beams: usize,
@@ -152,7 +152,7 @@ impl Transcriber {
     }
 }
 
-impl Transcribe for Transcriber {
+impl Transcribe for WhisperTranscriber {
     fn transcribe(&self, ctx: &Context, input: &[&[u8]], options: TranscribeOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 

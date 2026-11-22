@@ -4,7 +4,7 @@ mod model;
 mod processor;
 mod transcriber;
 
-pub use captioner::*;
-pub use config::*;
-pub use processor::*;
-pub use transcriber::*;
+pub use captioner::WhisperCaptioner;
+pub use config::WhisperConfig;
+pub use processor::WhisperProcessor;
+pub use transcriber::WhisperTranscriber;

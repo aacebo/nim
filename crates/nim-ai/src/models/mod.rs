@@ -106,33 +106,33 @@ pub trait Forward: Send + Sync {
 /// A model with its weights loaded (or, for a remote model, its endpoint bound). The variant
 /// determines which capabilities exist: the `None` arms below are the empty cells of the matrix.
 pub enum AnyModel {
-    Embedder(keybert::KeyBert<bert::Embedder>),
-    BartEntityClassifier(bart::Classifier),
-    BartSequenceClassifier(bart::Classifier),
-    BartZeroShotClassifier(bart::ZeroShotClassifier),
-    BertEntityClassifier(bert::Classifier),
-    BertSequenceClassifier(bert::Classifier),
-    DistilBertEntityClassifier(distilbert::Classifier),
-    DistilBertSequenceClassifier(distilbert::Classifier),
-    Summarizer(bart::Summarizer),
-    QwenGenerator(qwen2::Generator),
-    QwenEmbedder(qwen3::Embedder),
-    Qwen3Generator(qwen3::Generator),
-    GemmaEmbedder(embeddinggemma::Embedder),
+    Embedder(keybert::KeyBert<bert::BertEmbedder>),
+    BartEntityClassifier(bart::BartClassifier),
+    BartSequenceClassifier(bart::BartClassifier),
+    BartZeroShotClassifier(bart::BartZeroShotClassifier),
+    BertEntityClassifier(bert::BertClassifier),
+    BertSequenceClassifier(bert::BertClassifier),
+    DistilBertEntityClassifier(distilbert::DistilBertClassifier),
+    DistilBertSequenceClassifier(distilbert::DistilBertClassifier),
+    Summarizer(bart::BartSummarizer),
+    QwenGenerator(qwen2::Qwen2Generator),
+    QwenEmbedder(qwen3::Qwen3Embedder),
+    Qwen3Generator(qwen3::Qwen3Generator),
+    GemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder),
     #[cfg(feature = "vision")]
-    VisionClassifier(mobilenet::Classifier),
+    VisionClassifier(mobilenet::MobileNetClassifier),
     #[cfg(feature = "vision")]
-    ObjectDetector(detr::Detector),
+    ObjectDetector(detr::DetrDetector),
     #[cfg(feature = "vision")]
-    ImageCaptioner(git::Captioner),
+    ImageCaptioner(git::GitCaptioner),
     #[cfg(feature = "audio")]
-    AudioClassifier(cnn8rnn::Classifier),
+    AudioClassifier(cnn8rnn::Cnn8RnnClassifier),
     #[cfg(feature = "audio")]
-    Transcriber(whisper::Transcriber),
+    Transcriber(whisper::WhisperTranscriber),
     #[cfg(feature = "audio")]
-    WhisperCaptioner(whisper::Captioner),
+    WhisperCaptioner(whisper::WhisperCaptioner),
     #[cfg(feature = "audio")]
-    AudioCaptioner(audiocap::Captioner),
+    AudioCaptioner(audiocap::AudioCapCaptioner),
     Remote(RemoteModel),
 }
 
@@ -174,7 +174,7 @@ impl Model {
 
             return Ok(Self {
                 name,
-                model: AnyModel::QwenGenerator(qwen2::Generator::quantized(
+                model: AnyModel::QwenGenerator(qwen2::Qwen2Generator::quantized(
                     &config,
                     weights,
                     &device,
@@ -194,7 +194,7 @@ impl Model {
 
             return Ok(Self {
                 name,
-                model: AnyModel::Qwen3Generator(qwen3::Generator::quantized(
+                model: AnyModel::Qwen3Generator(qwen3::Qwen3Generator::quantized(
                     &config,
                     weights,
                     &device,
@@ -211,18 +211,18 @@ impl Model {
         let model = match model_config.model_type {
             ModelType::Qwen2 => {
                 let config: qwen2::Config = repo.config()?;
-                AnyModel::QwenGenerator(qwen2::Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
+                AnyModel::QwenGenerator(qwen2::Qwen2Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn8rnn_audio_classification() => {
-                let config: cnn8rnn::Config = repo.config()?;
+                let config: cnn8rnn::Cnn8RnnConfig = repo.config()?;
                 let labels = repo.string("classes.txt")?.lines().map(str::to_string).collect();
-                AnyModel::AudioClassifier(cnn8rnn::Classifier::new(config, labels, repo.vars()?)?)
+                AnyModel::AudioClassifier(cnn8rnn::Cnn8RnnClassifier::new(config, labels, repo.vars()?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn14_audio_captioning() => {
-                let config: audiocap::Config = repo.config()?;
-                AnyModel::AudioCaptioner(audiocap::Captioner::new(config, repo.vars()?)?)
+                let config: audiocap::AudioCapConfig = repo.config()?;
+                AnyModel::AudioCaptioner(audiocap::AudioCapCaptioner::new(config, repo.vars()?)?)
             }
             #[cfg(not(feature = "audio"))]
             _ if model_config.architectures.iter().any(|architecture| {
@@ -251,54 +251,54 @@ impl Model {
                     .any(|architecture| matches!(architecture, Architecture::Qwen3ForCausalLM))
                 {
                     let config: qwen3::Config = repo.config()?;
-                    AnyModel::Qwen3Generator(qwen3::Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
+                    AnyModel::Qwen3Generator(qwen3::Qwen3Generator::new(&config, repo.vars()?, repo.chat_template()?)?)
                 } else if model_config
                     .architectures
                     .iter()
                     .any(|architecture| matches!(architecture, Architecture::Qwen3Model))
                 {
-                    AnyModel::QwenEmbedder(qwen3::Embedder::new(&repo)?)
+                    AnyModel::QwenEmbedder(qwen3::Qwen3Embedder::new(&repo)?)
                 } else {
                     return Err(nim_error::Diagnostic::message(format!(
                         "{name} has an unsupported Qwen3 architecture"
                     )));
                 }
             }
-            ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::Embedder::new(&repo)?),
+            ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder::new(&repo)?),
             ModelType::Bart => {
-                let config: bart::Config = repo.config()?;
+                let config: bart::BartConfig = repo.config()?;
 
                 match (
                     model_config.is_sequence_classification(),
                     model_config.is_token_classification(),
                     config.id2label.is_empty(),
                 ) {
-                    (true, _, false) if bart::ZeroShotClassifier::supports(&config) => {
-                        AnyModel::BartZeroShotClassifier(bart::ZeroShotClassifier::new(&config, repo.vars()?)?)
+                    (true, _, false) if bart::BartZeroShotClassifier::supports(&config) => {
+                        AnyModel::BartZeroShotClassifier(bart::BartZeroShotClassifier::new(&config, repo.vars()?)?)
                     }
                     (true, _, false) => {
-                        AnyModel::BartSequenceClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Whole)?)
+                        AnyModel::BartSequenceClassifier(bart::BartClassifier::new(&config, repo.vars()?, ClassifyMode::Whole)?)
                     }
                     (_, true, false) => {
-                        AnyModel::BartEntityClassifier(bart::Classifier::new(&config, repo.vars()?, ClassifyMode::Regions)?)
+                        AnyModel::BartEntityClassifier(bart::BartClassifier::new(&config, repo.vars()?, ClassifyMode::Regions)?)
                     }
-                    _ => AnyModel::Summarizer(bart::Summarizer::new(&config, repo.vars()?)?),
+                    _ => AnyModel::Summarizer(bart::BartSummarizer::new(&config, repo.vars()?)?),
                 }
             }
             ModelType::DistilBert => {
-                let config: distilbert::Config = repo.config()?;
+                let config: distilbert::DistilBertConfig = repo.config()?;
 
                 match (
                     model_config.is_sequence_classification(),
                     model_config.is_token_classification(),
                     !config.id2label.is_empty(),
                 ) {
-                    (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::Classifier::new(
+                    (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::DistilBertClassifier::new(
                         repo.vars()?,
                         &config,
                         ClassifyMode::Whole,
                     )?),
-                    (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::Classifier::new(
+                    (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::DistilBertClassifier::new(
                         repo.vars()?,
                         &config,
                         ClassifyMode::Regions,
@@ -312,36 +312,36 @@ impl Model {
             }
             #[cfg(feature = "vision")]
             ModelType::MobileNetV2 => {
-                let config: mobilenet::Config = repo.config()?;
-                let processor: mobilenet::Processor = repo.json("preprocessor_config.json")?;
-                AnyModel::VisionClassifier(mobilenet::Classifier::new(repo.vars()?, config, processor)?)
+                let config: mobilenet::MobileNetConfig = repo.config()?;
+                let processor: mobilenet::MobileNetProcessor = repo.json("preprocessor_config.json")?;
+                AnyModel::VisionClassifier(mobilenet::MobileNetClassifier::new(repo.vars()?, config, processor)?)
             }
             #[cfg(feature = "vision")]
             ModelType::Detr => {
-                let config: detr::Config = repo.config()?;
+                let config: detr::DetrConfig = repo.config()?;
                 config.validate()?;
-                let processor: detr::Processor = repo.json("preprocessor_config.json")?;
-                AnyModel::ObjectDetector(detr::Detector::new(repo.vars()?, config, processor)?)
+                let processor: detr::DetrProcessor = repo.json("preprocessor_config.json")?;
+                AnyModel::ObjectDetector(detr::DetrDetector::new(repo.vars()?, config, processor)?)
             }
             #[cfg(feature = "vision")]
             ModelType::Git => {
-                let config: git::Config = repo.config()?;
-                let processor: git::Processor = repo.json("preprocessor_config.json")?;
-                AnyModel::ImageCaptioner(git::Captioner::new(config, processor, repo.vars()?)?)
+                let config: git::GitConfig = repo.config()?;
+                let processor: git::GitProcessor = repo.json("preprocessor_config.json")?;
+                AnyModel::ImageCaptioner(git::GitCaptioner::new(config, processor, repo.vars()?)?)
             }
             #[cfg(feature = "audio")]
             ModelType::Whisper => {
-                let config: whisper::Config = repo.config()?;
-                let processor: whisper::Processor = repo.json("preprocessor_config.json")?;
+                let config: whisper::WhisperConfig = repo.config()?;
+                let processor: whisper::WhisperProcessor = repo.json("preprocessor_config.json")?;
 
                 if model_config.is_audio_captioning() {
-                    AnyModel::WhisperCaptioner(whisper::Captioner::new(config, processor, repo.vars()?)?)
+                    AnyModel::WhisperCaptioner(whisper::WhisperCaptioner::new(config, processor, repo.vars()?)?)
                 } else {
-                    AnyModel::Transcriber(whisper::Transcriber::new(config, processor, repo.vars()?)?)
+                    AnyModel::Transcriber(whisper::WhisperTranscriber::new(config, processor, repo.vars()?)?)
                 }
             }
             ModelType::Bert | ModelType::Unknown => {
-                let config: bert::Config = repo.config()?;
+                let config: bert::BertConfig = repo.config()?;
 
                 match (
                     model_config.is_sequence_classification(),
@@ -349,12 +349,12 @@ impl Model {
                     !config.id2label.is_empty(),
                 ) {
                     (true, _, true) => {
-                        AnyModel::BertSequenceClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Whole)?)
+                        AnyModel::BertSequenceClassifier(bert::BertClassifier::new(repo.vars()?, &config, ClassifyMode::Whole)?)
                     }
                     (_, true, true) => {
-                        AnyModel::BertEntityClassifier(bert::Classifier::new(repo.vars()?, &config, ClassifyMode::Regions)?)
+                        AnyModel::BertEntityClassifier(bert::BertClassifier::new(repo.vars()?, &config, ClassifyMode::Regions)?)
                     }
-                    _ => AnyModel::Embedder(keybert::KeyBert::new(bert::Embedder::new(repo.vars()?, &config)?)),
+                    _ => AnyModel::Embedder(keybert::KeyBert::new(bert::BertEmbedder::new(repo.vars()?, &config)?)),
                 }
             }
             other => {

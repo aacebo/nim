@@ -1,10 +1,10 @@
 use candle_core::{Result, Tensor};
 use candle_nn::{Linear, VarBuilder, linear};
 
-use super::config::Config;
+use super::config::BartConfig;
 
 #[derive(Debug, Clone)]
-pub struct Attention {
+pub struct BartAttention {
     q_proj: Linear,
     k_proj: Linear,
     v_proj: Linear,
@@ -17,8 +17,8 @@ pub struct Attention {
     is_decoder: bool,
 }
 
-impl Attention {
-    pub fn new(cfg: &Config, is_decoder: bool, vb: VarBuilder) -> Result<Self> {
+impl BartAttention {
+    pub fn new(cfg: &BartConfig, is_decoder: bool, vb: VarBuilder) -> Result<Self> {
         let num_heads = if is_decoder {
             cfg.decoder_attention_heads
         } else {

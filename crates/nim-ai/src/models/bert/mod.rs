@@ -3,7 +3,7 @@ mod config;
 mod embedder;
 mod model;
 
-pub use classifier::*;
-pub use config::*;
-pub use embedder::*;
-pub use model::*;
+pub use classifier::BertClassifier;
+pub use config::{BertActivation, BertConfig};
+pub use embedder::BertEmbedder;
+pub use model::Bert;

@@ -5,22 +5,22 @@ use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::{quantized_qwen2, qwen2};
 
-use crate::{Chat, ChatAssistantMessage, Complete, Context, Summarize, SummarizeOptions, types::TextOutput};
+use crate::{Chat, ChatAssistantMessage, Complete, Context, Parse, Summarize, SummarizeOptions, types::TextOutput};
 
-use super::Config;
+use super::{Config, Qwen2Template};
 
-pub struct Generator {
-    model: Mutex<Runtime>,
+pub struct Qwen2Generator {
+    model: Mutex<Qwen2Runtime>,
     context_limit: usize,
-    template: hf_chat_template::ChatTemplate,
+    template: Qwen2Template,
 }
 
-enum Runtime {
+enum Qwen2Runtime {
     Safetensors(qwen2::ModelForCausalLM),
     Quantized(quantized_qwen2::ModelWeights),
 }
 
-impl Runtime {
+impl Qwen2Runtime {
     fn clear_kv_cache(&mut self) {
         match self {
             Self::Safetensors(model) => model.clear_kv_cache(),
@@ -38,12 +38,12 @@ impl Runtime {
     }
 }
 
-impl Generator {
+impl Qwen2Generator {
     pub fn new(config: &Config, vars: VarBuilder, template: hf_chat_template::ChatTemplate) -> nim_error::Result<Self> {
         Ok(Self {
-            model: Mutex::new(Runtime::Safetensors(qwen2::ModelForCausalLM::new(config, vars)?)),
+            model: Mutex::new(Qwen2Runtime::Safetensors(qwen2::ModelForCausalLM::new(config, vars)?)),
             context_limit: config.max_position_embeddings,
-            template,
+            template: Qwen2Template::new(template),
         })
     }
 
@@ -63,9 +63,9 @@ impl Generator {
         let model = quantized_qwen2::ModelWeights::from_gguf(content, &mut file, device)?;
 
         Ok(Self {
-            model: Mutex::new(Runtime::Quantized(model)),
+            model: Mutex::new(Qwen2Runtime::Quantized(model)),
             context_limit: config.max_position_embeddings.min(context_limit),
-            template,
+            template: Qwen2Template::new(template),
         })
     }
 
@@ -73,8 +73,7 @@ impl Generator {
         let tokenizer = ctx.tokenizer()?;
         let compat = chat.compat;
         let max_len = chat.max_len;
-        let input: hf_chat_template::RenderInput = chat.try_into()?;
-        let text = self.template.render(&input).map_err(nim_error::Diagnostic::message)?;
+        let text = self.template.render_chat(&chat)?;
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_len = crate::models::output_limit("Qwen", self.context_limit, ids.len(), max_len)?;
@@ -124,7 +123,7 @@ impl Generator {
             let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
 
             let _ = confidence;
-            ChatAssistantMessage::from_qwen(text, compat)
+            self.template.parse(crate::Parser::new(&text, compat))
         })();
 
         model.clear_kv_cache();
@@ -132,7 +131,7 @@ impl Generator {
     }
 }
 
-impl Complete for Generator {
+impl Complete for Qwen2Generator {
     fn complete(&self, ctx: &Context, chat: Chat) -> nim_error::Result<ChatAssistantMessage> {
         chat.validate()?;
 
@@ -144,7 +143,7 @@ impl Complete for Generator {
     }
 }
 
-impl Summarize for Generator {
+impl Summarize for Qwen2Generator {
     fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 

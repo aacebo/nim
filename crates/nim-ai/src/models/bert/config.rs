@@ -5,13 +5,13 @@ use candle_transformers::models::bert;
 use crate::models::ModelType;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
+pub struct BertConfig {
     pub vocab_size: usize,
     pub hidden_size: usize,
     pub num_hidden_layers: usize,
     pub num_attention_heads: usize,
     pub intermediate_size: usize,
-    pub hidden_act: Activation,
+    pub hidden_act: BertActivation,
     pub hidden_dropout_prob: f64,
     pub max_position_embeddings: usize,
     pub type_vocab_size: usize,
@@ -26,7 +26,7 @@ pub struct Config {
     pub id2label: HashMap<String, String>,
 }
 
-impl Config {
+impl BertConfig {
     pub fn vocab_size(mut self, vocab_size: usize) -> Self {
         self.vocab_size = vocab_size;
         self
@@ -52,7 +52,7 @@ impl Config {
         self
     }
 
-    pub fn hidden_act(mut self, act: Activation) -> Self {
+    pub fn hidden_act(mut self, act: BertActivation) -> Self {
         self.hidden_act = act;
         self
     }
@@ -84,7 +84,7 @@ impl Config {
     }
 }
 
-impl Default for Config {
+impl Default for BertConfig {
     fn default() -> Self {
         Self {
             vocab_size: 30_522,
@@ -92,7 +92,7 @@ impl Default for Config {
             num_hidden_layers: 12,
             num_attention_heads: 12,
             intermediate_size: 3_072,
-            hidden_act: Activation::Gelu,
+            hidden_act: BertActivation::Gelu,
             hidden_dropout_prob: 0.1,
             max_position_embeddings: 512,
             type_vocab_size: 2,
@@ -106,8 +106,8 @@ impl Default for Config {
     }
 }
 
-impl From<&Config> for bert::Config {
-    fn from(config: &Config) -> Self {
+impl From<&BertConfig> for bert::Config {
+    fn from(config: &BertConfig) -> Self {
         Self {
             vocab_size: config.vocab_size,
             hidden_size: config.hidden_size,
@@ -131,19 +131,19 @@ impl From<&Config> for bert::Config {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Activation {
+pub enum BertActivation {
     Gelu,
     #[serde(rename = "gelu_approximate")]
     GeluApproximate,
     Relu,
 }
 
-impl From<Activation> for bert::HiddenAct {
-    fn from(activation: Activation) -> Self {
+impl From<BertActivation> for bert::HiddenAct {
+    fn from(activation: BertActivation) -> Self {
         match activation {
-            Activation::Gelu => Self::Gelu,
-            Activation::GeluApproximate => Self::GeluApproximate,
-            Activation::Relu => Self::Relu,
+            BertActivation::Gelu => Self::Gelu,
+            BertActivation::GeluApproximate => Self::GeluApproximate,
+            BertActivation::Relu => Self::Relu,
         }
     }
 }

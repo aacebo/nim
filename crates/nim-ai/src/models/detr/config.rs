@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
+pub struct DetrConfig {
     pub backbone: String,
     pub dilation: bool,
     pub position_embedding_type: String,
@@ -35,7 +35,7 @@ fn default_timm() -> bool {
     true
 }
 
-impl Config {
+impl DetrConfig {
     pub fn validate(&self) -> nim_error::Result<()> {
         if self.backbone != "resnet50"
             || self.dilation

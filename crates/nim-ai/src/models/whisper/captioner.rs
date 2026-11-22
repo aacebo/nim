@@ -6,19 +6,19 @@ use candle_nn::VarBuilder;
 
 use crate::models::{Caption, CaptionOptions, Context};
 
-use super::config::Config;
-use super::model::Model;
-use super::processor::Processor;
+use super::config::WhisperConfig;
+use super::model::WhisperModel;
+use super::processor::WhisperProcessor;
 
-pub struct Captioner {
-    model: Mutex<Model>,
-    processor: Processor,
-    model_config: Config,
-    config: GenerationConfig,
+pub struct WhisperCaptioner {
+    model: Mutex<WhisperModel>,
+    processor: WhisperProcessor,
+    model_config: WhisperConfig,
+    config: WhisperGenerationConfig,
 }
 
 #[derive(Clone)]
-struct GenerationConfig {
+struct WhisperGenerationConfig {
     eos: u32,
     max_len: usize,
     prefix: Vec<u32>,
@@ -26,14 +26,14 @@ struct GenerationConfig {
     begin_suppress: Vec<u32>,
 }
 
-impl Captioner {
-    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
+impl WhisperCaptioner {
+    pub fn new(config: WhisperConfig, processor: WhisperProcessor, vars: VarBuilder) -> nim_error::Result<Self> {
         let mut forced = config.forced_decoder_ids.clone();
         forced.sort_by_key(|(index, _)| *index);
         let prefix = std::iter::once(config.decoder_start_token_id)
             .chain(forced.into_iter().map(|(_, token)| token))
             .collect();
-        let decoding = GenerationConfig {
+        let decoding = WhisperGenerationConfig {
             eos: config.eos_token_id,
             max_len: config.model().max_target_positions,
             prefix,
@@ -42,7 +42,7 @@ impl Captioner {
         };
 
         Ok(Self {
-            model: Mutex::new(Model::new(&config, vars)?),
+            model: Mutex::new(WhisperModel::new(&config, vars)?),
             processor,
             model_config: config,
             config: decoding,
@@ -69,7 +69,7 @@ impl Captioner {
     fn decode(
         &self,
         ctx: &Context,
-        model: &mut Model,
+        model: &mut WhisperModel,
         audio: &Tensor,
         beams: usize,
         max_len: usize,
@@ -149,7 +149,7 @@ fn repeats(tokens: &[u32], token: u32) -> bool {
         .any(|ngram| ngram[..NGRAM - 1] == candidate[..NGRAM - 1] && ngram[NGRAM - 1] == token)
 }
 
-impl Caption for Captioner {
+impl Caption for WhisperCaptioner {
     fn caption(&self, ctx: &Context, input: &[&[u8]], options: CaptionOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 

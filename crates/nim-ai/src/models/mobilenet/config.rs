@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
+pub struct MobileNetConfig {
     pub num_channels: usize,
     pub depth_multiplier: f64,
     pub depth_divisible_by: usize,
@@ -13,7 +13,7 @@ pub struct Config {
     pub id2label: std::collections::BTreeMap<usize, String>,
 }
 
-impl Config {
+impl MobileNetConfig {
     pub fn channels(&self, channels: usize) -> usize {
         let value = (channels as f64 * self.depth_multiplier).round() as usize;
         let minimum = self.min_depth.max(self.depth_divisible_by);
@@ -36,7 +36,7 @@ impl Config {
     }
 }
 
-impl Default for Config {
+impl Default for MobileNetConfig {
     fn default() -> Self {
         Self {
             num_channels: 3,

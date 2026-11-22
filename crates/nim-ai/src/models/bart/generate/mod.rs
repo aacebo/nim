@@ -3,11 +3,16 @@ mod constraints;
 
 use candle_core::{Device, Tensor};
 use candle_nn::ops;
-pub use config::Config;
+pub use config::BartGenerationConfig;
 
 use crate::models::bart::Bart;
 
-pub fn run(model: &mut Bart, config: &Config, input: &Tensor, device: &Device) -> nim_error::Result<(Vec<u32>, Option<f64>)> {
+pub fn run(
+    model: &mut Bart,
+    config: &BartGenerationConfig,
+    input: &Tensor,
+    device: &Device,
+) -> nim_error::Result<(Vec<u32>, Option<f64>)> {
     let beams = config.beams;
 
     model.reset_kv_cache();
@@ -133,7 +138,7 @@ pub fn run(model: &mut Bart, config: &Config, input: &Tensor, device: &Device) -
 
 /// HuggingFace's length penalty: `score / len^penalty`. Applied when a hypothesis completes,
 /// never to the running beam scores.
-fn normalize(score: f64, sequence: &[u32], config: &Config) -> f64 {
+fn normalize(score: f64, sequence: &[u32], config: &BartGenerationConfig) -> f64 {
     score / (sequence.len() as f64).powf(config.length_penalty)
 }
 

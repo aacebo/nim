@@ -5,33 +5,33 @@ use candle_nn::VarBuilder;
 
 use crate::models::{Caption, CaptionOptions, Context};
 
-use super::config::Config;
-use super::model::Model;
-use super::processor::Processor;
+use super::config::GitConfig;
+use super::model::GitModel;
+use super::processor::GitProcessor;
 
-pub struct Captioner {
-    model: Mutex<Model>,
-    processor: Processor,
-    config: GenerationConfig,
+pub struct GitCaptioner {
+    model: Mutex<GitModel>,
+    processor: GitProcessor,
+    config: GitGenerationConfig,
 }
 
 #[derive(Clone, Copy)]
-struct GenerationConfig {
+struct GitGenerationConfig {
     bos: u32,
     eos: u32,
     max_len: usize,
 }
 
-impl Captioner {
-    pub fn new(config: Config, processor: Processor, vars: VarBuilder) -> nim_error::Result<Self> {
-        let decoding = GenerationConfig {
+impl GitCaptioner {
+    pub fn new(config: GitConfig, processor: GitProcessor, vars: VarBuilder) -> nim_error::Result<Self> {
+        let decoding = GitGenerationConfig {
             bos: config.bos_token_id,
             eos: config.eos_token_id,
             max_len: config.max_position_embeddings,
         };
 
         Ok(Self {
-            model: Mutex::new(Model::new(&config, vars)?),
+            model: Mutex::new(GitModel::new(&config, vars)?),
             processor,
             config: decoding,
         })
@@ -93,7 +93,7 @@ impl Captioner {
     }
 }
 
-impl Caption for Captioner {
+impl Caption for GitCaptioner {
     fn caption(&self, ctx: &Context, input: &[&[u8]], options: CaptionOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 

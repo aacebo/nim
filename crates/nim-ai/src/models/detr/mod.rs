@@ -5,7 +5,7 @@ mod model;
 mod processor;
 mod transformer;
 
-pub use config::Config;
-pub use detector::Detector;
-pub use model::Model;
-pub use processor::Processor;
+pub use config::DetrConfig;
+pub use detector::DetrDetector;
+pub use model::DetrModel;
+pub use processor::DetrProcessor;

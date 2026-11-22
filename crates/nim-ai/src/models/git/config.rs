@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
+pub struct GitConfig {
     pub vocab_size: usize,
     pub hidden_size: usize,
     pub num_hidden_layers: usize,
@@ -9,11 +9,11 @@ pub struct Config {
     pub bos_token_id: u32,
     pub eos_token_id: u32,
     pub layer_norm_eps: f64,
-    pub vision_config: VisionConfig,
+    pub vision_config: GitVisionConfig,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct VisionConfig {
+pub struct GitVisionConfig {
     pub hidden_size: usize,
     pub num_hidden_layers: usize,
     pub num_attention_heads: usize,

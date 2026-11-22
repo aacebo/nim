@@ -1,54 +1,59 @@
 use candle_core::{DType, IndexOp, Tensor};
 use candle_nn::{BatchNorm, Conv2d, Conv2dConfig, Linear, VarBuilder, batch_norm, conv2d_no_bias, linear};
 
-use super::config::Config;
-use super::processor::Processor;
+use super::config::Cnn8RnnConfig;
+use super::processor::Cnn8RnnProcessor;
 
-pub struct Model {
-    processor: Processor,
+pub struct Cnn8RnnModel {
+    processor: Cnn8RnnProcessor,
     bn: BatchNorm,
-    blocks: Vec<ConvBlock>,
+    blocks: Vec<Cnn8RnnConvBlock>,
     fc: Linear,
-    forward: Gru,
-    backward: Gru,
+    forward: Cnn8RnnGru,
+    backward: Cnn8RnnGru,
     classifier: Linear,
 }
 
-struct ConvBlock {
+struct Cnn8RnnConvBlock {
     conv1: Conv2d,
     conv2: Conv2d,
     bn1: BatchNorm,
     bn2: BatchNorm,
 }
 
-struct Gru {
+struct Cnn8RnnGru {
     input: Tensor,
     hidden: Tensor,
     input_bias: Tensor,
     hidden_bias: Tensor,
 }
 
-impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
+impl Cnn8RnnModel {
+    pub fn new(config: &Cnn8RnnConfig, vars: VarBuilder) -> nim_error::Result<Self> {
         let filter = vars.get((513, 64), "melspec_extractor.mel_scale.fb")?.to_vec2::<f32>()?;
         let window = vars.get(1024, "melspec_extractor.spectrogram.window")?.to_vec1::<f32>()?;
 
         Ok(Self {
-            processor: Processor::new(filter, window),
+            processor: Cnn8RnnProcessor::new(filter, window),
             bn: batch_norm(64, 1e-5, vars.pp("bn0"))?,
             blocks: [(1, 64), (64, 128), (128, 256), (256, 512)]
                 .into_iter()
                 .enumerate()
-                .map(|(index, (input, output))| ConvBlock::new(input, output, vars.pp(format!("conv_block{}", index + 1))))
+                .map(|(index, (input, output))| Cnn8RnnConvBlock::new(input, output, vars.pp(format!("conv_block{}", index + 1))))
                 .collect::<Result<_, _>>()?,
             fc: linear(512, 512, vars.pp("fc1"))?,
-            forward: Gru::new(false, vars.pp("rnn"))?,
-            backward: Gru::new(true, vars.pp("rnn"))?,
+            forward: Cnn8RnnGru::new(false, vars.pp("rnn"))?,
+            backward: Cnn8RnnGru::new(true, vars.pp("rnn"))?,
             classifier: linear(512, config.classes_num, vars.pp("fc_audioset"))?,
         })
     }
 
-    pub fn forward(&self, bytes: &[u8], config: &Config, device: &candle_core::Device) -> nim_error::Result<(Tensor, f64)> {
+    pub fn forward(
+        &self,
+        bytes: &[u8],
+        config: &Cnn8RnnConfig,
+        device: &candle_core::Device,
+    ) -> nim_error::Result<(Tensor, f64)> {
         let (features, duration) = self.processor.features(bytes, config)?;
         let frames = features.len();
         let values = features.into_iter().flatten().collect::<Vec<_>>();
@@ -73,7 +78,7 @@ impl Model {
     }
 }
 
-impl ConvBlock {
+impl Cnn8RnnConvBlock {
     fn new(input: usize, output: usize, vars: VarBuilder) -> candle_core::Result<Self> {
         let config = Conv2dConfig {
             padding: 1,
@@ -99,7 +104,7 @@ impl ConvBlock {
     }
 }
 
-impl Gru {
+impl Cnn8RnnGru {
     fn new(reverse: bool, vars: VarBuilder) -> candle_core::Result<Self> {
         let suffix = if reverse { "_l0_reverse" } else { "_l0" };
 

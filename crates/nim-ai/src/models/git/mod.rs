@@ -6,6 +6,6 @@ mod model;
 mod processor;
 mod vision;
 
-pub use captioner::*;
-pub use config::*;
-pub use processor::*;
+pub use captioner::GitCaptioner;
+pub use config::{GitConfig, GitVisionConfig};
+pub use processor::GitProcessor;

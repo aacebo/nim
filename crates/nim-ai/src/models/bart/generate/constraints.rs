@@ -1,7 +1,7 @@
-use super::config::Config;
+use super::config::BartGenerationConfig;
 
 /// Logits processors, applied in log space to one beam's row.
-pub fn apply(row: &mut [f32], config: &Config, sequence: &[u32], generated: usize) {
+pub fn apply(row: &mut [f32], config: &BartGenerationConfig, sequence: &[u32], generated: usize) {
     if generated == 0
         && let Some(bos) = config.forced_bos_token_id
     {

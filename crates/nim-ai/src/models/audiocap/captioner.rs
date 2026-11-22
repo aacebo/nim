@@ -5,21 +5,21 @@ use candle_nn::VarBuilder;
 
 use crate::models::{Caption, CaptionOptions, Context};
 
-use super::config::Config;
-use super::model::Model;
+use super::config::AudioCapConfig;
+use super::model::AudioCapModel;
 
 const BOS: u32 = 1;
 const EOS: u32 = 2;
 
-pub struct Captioner {
-    model: Mutex<Model>,
-    config: Config,
+pub struct AudioCapCaptioner {
+    model: Mutex<AudioCapModel>,
+    config: AudioCapConfig,
 }
 
-impl Captioner {
-    pub fn new(config: Config, vars: VarBuilder) -> nim_error::Result<Self> {
+impl AudioCapCaptioner {
+    pub fn new(config: AudioCapConfig, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
-            model: Mutex::new(Model::new(&config, vars)?),
+            model: Mutex::new(AudioCapModel::new(&config, vars)?),
             config,
         })
     }
@@ -44,7 +44,7 @@ impl Captioner {
     fn decode(
         &self,
         ctx: &Context,
-        model: &Model,
+        model: &AudioCapModel,
         audio: &candle_core::Tensor,
         beams: usize,
         max_len: usize,
@@ -101,7 +101,7 @@ impl Captioner {
     }
 }
 
-impl Caption for Captioner {
+impl Caption for AudioCapCaptioner {
     fn caption(&self, ctx: &Context, input: &[&[u8]], options: CaptionOptions) -> nim_error::Result<Vec<TextOutput>> {
         options.validate()?;
 

@@ -2,18 +2,18 @@ use std::io::Cursor;
 
 use candle_core::{Device, Tensor};
 
-use super::Config;
+use super::WhisperConfig;
 
 const SAMPLE_RATE: u32 = 16_000;
 const CHUNK_SAMPLES: usize = 30 * SAMPLE_RATE as usize;
 
 #[derive(serde::Deserialize)]
-pub struct Processor {
+pub struct WhisperProcessor {
     mel_filters: Vec<Vec<f32>>,
 }
 
-impl Processor {
-    pub fn tensors(&self, bytes: &[u8], config: &Config, device: &Device) -> nim_error::Result<Vec<Tensor>> {
+impl WhisperProcessor {
+    pub fn tensors(&self, bytes: &[u8], config: &WhisperConfig, device: &Device) -> nim_error::Result<Vec<Tensor>> {
         let samples = resample(decode(bytes)?)?;
         let filters: Vec<f32> = self.mel_filters.iter().flatten().copied().collect();
 

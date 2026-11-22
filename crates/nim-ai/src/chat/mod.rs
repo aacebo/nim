@@ -1,9 +1,11 @@
 mod event;
+mod io;
 mod media;
 mod message;
 mod tool;
 
 pub use event::*;
+pub use io::*;
 pub use media::*;
 pub use message::*;
 pub use tool::*;
@@ -15,7 +17,13 @@ pub trait Complete: Send + Sync {
 }
 
 pub trait Parse<T>: Sized {
-    fn parse(&self) -> nim_error::Result<T>;
+    fn parse(&self, p: Parser<'_>) -> nim_error::Result<T>;
+}
+
+pub trait Render<T> {
+    type Output;
+
+    fn render(&self, value: &T) -> nim_error::Result<Self::Output>;
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -53,6 +61,7 @@ pub struct Chat {
     pub documents: Vec<Document>,
     pub thinking: bool,
     pub vision: bool,
+    pub audio: bool,
     pub mode: RenderMode,
     pub compat: CompatMode,
     pub max_len: Option<usize>,
@@ -66,109 +75,5 @@ impl Chat {
         }
 
         Ok(())
-    }
-}
-
-impl TryFrom<Chat> for hf_chat_template::RenderInput {
-    type Error = nim_error::Diagnostic;
-
-    fn try_from(mut value: Chat) -> Result<Self, Self::Error> {
-        if matches!(value.mode, RenderMode::Continue) && value.compat == CompatMode::Error {
-            return Err(nim_error::Diagnostic::message(
-                "local completion does not support continuation mode",
-            ));
-        }
-
-        if value.vision && value.compat == CompatMode::Error {
-            return Err(nim_error::Diagnostic::message(
-                "local Qwen completion does not support vision input",
-            ));
-        }
-
-        if value.messages.iter().any(ChatMessage::has_non_text_parts) {
-            if value.compat == CompatMode::Error {
-                return Err(nim_error::Diagnostic::message(
-                    "local Qwen completion does not support media content",
-                ));
-            }
-
-            for message in &mut value.messages {
-                message.retain_text_parts();
-            }
-        }
-
-        let add_generation_prompt = match value.mode {
-            RenderMode::None => false,
-            RenderMode::Respond => true,
-            RenderMode::Continue => false,
-            RenderMode::Auto => value.messages.last().map(|v| v.role() != "assistant").unwrap_or_default(),
-        };
-
-        let (messages, errors) =
-            value
-                .messages
-                .into_iter()
-                .map(|v| v.into_hf())
-                .fold((Vec::new(), Vec::new()), |(mut values, mut errors), result| {
-                    match result {
-                        Ok(value) => values.push(value),
-                        Err(error) => errors.push(error.source().clone()),
-                    }
-                    (values, errors)
-                });
-
-        if !errors.is_empty() {
-            return Err(nim_error::Diagnostic::new().append(errors));
-        }
-
-        let (tools, errors) =
-            value
-                .tools
-                .into_iter()
-                .map(|v| v.into_hf())
-                .fold((Vec::new(), Vec::new()), |(mut values, mut errors), result| {
-                    match result {
-                        Ok(value) => values.push(value),
-                        Err(error) => errors.push(error.source().clone()),
-                    }
-                    (values, errors)
-                });
-
-        if !errors.is_empty() {
-            return Err(nim_error::Diagnostic::new().append(errors));
-        }
-
-        let (documents, errors) = value.documents.into_iter().map(serde_json::to_value).fold(
-            (Vec::new(), Vec::new()),
-            |(mut values, mut errors), result| {
-                match result {
-                    Ok(value) => values.push(value),
-                    Err(error) => errors.push(error),
-                }
-                (values, errors)
-            },
-        );
-
-        if !errors.is_empty() {
-            return Err(nim_error::Diagnostic::new().append(errors));
-        }
-
-        let mut extra = serde_json::Map::new();
-
-        if value.vision {
-            extra.insert("vision".into(), true.into());
-        }
-
-        if value.thinking {
-            extra.insert("enable_thinking".into(), true.into());
-        }
-
-        Ok(Self {
-            messages,
-            tools,
-            documents,
-            add_generation_prompt,
-            extra,
-        })
     }
 }

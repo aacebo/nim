@@ -1,23 +1,23 @@
 use candle_core::{DType, Tensor};
 use candle_nn::{Embedding, LayerNorm, Linear, Module, VarBuilder, embedding, layer_norm, linear};
 
-use super::attention::Attention;
-use super::config::Config;
+use super::attention::GitAttention;
+use super::config::GitConfig;
 
-pub struct Decoder {
+pub struct GitDecoder {
     words: Embedding,
     positions: Embedding,
     norm: LayerNorm,
-    layers: Vec<TextLayer>,
+    layers: Vec<GitTextLayer>,
     image_tokens: usize,
 }
 
-impl Decoder {
-    pub fn new(c: &Config, vars: VarBuilder) -> candle_core::Result<Self> {
+impl GitDecoder {
+    pub fn new(c: &GitConfig, vars: VarBuilder) -> candle_core::Result<Self> {
         let mut layers = Vec::with_capacity(c.num_hidden_layers);
 
         for i in 0..c.num_hidden_layers {
-            layers.push(TextLayer::new(c, vars.pp("encoder").pp("layer").pp(i))?);
+            layers.push(GitTextLayer::new(c, vars.pp("encoder").pp("layer").pp(i))?);
         }
 
         Ok(Self {
@@ -62,20 +62,20 @@ impl Decoder {
     }
 }
 
-struct TextLayer {
-    attention: Attention,
+struct GitTextLayer {
+    attention: GitAttention,
     attention_norm: LayerNorm,
     fc1: Linear,
     fc2: Linear,
     output_norm: LayerNorm,
 }
 
-impl TextLayer {
-    fn new(c: &Config, vars: VarBuilder) -> candle_core::Result<Self> {
+impl GitTextLayer {
+    fn new(c: &GitConfig, vars: VarBuilder) -> candle_core::Result<Self> {
         let self_vars = vars.pp("attention").pp("self");
 
         Ok(Self {
-            attention: Attention::from_parts(
+            attention: GitAttention::from_parts(
                 c.hidden_size,
                 c.num_attention_heads,
                 self_vars,

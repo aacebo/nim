@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, serde::Deserialize)]
-pub struct Config {
+pub struct WhisperConfig {
     #[serde(flatten)]
     model: candle_transformers::models::whisper::Config,
     pub decoder_start_token_id: u32,
@@ -8,7 +8,7 @@ pub struct Config {
     pub forced_decoder_ids: Vec<(usize, u32)>,
 }
 
-impl Config {
+impl WhisperConfig {
     pub fn model(&self) -> &candle_transformers::models::whisper::Config {
         &self.model
     }

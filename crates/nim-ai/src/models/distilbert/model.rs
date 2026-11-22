@@ -4,14 +4,14 @@ use candle_transformers::models::distilbert;
 
 use crate::models::Forward;
 
-use super::config::Config;
+use super::config::DistilBertConfig;
 
 pub struct DistilBert {
     inner: distilbert::DistilBertModel,
 }
 
 impl DistilBert {
-    pub fn new(vars: VarBuilder, config: &Config) -> nim_error::Result<Self> {
+    pub fn new(vars: VarBuilder, config: &DistilBertConfig) -> nim_error::Result<Self> {
         Ok(Self {
             inner: distilbert::DistilBertModel::load(vars, &config.to_candle()?)?,
         })

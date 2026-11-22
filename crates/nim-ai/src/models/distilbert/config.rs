@@ -5,13 +5,13 @@ use candle_transformers::models::distilbert;
 use crate::models::ModelType;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
+pub struct DistilBertConfig {
     pub vocab_size: usize,
     pub dim: usize,
     pub n_layers: usize,
     pub n_heads: usize,
     pub hidden_dim: usize,
-    pub activation: Activation,
+    pub activation: DistilBertActivation,
     pub max_position_embeddings: usize,
     pub initializer_range: f64,
     pub pad_token_id: usize,
@@ -21,7 +21,7 @@ pub struct Config {
     pub id2label: HashMap<String, String>,
 }
 
-impl Config {
+impl DistilBertConfig {
     pub fn hidden_size(&self) -> usize {
         self.dim
     }
@@ -51,7 +51,7 @@ impl Config {
         self
     }
 
-    pub fn activation(mut self, activation: Activation) -> Self {
+    pub fn activation(mut self, activation: DistilBertActivation) -> Self {
         self.activation = activation;
         self
     }
@@ -82,7 +82,7 @@ impl Config {
     }
 }
 
-impl Default for Config {
+impl Default for DistilBertConfig {
     fn default() -> Self {
         Self {
             vocab_size: 30_522,
@@ -90,7 +90,7 @@ impl Default for Config {
             n_layers: 6,
             n_heads: 12,
             hidden_dim: 3_072,
-            activation: Activation::Gelu,
+            activation: DistilBertActivation::Gelu,
             max_position_embeddings: 512,
             initializer_range: 0.02,
             pad_token_id: 0,
@@ -102,7 +102,7 @@ impl Default for Config {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Activation {
+pub enum DistilBertActivation {
     Gelu,
     #[serde(rename = "gelu_approximate")]
     GeluApproximate,

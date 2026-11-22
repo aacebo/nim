@@ -1,7 +1,9 @@
 mod generator;
+mod template;
 
 pub use candle_transformers::models::qwen2::Config;
-pub use generator::*;
+pub use generator::Qwen2Generator;
+pub use template::Qwen2Template;
 
 pub const MODEL: &str = "Qwen/Qwen2.5-3B-Instruct";
 pub const QUANTIZED_MODEL: &str = "Qwen/Qwen2.5-3B-Instruct-GGUF";

@@ -2,7 +2,7 @@ use crate::models::bart;
 
 /// Decoding parameters. Defaults come from the checkpoint's own `config.json`.
 #[derive(Debug, Clone, Copy)]
-pub struct Config {
+pub struct BartGenerationConfig {
     pub beams: usize,
     pub max_length: usize,
     pub min_length: usize,
@@ -14,8 +14,8 @@ pub struct Config {
     pub forced_eos_token_id: Option<u32>,
 }
 
-impl From<&bart::Config> for Config {
-    fn from(config: &bart::Config) -> Self {
+impl From<&bart::BartConfig> for BartGenerationConfig {
+    fn from(config: &bart::BartConfig) -> Self {
         Self {
             beams: config.num_beams.max(1),
             max_length: config.max_length,
@@ -30,7 +30,7 @@ impl From<&bart::Config> for Config {
     }
 }
 
-impl Config {
+impl BartGenerationConfig {
     pub fn beams(mut self, beams: usize) -> Self {
         self.beams = beams.max(1);
         self

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
+pub struct BartConfig {
     pub vocab_size: usize,
     pub d_model: usize,
     pub encoder_layers: usize,
@@ -32,7 +32,7 @@ pub struct Config {
     pub id2label: HashMap<String, String>,
 }
 
-impl Config {
+impl BartConfig {
     pub fn vocab_size(mut self, vocab_size: usize) -> Self {
         self.vocab_size = vocab_size;
         self
@@ -104,7 +104,7 @@ impl Config {
     }
 }
 
-impl Default for Config {
+impl Default for BartConfig {
     fn default() -> Self {
         Self {
             vocab_size: 50_265,

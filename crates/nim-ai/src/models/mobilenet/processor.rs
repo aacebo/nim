@@ -6,9 +6,9 @@ use image::{GenericImageView, ImageReader, imageops::FilterType};
 use crate::types::BoundingBox;
 
 #[derive(serde::Deserialize)]
-pub struct Processor {
-    size: Size,
-    crop_size: Size,
+pub struct MobileNetProcessor {
+    size: MobileNetSize,
+    crop_size: MobileNetSize,
     image_mean: [f32; 3],
     image_std: [f32; 3],
     rescale_factor: f32,
@@ -16,13 +16,13 @@ pub struct Processor {
 }
 
 #[derive(serde::Deserialize)]
-struct Size {
+struct MobileNetSize {
     height: Option<usize>,
     width: Option<usize>,
     shortest_edge: Option<usize>,
 }
 
-impl Processor {
+impl MobileNetProcessor {
     pub fn tensor(&self, bytes: &[u8], device: &Device) -> nim_error::Result<(Tensor, BoundingBox)> {
         let image = ImageReader::new(Cursor::new(bytes)).with_guessed_format()?.decode()?;
         let shortest = self

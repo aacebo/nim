@@ -4,14 +4,14 @@ use candle_transformers::models::bert;
 
 use crate::models::Forward;
 
-use super::config::Config;
+use super::config::BertConfig;
 
 pub struct Bert {
     inner: bert::BertModel,
 }
 
 impl Bert {
-    pub fn new(vars: VarBuilder, config: &Config) -> nim_error::Result<Self> {
+    pub fn new(vars: VarBuilder, config: &BertConfig) -> nim_error::Result<Self> {
         Ok(Self {
             inner: bert::BertModel::load(vars, &bert::Config::from(config))?,
         })

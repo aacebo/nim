@@ -3,19 +3,19 @@ use std::io::Cursor;
 use rustfft::FftPlanner;
 use rustfft::num_complex::Complex32;
 
-use super::config::Config;
+use super::config::Cnn8RnnConfig;
 
-pub struct Processor {
+pub struct Cnn8RnnProcessor {
     filters: Vec<Vec<f32>>,
     window: Vec<f32>,
 }
 
-impl Processor {
+impl Cnn8RnnProcessor {
     pub fn new(filters: Vec<Vec<f32>>, window: Vec<f32>) -> Self {
         Self { filters, window }
     }
 
-    pub fn features(&self, bytes: &[u8], config: &Config) -> nim_error::Result<(Vec<Vec<f32>>, f64)> {
+    pub fn features(&self, bytes: &[u8], config: &Cnn8RnnConfig) -> nim_error::Result<(Vec<Vec<f32>>, f64)> {
         let (samples, sample_rate) = decode(bytes)?;
 
         if sample_rate == 0 {

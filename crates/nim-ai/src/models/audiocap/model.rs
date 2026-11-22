@@ -4,44 +4,44 @@ use candle_nn::{
     linear,
 };
 
-use super::config::Config;
-use super::processor::Processor;
+use super::config::AudioCapConfig;
+use super::processor::AudioCapProcessor;
 
-pub struct Model {
-    processor: Processor,
-    cnn: Cnn,
-    encoder: Vec<(Gru, Gru)>,
-    decoder: Decoder,
+pub struct AudioCapModel {
+    processor: AudioCapProcessor,
+    cnn: AudioCapCnn,
+    encoder: Vec<(AudioCapGru, AudioCapGru)>,
+    decoder: AudioCapDecoder,
 }
 
-struct ConvBlock {
+struct AudioCapConvBlock {
     conv1: Conv2d,
     conv2: Conv2d,
     bn1: BatchNorm,
     bn2: BatchNorm,
 }
 
-struct Cnn {
+struct AudioCapCnn {
     bn: BatchNorm,
-    blocks: Vec<ConvBlock>,
+    blocks: Vec<AudioCapConvBlock>,
 }
 
-struct Decoder {
+struct AudioCapDecoder {
     words: candle_nn::Embedding,
     temporal: candle_nn::Embedding,
-    attention: Attention,
+    attention: AudioCapAttention,
     context: Linear,
     features: Linear,
     gru: GRU,
     classifier: Linear,
 }
 
-struct Attention {
+struct AudioCapAttention {
     projection: Linear,
     vector: Tensor,
 }
 
-struct Gru {
+struct AudioCapGru {
     input: Tensor,
     hidden: Tensor,
     input_bias: Tensor,
@@ -49,30 +49,30 @@ struct Gru {
     size: usize,
 }
 
-impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
+impl AudioCapModel {
+    pub fn new(config: &AudioCapConfig, vars: VarBuilder) -> nim_error::Result<Self> {
         let filter = vars.get((513, 64), "melspec_extractor.mel_scale.fb")?.to_vec2::<f32>()?;
         let window = vars.get(1024, "melspec_extractor.spectrogram.window")?.to_vec1::<f32>()?;
-        let cnn = Cnn::new(vars.pp("cap_model.encoder.cnn"))?;
+        let cnn = AudioCapCnn::new(vars.pp("cap_model.encoder.cnn"))?;
         let encoder_vars = vars.pp("cap_model.encoder.rnn.network");
         let encoder = (0..config.encoder_rnn_num_layers)
             .map(|layer| {
                 Ok((
-                    Gru::new(config.encoder_rnn_hidden_size, layer, false, encoder_vars.clone())?,
-                    Gru::new(config.encoder_rnn_hidden_size, layer, true, encoder_vars.clone())?,
+                    AudioCapGru::new(config.encoder_rnn_hidden_size, layer, false, encoder_vars.clone())?,
+                    AudioCapGru::new(config.encoder_rnn_hidden_size, layer, true, encoder_vars.clone())?,
                 ))
             })
             .collect::<Result<Vec<_>, candle_core::Error>>()?;
 
         Ok(Self {
-            processor: Processor::new(filter, window),
+            processor: AudioCapProcessor::new(filter, window),
             cnn,
             encoder,
-            decoder: Decoder::new(config, vars.pp("cap_model.decoder"))?,
+            decoder: AudioCapDecoder::new(config, vars.pp("cap_model.decoder"))?,
         })
     }
 
-    pub fn chunks(&self, bytes: &[u8], config: &Config) -> nim_error::Result<Vec<Vec<Vec<f32>>>> {
+    pub fn chunks(&self, bytes: &[u8], config: &AudioCapConfig) -> nim_error::Result<Vec<Vec<Vec<f32>>>> {
         self.processor.chunks(bytes, config)
     }
 
@@ -110,7 +110,7 @@ impl Model {
     }
 }
 
-impl Gru {
+impl AudioCapGru {
     fn new(size: usize, layer: usize, reverse: bool, vars: VarBuilder) -> candle_core::Result<Self> {
         let suffix = if reverse {
             format!("_l{layer}_reverse")
@@ -152,14 +152,16 @@ impl Gru {
     }
 }
 
-impl Cnn {
+impl AudioCapCnn {
     fn new(vars: VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
             bn: batch_norm(64, 1e-5, vars.pp("bn0"))?,
             blocks: [(1, 64), (64, 128), (128, 256), (256, 512), (512, 1024), (1024, 2048)]
                 .into_iter()
                 .enumerate()
-                .map(|(index, (input, output))| ConvBlock::new(input, output, vars.pp(format!("conv_block{}", index + 1))))
+                .map(|(index, (input, output))| {
+                    AudioCapConvBlock::new(input, output, vars.pp(format!("conv_block{}", index + 1)))
+                })
                 .collect::<Result<_, _>>()?,
         })
     }
@@ -183,7 +185,7 @@ impl Cnn {
     }
 }
 
-impl ConvBlock {
+impl AudioCapConvBlock {
     fn new(input: usize, output: usize, vars: VarBuilder) -> candle_core::Result<Self> {
         let config = Conv2dConfig {
             padding: 1,
@@ -209,12 +211,12 @@ impl ConvBlock {
     }
 }
 
-impl Decoder {
-    fn new(config: &Config, vars: VarBuilder) -> candle_core::Result<Self> {
+impl AudioCapDecoder {
+    fn new(config: &AudioCapConfig, vars: VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
             words: embedding(config.vocab_size, config.decoder_emb_dim, vars.pp("word_embedding"))?,
             temporal: embedding(4, config.decoder_emb_dim, vars.pp("temporal_embedding"))?,
-            attention: Attention::new(config.attn_emb_dim, config.decoder_d_model, vars.pp("attn"))?,
+            attention: AudioCapAttention::new(config.attn_emb_dim, config.decoder_d_model, vars.pp("attn"))?,
             context: linear(config.attn_emb_dim, config.decoder_emb_dim, vars.pp("ctx_proj"))?,
             features: linear(config.fc_emb_dim, config.decoder_emb_dim, vars.pp("fc_proj"))?,
             gru: gru(
@@ -248,7 +250,7 @@ impl Decoder {
     }
 }
 
-impl Attention {
+impl AudioCapAttention {
     fn new(encoder: usize, decoder: usize, vars: VarBuilder) -> candle_core::Result<Self> {
         Ok(Self {
             projection: linear(encoder + decoder, 512, vars.pp("h2attn"))?,

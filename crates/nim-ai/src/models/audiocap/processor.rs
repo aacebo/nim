@@ -3,21 +3,21 @@ use std::io::Cursor;
 use rustfft::FftPlanner;
 use rustfft::num_complex::Complex32;
 
-use super::config::Config;
+use super::config::AudioCapConfig;
 
 const CHUNK_SECONDS: usize = 30;
 
-pub struct Processor {
+pub struct AudioCapProcessor {
     filters: Vec<Vec<f32>>,
     window: Vec<f32>,
 }
 
-impl Processor {
+impl AudioCapProcessor {
     pub fn new(filters: Vec<Vec<f32>>, window: Vec<f32>) -> Self {
         Self { filters, window }
     }
 
-    pub fn chunks(&self, bytes: &[u8], config: &Config) -> nim_error::Result<Vec<Vec<Vec<f32>>>> {
+    pub fn chunks(&self, bytes: &[u8], config: &AudioCapConfig) -> nim_error::Result<Vec<Vec<Vec<f32>>>> {
         let samples = resample(decode(bytes)?, config.sample_rate)?;
         let chunk = config.sample_rate * CHUNK_SECONDS;
 

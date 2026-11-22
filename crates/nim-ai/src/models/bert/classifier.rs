@@ -5,10 +5,10 @@ use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::{aggregation, classification, decode_entities};
 use crate::types::Classification;
 
-use super::config::Config;
+use super::config::BertConfig;
 use super::model::Bert;
 
-pub struct Classifier {
+pub struct BertClassifier {
     bert: Bert,
     pooler: Option<Linear>,
     classifier: Linear,
@@ -16,8 +16,8 @@ pub struct Classifier {
     mode: ClassifyMode,
 }
 
-impl Classifier {
-    pub fn new(vars: VarBuilder, config: &Config, mode: ClassifyMode) -> nim_error::Result<Self> {
+impl BertClassifier {
+    pub fn new(vars: VarBuilder, config: &BertConfig, mode: ClassifyMode) -> nim_error::Result<Self> {
         let labels = config.labels()?;
         let pooler = vars
             .contains_tensor("pooler.dense.weight")
@@ -81,7 +81,7 @@ impl Classifier {
     }
 }
 
-impl Forward for Classifier {
+impl Forward for BertClassifier {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
@@ -96,7 +96,7 @@ impl Forward for Classifier {
     }
 }
 
-impl Classify for Classifier {
+impl Classify for BertClassifier {
     fn classify(
         &self,
         ctx: &Context,

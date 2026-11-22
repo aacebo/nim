@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, serde::Deserialize)]
-pub struct Config {
+pub struct AudioCapConfig {
     pub sample_rate: usize,
     pub encoder_rnn_bidirectional: bool,
     pub encoder_rnn_hidden_size: usize,

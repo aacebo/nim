@@ -4,15 +4,15 @@ use candle_core::Tensor;
 
 use crate::models::{Context, Embed, EmbedMode, EmbedOptions, Loader};
 
-pub struct Embedder {
+pub struct EmbeddingGemmaEmbedder {
     max_position_embeddings: usize,
-    model: model::Model,
+    model: model::EmbeddingGemmaModel,
     dense: Vec<candle_nn::Linear>,
 }
 
-impl Embedder {
+impl EmbeddingGemmaEmbedder {
     pub fn new(loader: &Loader) -> nim_error::Result<Self> {
-        let config: model::Config = loader.config()?;
+        let config: model::EmbeddingGemmaConfig = loader.config()?;
         let vars = loader.vars()?;
         let vars = if vars.contains_tensor("embed_tokens.weight") {
             vars.rename_f(|name: &str| name.strip_prefix("model.").unwrap_or(name).to_string())
@@ -22,18 +22,18 @@ impl Embedder {
 
         Ok(Self {
             max_position_embeddings: config.max_position_embeddings,
-            model: model::Model::new(false, &config, vars)?,
+            model: model::EmbeddingGemmaModel::new(false, &config, vars)?,
             dense: ["2_Dense", "3_Dense"]
                 .iter()
                 .map(|path| {
                     #[derive(serde::Deserialize)]
-                    struct Config {
+                    struct EmbeddingGemmaConfig {
                         in_features: usize,
                         out_features: usize,
                         bias: bool,
                     }
 
-                    let config: Config = loader.json(&format!("{path}/config.json"))?;
+                    let config: EmbeddingGemmaConfig = loader.json(&format!("{path}/config.json"))?;
                     let file = loader.resolve(std::path::Path::new(&format!("{path}/model.safetensors")))?;
                     let vars = unsafe {
                         candle_nn::VarBuilder::from_mmaped_safetensors(&[file], candle_core::DType::F32, loader.device())
@@ -51,7 +51,7 @@ impl Embedder {
     }
 }
 
-impl Embed for Embedder {
+impl Embed for EmbeddingGemmaEmbedder {
     fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
         self.embed_with(ctx, input, &EmbedOptions::default())
     }

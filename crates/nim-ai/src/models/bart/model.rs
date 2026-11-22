@@ -1,26 +1,26 @@
 use candle_core::{DType, Result, Tensor};
 use candle_nn::{Linear, VarBuilder, embedding};
 
-use super::config::Config;
-use super::decoder::Decoder;
-use super::encoder::Encoder;
+use super::config::BartConfig;
+use super::decoder::BartDecoder;
+use super::encoder::BartEncoder;
 
 #[derive(Debug, Clone)]
 pub struct Bart {
-    encoder: Encoder,
-    decoder: Decoder,
+    encoder: BartEncoder,
+    decoder: BartDecoder,
     lm_head: Linear,
     final_logits_bias: Option<Tensor>,
 }
 
 impl Bart {
-    pub fn new(cfg: &Config, vb: VarBuilder) -> Result<Self> {
+    pub fn new(cfg: &BartConfig, vb: VarBuilder) -> Result<Self> {
         let vb_m = vb.pp("model");
         let embed_tokens = embedding(cfg.vocab_size, cfg.d_model, vb_m.pp("decoder").pp("embed_tokens"))?;
 
         Ok(Self {
-            encoder: Encoder::new(cfg, &embed_tokens, vb_m.pp("encoder"))?,
-            decoder: Decoder::new(cfg, &embed_tokens, vb_m.pp("decoder"))?,
+            encoder: BartEncoder::new(cfg, &embed_tokens, vb_m.pp("encoder"))?,
+            decoder: BartDecoder::new(cfg, &embed_tokens, vb_m.pp("decoder"))?,
             lm_head: Linear::new(embed_tokens.embeddings().clone(), None),
             final_logits_bias: vb.get((1, cfg.vocab_size), "final_logits_bias").ok(),
         })

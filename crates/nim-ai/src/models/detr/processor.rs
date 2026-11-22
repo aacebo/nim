@@ -5,8 +5,8 @@ use image::{GenericImageView, ImageReader, imageops::FilterType};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
-pub struct Processor {
-    pub size: Size,
+pub struct DetrProcessor {
+    pub size: DetrSize,
     pub do_resize: bool,
     pub do_rescale: bool,
     pub do_normalize: bool,
@@ -17,15 +17,15 @@ pub struct Processor {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
-pub struct Size {
+pub struct DetrSize {
     pub shortest_edge: usize,
     pub longest_edge: usize,
 }
 
-impl Default for Processor {
+impl Default for DetrProcessor {
     fn default() -> Self {
         Self {
-            size: Size {
+            size: DetrSize {
                 shortest_edge: 800,
                 longest_edge: 1333,
             },
@@ -40,7 +40,7 @@ impl Default for Processor {
     }
 }
 
-impl Processor {
+impl DetrProcessor {
     pub fn tensor(&self, bytes: &[u8], device: &Device) -> nim_error::Result<(Tensor, u32, u32)> {
         if !self.rescale_factor.is_finite()
             || self.image_mean.iter().any(|value| !value.is_finite())

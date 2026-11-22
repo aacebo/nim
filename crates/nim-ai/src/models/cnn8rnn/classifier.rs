@@ -5,26 +5,26 @@ use candle_nn::VarBuilder;
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{Classification, Span, TimeRange};
 
-use super::config::Config;
-use super::model::Model;
+use super::config::Cnn8RnnConfig;
+use super::model::Cnn8RnnModel;
 
-pub struct Classifier {
-    model: Mutex<Model>,
-    config: Config,
+pub struct Cnn8RnnClassifier {
+    model: Mutex<Cnn8RnnModel>,
+    config: Cnn8RnnConfig,
     labels: Vec<String>,
 }
 
-impl Classifier {
-    pub fn new(config: Config, labels: Vec<String>, vars: VarBuilder) -> nim_error::Result<Self> {
+impl Cnn8RnnClassifier {
+    pub fn new(config: Cnn8RnnConfig, labels: Vec<String>, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
-            model: Mutex::new(Model::new(&config, vars)?),
+            model: Mutex::new(Cnn8RnnModel::new(&config, vars)?),
             config,
             labels,
         })
     }
 }
 
-impl Classify for Classifier {
+impl Classify for Cnn8RnnClassifier {
     fn classify(
         &self,
         ctx: &Context,

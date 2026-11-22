@@ -2,14 +2,14 @@ use candle_core::{IndexOp, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::model::Whisper;
 
-use super::Config;
+use super::WhisperConfig;
 
-pub struct Model {
+pub struct WhisperModel {
     whisper: Whisper,
 }
 
-impl Model {
-    pub fn new(config: &Config, vars: VarBuilder) -> nim_error::Result<Self> {
+impl WhisperModel {
+    pub fn new(config: &WhisperConfig, vars: VarBuilder) -> nim_error::Result<Self> {
         Ok(Self {
             whisper: Whisper::load(&vars, config.model().clone())?,
         })

@@ -4,9 +4,9 @@ use candle_core::{Device, Tensor};
 use image::{GenericImageView, ImageReader, imageops::FilterType};
 
 #[derive(serde::Deserialize)]
-pub struct Processor {
-    size: Size,
-    crop_size: Size,
+pub struct GitProcessor {
+    size: GitSize,
+    crop_size: GitSize,
     image_mean: [f32; 3],
     image_std: [f32; 3],
     rescale_factor: f32,
@@ -14,13 +14,13 @@ pub struct Processor {
 }
 
 #[derive(serde::Deserialize)]
-struct Size {
+struct GitSize {
     height: Option<usize>,
     width: Option<usize>,
     shortest_edge: Option<usize>,
 }
 
-impl Processor {
+impl GitProcessor {
     pub fn tensor(&self, bytes: &[u8], device: &Device) -> nim_error::Result<Tensor> {
         let image = ImageReader::new(Cursor::new(bytes)).with_guessed_format()?.decode()?;
         let shortest = self

@@ -267,7 +267,7 @@ impl Complete for RemoteModel {
             return Err(nim_error::Diagnostic::message("hosted completion does not support beams"));
         }
 
-        if !chat.documents.is_empty() || chat.thinking || chat.vision {
+        if !chat.documents.is_empty() || chat.thinking || chat.vision || chat.audio {
             if chat.compat == crate::CompatMode::Error {
                 return Err(nim_error::Diagnostic::message(
                     "remote completion does not support requested render options",

@@ -3,5 +3,5 @@ mod config;
 mod model;
 mod processor;
 
-pub use classifier::*;
-pub use config::*;
+pub use classifier::Cnn8RnnClassifier;
+pub use config::Cnn8RnnConfig;

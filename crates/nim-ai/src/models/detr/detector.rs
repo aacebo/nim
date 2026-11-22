@@ -5,18 +5,18 @@ use candle_nn::{VarBuilder, ops};
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{BoundingBox, Classification, Span};
 
-use super::{Config, Model, Processor};
+use super::{DetrConfig, DetrModel, DetrProcessor};
 
-pub struct Detector {
-    model: Model,
-    processor: Processor,
+pub struct DetrDetector {
+    model: DetrModel,
+    processor: DetrProcessor,
     labels: BTreeMap<usize, String>,
 }
 
-impl Detector {
-    pub fn new(vars: VarBuilder, config: Config, processor: Processor) -> nim_error::Result<Self> {
+impl DetrDetector {
+    pub fn new(vars: VarBuilder, config: DetrConfig, processor: DetrProcessor) -> nim_error::Result<Self> {
         Ok(Self {
-            model: Model::new(&config, vars)?,
+            model: DetrModel::new(&config, vars)?,
             processor,
             labels: config.id2label,
         })
@@ -66,7 +66,7 @@ impl Detector {
     }
 }
 
-impl Classify for Detector {
+impl Classify for DetrDetector {
     fn classify(
         &self,
         ctx: &Context,

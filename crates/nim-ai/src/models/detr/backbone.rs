@@ -1,12 +1,12 @@
 use candle_core::{Result, Tensor};
 use candle_nn::{Conv2d, Conv2dConfig, Module, VarBuilder, conv2d_no_bias};
 
-struct FrozenBatchNorm {
+struct DetrFrozenBatchNorm {
     scale: Tensor,
     bias: Tensor,
 }
 
-impl FrozenBatchNorm {
+impl DetrFrozenBatchNorm {
     fn new(channels: usize, vars: VarBuilder) -> Result<Self> {
         let weight = vars.get(channels, "weight")?;
         let bias = vars.get(channels, "bias")?;
@@ -40,17 +40,17 @@ fn convolution(input: usize, output: usize, kernel: usize, stride: usize, vars: 
     )
 }
 
-struct Bottleneck {
+struct DetrBottleneck {
     conv1: Conv2d,
     conv2: Conv2d,
     conv3: Conv2d,
-    bn1: FrozenBatchNorm,
-    bn2: FrozenBatchNorm,
-    bn3: FrozenBatchNorm,
-    downsample: Option<(Conv2d, FrozenBatchNorm)>,
+    bn1: DetrFrozenBatchNorm,
+    bn2: DetrFrozenBatchNorm,
+    bn3: DetrFrozenBatchNorm,
+    downsample: Option<(Conv2d, DetrFrozenBatchNorm)>,
 }
 
-impl Bottleneck {
+impl DetrBottleneck {
     fn new(input: usize, channels: usize, stride: usize, vars: VarBuilder) -> Result<Self> {
         let output = channels * 4;
 
@@ -58,13 +58,13 @@ impl Bottleneck {
             conv1: convolution(input, channels, 1, 1, vars.pp("conv1"))?,
             conv2: convolution(channels, channels, 3, stride, vars.pp("conv2"))?,
             conv3: convolution(channels, output, 1, 1, vars.pp("conv3"))?,
-            bn1: FrozenBatchNorm::new(channels, vars.pp("bn1"))?,
-            bn2: FrozenBatchNorm::new(channels, vars.pp("bn2"))?,
-            bn3: FrozenBatchNorm::new(output, vars.pp("bn3"))?,
+            bn1: DetrFrozenBatchNorm::new(channels, vars.pp("bn1"))?,
+            bn2: DetrFrozenBatchNorm::new(channels, vars.pp("bn2"))?,
+            bn3: DetrFrozenBatchNorm::new(output, vars.pp("bn3"))?,
             downsample: if stride != 1 || input != output {
                 Some((
                     convolution(input, output, 1, stride, vars.pp("downsample.0"))?,
-                    FrozenBatchNorm::new(output, vars.pp("downsample.1"))?,
+                    DetrFrozenBatchNorm::new(output, vars.pp("downsample.1"))?,
                 ))
             } else {
                 None
@@ -85,13 +85,13 @@ impl Bottleneck {
     }
 }
 
-pub struct Backbone {
+pub struct DetrBackbone {
     conv: Conv2d,
-    norm: FrozenBatchNorm,
-    blocks: Vec<Bottleneck>,
+    norm: DetrFrozenBatchNorm,
+    blocks: Vec<DetrBottleneck>,
 }
 
-impl Backbone {
+impl DetrBackbone {
     pub fn new(vars: VarBuilder) -> Result<Self> {
         let mut blocks = Vec::new();
         let mut input = 64;
@@ -100,7 +100,7 @@ impl Backbone {
             for index in 0..count {
                 let stride = if stage > 0 && index == 0 { 2 } else { 1 };
 
-                blocks.push(Bottleneck::new(
+                blocks.push(DetrBottleneck::new(
                     input,
                     channels,
                     stride,
@@ -113,7 +113,7 @@ impl Backbone {
 
         Ok(Self {
             conv: convolution(3, 64, 7, 2, vars.pp("conv1"))?,
-            norm: FrozenBatchNorm::new(64, vars.pp("bn1"))?,
+            norm: DetrFrozenBatchNorm::new(64, vars.pp("bn1"))?,
             blocks,
         })
     }

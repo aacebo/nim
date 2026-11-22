@@ -4,19 +4,19 @@ use candle_nn::{Linear, Module, VarBuilder, linear, ops};
 use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::types::{Classification, Span};
 
-use super::config::Config;
+use super::config::MobileNetConfig;
 use super::model::MobileNetV2;
-use super::processor::Processor;
+use super::processor::MobileNetProcessor;
 
-pub struct Classifier {
+pub struct MobileNetClassifier {
     model: MobileNetV2,
     classifier: Linear,
-    processor: Processor,
+    processor: MobileNetProcessor,
     labels: Vec<String>,
 }
 
-impl Classifier {
-    pub fn new(vars: VarBuilder, config: Config, processor: Processor) -> nim_error::Result<Self> {
+impl MobileNetClassifier {
+    pub fn new(vars: VarBuilder, config: MobileNetConfig, processor: MobileNetProcessor) -> nim_error::Result<Self> {
         let labels: Vec<String> = config.id2label.clone().into_values().collect();
         let model = MobileNetV2::new(vars.clone(), &config)?;
 
@@ -29,7 +29,7 @@ impl Classifier {
     }
 }
 
-impl Forward for Classifier {
+impl Forward for MobileNetClassifier {
     type Input = Tensor;
     type Output = Tensor;
 
@@ -38,7 +38,7 @@ impl Forward for Classifier {
     }
 }
 
-impl Classify for Classifier {
+impl Classify for MobileNetClassifier {
     fn classify(
         &self,
         ctx: &Context,

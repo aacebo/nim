@@ -1,22 +1,24 @@
 mod generator;
+mod template;
 
 use candle_core::Tensor;
 
 use crate::models::{Context, Embed, EmbedMode, EmbedOptions, Loader};
 
 pub use candle_transformers::models::qwen3::Config;
-pub use generator::*;
+pub use generator::Qwen3Generator;
+pub use template::Qwen3Template;
 
 pub const MODEL: &str = "Qwen/Qwen3-32B";
 pub const QUANTIZED_MODEL: &str = "Qwen/Qwen3-32B-GGUF";
 pub const WEIGHTS: &str = "Qwen3-32B-Q4_K_M.gguf";
 
-pub struct Embedder {
+pub struct Qwen3Embedder {
     max_position_embeddings: usize,
     model: candle_transformers::models::qwen3::Model,
 }
 
-impl Embedder {
+impl Qwen3Embedder {
     pub fn new(loader: &Loader) -> nim_error::Result<Self> {
         let config: Config = loader.config()?;
         let vars = loader.vars()?;
@@ -33,7 +35,7 @@ impl Embedder {
     }
 }
 
-impl Embed for Embedder {
+impl Embed for Qwen3Embedder {
     fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
         self.embed_with(ctx, input, &EmbedOptions::default())
     }

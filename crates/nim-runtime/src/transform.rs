@@ -1,18 +1,13 @@
 use nim_state::{Message, MessageContent, MessageContentPart, Services};
 use nim_store::{ArtifactContent, Role};
 
-use crate::BoxFuture;
-
-pub trait Transform {
-    type Out;
-
-    fn transform<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<Self::Out>>;
-}
+use crate::{BoxFuture, Transform};
 
 impl Transform for Vec<Message> {
-    type Out = Vec<nim_ai::ChatMessage>;
+    type Output = Vec<nim_ai::ChatMessage>;
+    type Context<'a> = Services<'a>;
 
-    fn transform<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<Self::Out>> {
+    fn transform<'a>(&'a self, s: &'a Services<'a>) -> BoxFuture<'a, nim_error::Result<Self::Output>> {
         Box::pin(async move {
             let mut items = Vec::new();
 
@@ -26,9 +21,10 @@ impl Transform for Vec<Message> {
 }
 
 impl Transform for Message {
-    type Out = nim_ai::ChatMessage;
+    type Output = nim_ai::ChatMessage;
+    type Context<'a> = Services<'a>;
 
-    fn transform<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<Self::Out>> {
+    fn transform<'a>(&'a self, s: &'a Services<'a>) -> BoxFuture<'a, nim_error::Result<Self::Output>> {
         Box::pin(async move {
             match self.role {
                 Role::System => Ok(nim_ai::ChatSystemMessage {
@@ -53,18 +49,19 @@ impl Transform for Message {
 }
 
 impl Transform for MessageContent {
-    type Out = nim_ai::ChatMessageContent;
+    type Output = nim_ai::ChatMessageContent;
+    type Context<'a> = Services<'a>;
 
-    fn transform<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<Self::Out>> {
+    fn transform<'a>(&'a self, s: &'a Services<'a>) -> BoxFuture<'a, nim_error::Result<Self::Output>> {
         Box::pin(async move {
             match self {
-                Self::Single(item) => Ok(nim_ai::ChatMessageContent::Parts(vec![item.transform(s).await?])),
-                Self::Array(items) => {
+                Self::String(v) => Ok(nim_ai::ChatMessageContent::Text(v.clone())),
+                Self::Parts(parts) => {
                     let mut errors = Vec::new();
                     let mut out = Vec::new();
 
-                    for item in items {
-                        match item.transform(s).await {
+                    for part in parts {
+                        match part.transform(s).await {
                             Err(err) => errors.push(err.source().clone()),
                             Ok(v) => out.push(v),
                         };
@@ -83,12 +80,13 @@ impl Transform for MessageContent {
 }
 
 impl Transform for MessageContentPart {
-    type Out = nim_ai::ChatMessageContentPart;
+    type Output = nim_ai::ChatMessageContentPart;
+    type Context<'a> = Services<'a>;
 
-    fn transform<'a>(&'a self, s: &'a Services<'_>) -> BoxFuture<'a, nim_error::Result<Self::Out>> {
+    fn transform<'a>(&'a self, s: &'a Services<'a>) -> BoxFuture<'a, nim_error::Result<Self::Output>> {
         Box::pin(async move {
             match self {
-                Self::String(text) | Self::Text { text } => Ok(nim_ai::ChatMessageContentPart::Text { text: text.clone() }),
+                Self::Text { text } => Ok(nim_ai::ChatMessageContentPart::Text { text: text.clone() }),
                 Self::Artifact { artifact_id } => {
                     let artifact = s.artifacts().find_by_id(*artifact_id).await?;
 

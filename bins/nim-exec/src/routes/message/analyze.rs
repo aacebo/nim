@@ -17,6 +17,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
         .chat(nim::runtime::ai::TextChatOptions {
             chat: nim::ai::ChatOptions {
                 messages: messages.transform(&ctx.services()).await?,
+                compat: nim::ai::CompatMode::Ignore,
                 ..Default::default()
             },
             ..Default::default()
@@ -30,7 +31,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
             chat_id: message.chat_id,
             parent_id: message.parent_id,
             role: nim::state::Role::Agent,
-            content: nim::state::MessageContent::Single(nim::state::MessageContentPart::String(
+            content: nim::state::MessageContent::String(
                 assistant
                     .content
                     .and_then(|content| match content {
@@ -38,7 +39,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
                         nim::ai::ChatMessageContent::Parts(_) => None,
                     })
                     .unwrap_or_default(),
-            )),
+            ),
         })
         .await?;
 

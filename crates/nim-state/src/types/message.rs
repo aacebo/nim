@@ -94,17 +94,17 @@ impl TryFrom<nim_store::MessageRow> for Message {
 #[serde(untagged)]
 pub enum MessageContent {
     #[validate]
-    Single(#[validate] MessageContentPart),
+    String(#[validate(min_length = 1)] String),
 
     #[validate(min_items = 1)]
-    Array(#[validate] Vec<MessageContentPart>),
+    Parts(#[validate] Vec<MessageContentPart>),
 }
 
 impl MessageContent {
     pub fn artifacts(&self) -> Vec<ArtifactId> {
         match self {
-            Self::Single(v) => v.artifacts(),
-            Self::Array(arr) => arr.iter().flat_map(|v| v.artifacts()).collect(),
+            Self::String(_) => Default::default(),
+            Self::Parts(arr) => arr.iter().flat_map(|v| v.artifacts()).collect(),
         }
     }
 }
@@ -114,7 +114,6 @@ impl MessageContent {
 #[serde(untagged)]
 pub enum MessageContentPart {
     #[validate]
-    String(#[validate(min_length = 1)] String),
     Text {
         #[validate(min_length = 1)]
         text: String,

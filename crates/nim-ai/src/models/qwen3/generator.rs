@@ -76,6 +76,7 @@ impl Generator {
         let max_len = options.max_len;
         let input: hf_chat_template::RenderInput = options.try_into()?;
         let text = self.template.render(&input).map_err(nim_error::Diagnostic::message)?;
+        tracing::info!(text);
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_len = crate::models::output_limit("Qwen3", self.context_limit, ids.len(), max_len)?;

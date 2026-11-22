@@ -9,7 +9,7 @@ mod scorer;
 mod stopwords;
 
 use crate::models::{
-    Caption, CaptionOptions, Chat, ChatOptions, Classify, ClassifyMode, ClassifyOptions, Context, Embed, Summarize,
+    Caption, CaptionOptions, Chat, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, Summarize,
     SummarizeOptions, Transcribe, TranscribeOptions,
 };
 use crate::types::{Classification, Keyword, Offset, Polarity, Span, TextOutput, Word};
@@ -133,9 +133,9 @@ pub(crate) fn decode_entities(words: Vec<Word>, text: &str, labels: &[String]) -
     }
 }
 
-pub fn chat<M: Chat + ?Sized>(model: &M, ctx: &Context, options: ChatOptions) -> nim_error::Result<crate::ChatAssistantMessage> {
-    options.validate()?;
-    model.chat(ctx, options)
+pub fn complete<M: Complete + ?Sized>(model: &M, ctx: &Context, chat: Chat) -> nim_error::Result<crate::ChatAssistantMessage> {
+    chat.validate()?;
+    model.complete(ctx, chat)
 }
 
 pub fn summarize<M: Summarize + ?Sized>(
@@ -193,8 +193,8 @@ mod capability_tests {
 
     struct TestModel;
 
-    impl Chat for TestModel {
-        fn chat(&self, _: &Context, _: ChatOptions) -> nim_error::Result<crate::ChatAssistantMessage> {
+    impl Complete for TestModel {
+        fn complete(&self, _: &Context, _: Chat) -> nim_error::Result<crate::ChatAssistantMessage> {
             Ok(crate::ChatAssistantMessage {
                 content: Some(crate::ChatMessageContent::Text("reply".into())),
                 reasoning: None,
@@ -211,17 +211,17 @@ mod capability_tests {
     }
 
     #[test]
-    fn chat_and_summarize_validate_options_and_batch_size() {
+    fn complete_and_summarize_validate_options_and_batch_size() {
         let device = Device::Cpu;
         let ctx = Context::new(None, &device, "test");
         let input = [b"input".as_slice()];
-        let options = ChatOptions::default();
-        assert!(chat(&TestModel, &ctx, options).is_ok());
+        let options = Chat::default();
+        assert!(complete(&TestModel, &ctx, options).is_ok());
         assert!(
-            chat(
+            complete(
                 &TestModel,
                 &ctx,
-                ChatOptions {
+                Chat {
                     max_len: Some(0),
                     ..Default::default()
                 }

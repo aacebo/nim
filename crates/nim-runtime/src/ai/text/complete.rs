@@ -1,17 +1,17 @@
-use nim_ai::{ChatAssistantMessage, ChatOptions, models::ModelRef};
+use nim_ai::{Chat, ChatAssistantMessage, models::ModelRef};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
 #[derive(Debug, Clone)]
-pub struct TextChatOptions {
+pub struct TextCompleteOptions {
     pub model: ModelRef,
-    pub chat: ChatOptions,
+    pub chat: Chat,
     pub task: TaskOptions,
 }
 
-impl Default for TextChatOptions {
+impl Default for TextCompleteOptions {
     fn default() -> Self {
-        let options = nim_ai::pipelines::text::chat::Options::default();
+        let options = nim_ai::pipelines::text::complete::Options::default();
 
         Self {
             model: options.model,
@@ -21,8 +21,8 @@ impl Default for TextChatOptions {
     }
 }
 
-impl From<TextChatOptions> for nim_ai::pipelines::text::chat::Options {
-    fn from(options: TextChatOptions) -> Self {
+impl From<TextCompleteOptions> for nim_ai::pipelines::text::complete::Options {
+    fn from(options: TextCompleteOptions) -> Self {
         Self {
             model: options.model,
             chat: options.chat,
@@ -31,15 +31,15 @@ impl From<TextChatOptions> for nim_ai::pipelines::text::chat::Options {
 }
 
 #[derive(Debug, Clone)]
-pub struct TextChatSummarizeOptions {
+pub struct TextCompleteSummarizeOptions {
     pub model: ModelRef,
-    pub chat: ChatOptions,
+    pub chat: Chat,
     pub task: TaskOptions,
 }
 
-impl Default for TextChatSummarizeOptions {
+impl Default for TextCompleteSummarizeOptions {
     fn default() -> Self {
-        let options = nim_ai::pipelines::text::chat::Options::default();
+        let options = nim_ai::pipelines::text::complete::Options::default();
 
         Self {
             model: options.model,
@@ -49,8 +49,8 @@ impl Default for TextChatSummarizeOptions {
     }
 }
 
-impl From<TextChatSummarizeOptions> for nim_ai::pipelines::text::chat::Options {
-    fn from(options: TextChatSummarizeOptions) -> Self {
+impl From<TextCompleteSummarizeOptions> for nim_ai::pipelines::text::complete::Options {
+    fn from(options: TextCompleteSummarizeOptions) -> Self {
         Self {
             model: options.model,
             chat: options.chat,
@@ -59,7 +59,7 @@ impl From<TextChatSummarizeOptions> for nim_ai::pipelines::text::chat::Options {
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn chat(&self, options: TextChatOptions) -> nim_error::Result<ChatAssistantMessage> {
+    pub async fn complete(&self, options: TextCompleteOptions) -> nim_error::Result<ChatAssistantMessage> {
         let model = crate::models::assert(&self._services, &options.model).await?;
         let mut options = options;
 
@@ -67,8 +67,8 @@ impl<'a> TextPipelines<'a> {
             options.task.sources.push(TaskSource::Model(model.id));
         }
 
-        let out = task_run!(self, "text_chat", &options, {
-            nim_ai::pipelines::text::chat::run(options.into())
+        let out = task_run!(self, "text_complete", &options, {
+            nim_ai::pipelines::text::complete::run(options.into())
         })?;
 
         Ok(out)

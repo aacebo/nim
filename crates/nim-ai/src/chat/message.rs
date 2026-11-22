@@ -359,7 +359,7 @@ impl ChatMessageContent {
                         }
                         _ => {
                             return Err(nim_error::Diagnostic::message(
-                                "remote chat does not support this media content",
+                                "remote completion does not support this media content",
                             ));
                         }
                     }

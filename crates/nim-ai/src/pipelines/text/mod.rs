@@ -1,5 +1,5 @@
-pub mod chat;
 pub mod classify;
+pub mod complete;
 pub mod embeddings;
 pub mod summarize;
 
@@ -32,7 +32,7 @@ pub mod defaults {
         models::refer(models::qwen3::QUANTIZED_MODEL).expect("built-in model ids are valid")
     }
 
-    pub fn chat() -> models::ModelRef {
+    pub fn complete() -> models::ModelRef {
         models::refer(models::qwen3::QUANTIZED_MODEL).expect("built-in model ids are valid")
     }
 }

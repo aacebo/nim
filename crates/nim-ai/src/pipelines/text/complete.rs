@@ -1,6 +1,6 @@
 use crate::tasks;
 use crate::{
-    ChatAssistantMessage, ChatOptions,
+    Chat, ChatAssistantMessage,
     models::{ModelRef, load},
 };
 
@@ -9,13 +9,13 @@ pub struct Options {
     pub model: ModelRef,
 
     #[serde(flatten)]
-    pub chat: ChatOptions,
+    pub chat: Chat,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
-            model: super::defaults::chat(),
+            model: super::defaults::complete(),
             chat: Default::default(),
         }
     }
@@ -24,6 +24,6 @@ impl Default for Options {
 #[tracing::instrument(skip_all, err)]
 pub fn run(options: Options) -> nim_error::Result<ChatAssistantMessage> {
     let model = load(&options.model)?;
-    let capable = model.as_chat().ok_or_else(|| model.cannot("chat"))?;
-    tasks::chat(capable, &model.context(), options.chat)
+    let capable = model.as_complete().ok_or_else(|| model.cannot("complete"))?;
+    tasks::complete(capable, &model.context(), options.chat)
 }

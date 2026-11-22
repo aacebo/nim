@@ -1,10 +1,10 @@
-mod chat;
 mod classify;
+mod complete;
 mod embeddings;
 mod summarize;
 
-pub use chat::*;
 pub use classify::*;
+pub use complete::*;
 pub use embeddings::*;
 pub use summarize::*;
 

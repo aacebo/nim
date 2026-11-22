@@ -44,8 +44,8 @@ use candle_core::{DType, Device};
 
 use crate::resources::Repository;
 pub(crate) use crate::{
-    Caption, CaptionOptions, Chat, ChatOptions, Classify, ClassifyMedia, ClassifyMode, ClassifyOptions, Context, Embed,
-    EmbedMode, EmbedOptions, Summarize, SummarizeOptions, Transcribe, TranscribeOptions,
+    Caption, CaptionOptions, Chat, Classify, ClassifyMedia, ClassifyMode, ClassifyOptions, Complete, Context, Embed, EmbedMode,
+    EmbedOptions, Summarize, SummarizeOptions, Transcribe, TranscribeOptions,
 };
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
@@ -418,7 +418,7 @@ impl Model {
         }
     }
 
-    pub fn as_chat(&self) -> Option<&dyn Chat> {
+    pub fn as_complete(&self) -> Option<&dyn Complete> {
         match &self.model {
             AnyModel::QwenGenerator(model) => Some(model),
             AnyModel::Qwen3Generator(model) => Some(model),

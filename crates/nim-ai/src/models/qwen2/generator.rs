@@ -5,7 +5,7 @@ use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::{quantized_qwen2, qwen2};
 
-use crate::{Chat, ChatAssistantMessage, ChatOptions, Context, Summarize, SummarizeOptions, types::TextOutput};
+use crate::{Chat, ChatAssistantMessage, Complete, Context, Summarize, SummarizeOptions, types::TextOutput};
 
 use super::Config;
 
@@ -69,11 +69,11 @@ impl Generator {
         })
     }
 
-    fn one(&self, ctx: &Context, options: ChatOptions) -> nim_error::Result<ChatAssistantMessage> {
+    fn one(&self, ctx: &Context, chat: Chat) -> nim_error::Result<ChatAssistantMessage> {
         let tokenizer = ctx.tokenizer()?;
-        let compat = options.compat;
-        let max_len = options.max_len;
-        let input: hf_chat_template::RenderInput = options.try_into()?;
+        let compat = chat.compat;
+        let max_len = chat.max_len;
+        let input: hf_chat_template::RenderInput = chat.try_into()?;
         let text = self.template.render(&input).map_err(nim_error::Diagnostic::message)?;
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
@@ -132,15 +132,15 @@ impl Generator {
     }
 }
 
-impl Chat for Generator {
-    fn chat(&self, ctx: &Context, options: ChatOptions) -> nim_error::Result<ChatAssistantMessage> {
-        options.validate()?;
+impl Complete for Generator {
+    fn complete(&self, ctx: &Context, chat: Chat) -> nim_error::Result<ChatAssistantMessage> {
+        chat.validate()?;
 
-        if options.beams.is_some_and(|beams| beams != 1) {
-            return Err(nim_error::Diagnostic::message("Qwen chat supports one beam"));
+        if chat.beams.is_some_and(|beams| beams != 1) {
+            return Err(nim_error::Diagnostic::message("Qwen completion supports one beam"));
         }
 
-        self.one(ctx, options)
+        self.one(ctx, chat)
     }
 }
 
@@ -150,7 +150,7 @@ impl Summarize for Generator {
 
         let responses = input.iter().map(|bytes| {
             let text = std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from)?;
-            self.chat(ctx, ChatOptions {
+            self.complete(ctx, Chat {
                 messages: vec![crate::ChatUserMessage { content: crate::ChatMessageContent::Text(format!("Summarize the text concisely and accurately, using only information present in the text. Return only the summary.\n\n{text}")) }.into()],
             beams: options.beams,
             max_len: options.max_len,

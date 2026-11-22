@@ -14,8 +14,8 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
         .runtime()
         .pipelines()
         .text()
-        .chat(nim::runtime::ai::TextChatOptions {
-            chat: nim::ai::ChatOptions {
+        .complete(nim::runtime::ai::TextCompleteOptions {
+            chat: nim::ai::Chat {
                 messages: messages.transform(&ctx.services()).await?,
                 compat: nim::ai::CompatMode::Ignore,
                 ..Default::default()

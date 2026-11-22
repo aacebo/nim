@@ -57,9 +57,9 @@ impl OpenAI {
         Ok(serde_json::from_str(&content)?)
     }
 
-    /// A plain chat completion. Generation returns prose, so unlike `json` it is not constrained
+    /// A plain prompt completion. Generation returns prose, so unlike `json` it is not constrained
     /// to a schema -- wrapping a summary in a JSON envelope only to unwrap it buys nothing.
-    pub fn complete(&self, prompt: Option<&str>, input: &str, max_len: Option<usize>) -> nim_error::Result<String> {
+    pub fn prompt(&self, prompt: Option<&str>, input: &str, max_len: Option<usize>) -> nim_error::Result<String> {
         let mut messages = Vec::new();
 
         if let Some(prompt) = prompt {
@@ -87,7 +87,7 @@ impl OpenAI {
             .ok_or_else(|| nim_error::Diagnostic::message("no completion returned"))
     }
 
-    pub fn chat(
+    pub fn complete(
         &self,
         messages: Vec<serde_json::Value>,
         tools: Vec<serde_json::Value>,

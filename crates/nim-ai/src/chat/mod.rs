@@ -10,8 +10,12 @@ pub use tool::*;
 
 use crate::Context;
 
-pub trait Chat: Send + Sync {
-    fn chat(&self, ctx: &Context, options: ChatOptions) -> nim_error::Result<ChatAssistantMessage>;
+pub trait Complete: Send + Sync {
+    fn complete(&self, ctx: &Context, chat: Chat) -> nim_error::Result<ChatAssistantMessage>;
+}
+
+pub trait Parse<T>: Sized {
+    fn parse(&self) -> nim_error::Result<T>;
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -43,7 +47,7 @@ pub enum RenderMode {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ChatOptions {
+pub struct Chat {
     pub messages: Vec<ChatMessage>,
     pub tools: Vec<Tool>,
     pub documents: Vec<Document>,
@@ -55,7 +59,7 @@ pub struct ChatOptions {
     pub beams: Option<usize>,
 }
 
-impl ChatOptions {
+impl Chat {
     pub fn validate(&self) -> nim_error::Result<()> {
         if self.beams == Some(0) || self.max_len == Some(0) {
             return Err(nim_error::Diagnostic::message("beams and max_len must be greater than zero"));
@@ -65,26 +69,26 @@ impl ChatOptions {
     }
 }
 
-impl TryFrom<ChatOptions> for hf_chat_template::RenderInput {
+impl TryFrom<Chat> for hf_chat_template::RenderInput {
     type Error = nim_error::Diagnostic;
 
-    fn try_from(mut value: ChatOptions) -> Result<Self, Self::Error> {
+    fn try_from(mut value: Chat) -> Result<Self, Self::Error> {
         if matches!(value.mode, RenderMode::Continue) && value.compat == CompatMode::Error {
             return Err(nim_error::Diagnostic::message(
-                "local chat does not support continuation mode",
+                "local completion does not support continuation mode",
             ));
         }
 
         if value.vision && value.compat == CompatMode::Error {
             return Err(nim_error::Diagnostic::message(
-                "local Qwen chat does not support vision input",
+                "local Qwen completion does not support vision input",
             ));
         }
 
         if value.messages.iter().any(ChatMessage::has_non_text_parts) {
             if value.compat == CompatMode::Error {
                 return Err(nim_error::Diagnostic::message(
-                    "local Qwen chat does not support media content",
+                    "local Qwen completion does not support media content",
                 ));
             }
 

@@ -191,7 +191,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                         sources: vec![signal.content.id.into()],
                         ..Default::default()
                     },
-                    model: nim::ai::models::refer("facebook/bart-large-mnli")?,
+                    model: nim::ai::models::refer("valhalla/distilbart-mnli-12-3")?,
                     labels: Some(vec![
                         nim::state::Label::Entity.as_classify_label().to_string(),
                         nim::state::Label::Valence.as_classify_label().to_string(),

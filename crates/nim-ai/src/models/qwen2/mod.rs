@@ -5,6 +5,6 @@ pub use candle_transformers::models::qwen2::Config;
 pub use generator::Qwen2Generator;
 pub use template::Qwen2Template;
 
-pub const MODEL: &str = "Qwen/Qwen2.5-3B-Instruct";
-pub const QUANTIZED_MODEL: &str = "Qwen/Qwen2.5-3B-Instruct-GGUF";
-pub const WEIGHTS: &str = "qwen2.5-3b-instruct-q4_k_m.gguf";
+pub const MODEL: &str = "Qwen/Qwen2.5-1.5B-Instruct";
+pub const QUANTIZED_MODEL: &str = "Qwen/Qwen2.5-1.5B-Instruct-GGUF";
+pub const WEIGHTS: &str = "qwen2.5-1.5b-instruct-q4_k_m.gguf";

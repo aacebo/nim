@@ -43,7 +43,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                     sources: vec![signal.content.id.into()],
                     ..Default::default()
                 },
-                model: nim::ai::models::refer("Qwen/Qwen2.5-3B-Instruct-GGUF")?,
+                model: nim::ai::models::refer("Qwen/Qwen2.5-1.5B-Instruct-GGUF")?,
                 ..Default::default()
             },
         )
@@ -144,7 +144,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                     sources: vec![signal.content.id.into()],
                     ..Default::default()
                 },
-                model: nim::ai::models::refer("dbmdz/bert-large-cased-finetuned-conll03-english")?,
+                model: nim::ai::models::refer("dbmdz/bert-base-cased-finetuned-conll03-english")?,
                 min_score: 0.2,
                 ..Default::default()
             },
@@ -220,7 +220,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
                         sources: vec![signal.content.id.into()],
                         ..Default::default()
                     },
-                    model: nim::ai::models::refer("facebook/bart-large-mnli")?,
+                    model: nim::ai::models::refer("valhalla/distilbart-mnli-12-3")?,
                     labels: Some(vec![
                         nim::state::Label::Entity.as_classify_label().to_string(),
                         nim::state::Label::Valence.as_classify_label().to_string(),

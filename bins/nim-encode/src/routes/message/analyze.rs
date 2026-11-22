@@ -61,7 +61,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
                     sources: vec![chat.id.into(), signal.content.id.into()],
                     ..Default::default()
                 },
-                model: nim::ai::models::refer("Qwen/Qwen2.5-3B-Instruct-GGUF")?,
+                model: nim::ai::models::refer("Qwen/Qwen2.5-1.5B-Instruct-GGUF")?,
                 ..Default::default()
             },
         )

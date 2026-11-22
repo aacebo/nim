@@ -50,7 +50,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Memory>) -> nim::error::Resu
                     sources: artifacts.iter().map(|a| a.id.into()).collect(),
                     ..Default::default()
                 },
-                model: nim::ai::models::refer("Qwen/Qwen2.5-3B-Instruct-GGUF")?,
+                model: nim::ai::models::refer("Qwen/Qwen2.5-1.5B-Instruct-GGUF")?,
                 ..Default::default()
             },
         )

@@ -12,7 +12,7 @@ pub mod defaults {
     }
 
     pub fn transcribe() -> models::ModelRef {
-        models::refer("openai/whisper-small").expect("built-in model ids are valid")
+        models::refer("openai/whisper-base").expect("built-in model ids are valid")
     }
 
     pub fn captions() -> models::ModelRef {

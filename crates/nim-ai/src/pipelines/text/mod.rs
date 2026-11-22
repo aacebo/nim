@@ -9,7 +9,7 @@ pub mod defaults {
     use crate::models;
 
     pub fn embed() -> models::ModelRef {
-        models::refer("sentence-transformers/all-MiniLM-L12-v2").expect("built-in model ids are valid")
+        models::refer("sentence-transformers/all-MiniLM-L6-v2").expect("built-in model ids are valid")
     }
 
     pub fn keywords() -> models::ModelRef {
@@ -21,18 +21,18 @@ pub mod defaults {
     }
 
     pub fn zero_shot() -> models::ModelRef {
-        models::refer("facebook/bart-large-mnli").expect("built-in model ids are valid")
+        models::refer("valhalla/distilbart-mnli-12-3").expect("built-in model ids are valid")
     }
 
     pub fn token_classify() -> models::ModelRef {
-        models::refer("dbmdz/bert-large-cased-finetuned-conll03-english").expect("built-in model ids are valid")
+        models::refer("dbmdz/bert-base-cased-finetuned-conll03-english").expect("built-in model ids are valid")
     }
 
     pub fn summarize() -> models::ModelRef {
-        models::refer(models::qwen3::QUANTIZED_MODEL).expect("built-in model ids are valid")
+        models::refer(models::qwen2::QUANTIZED_MODEL).expect("built-in model ids are valid")
     }
 
     pub fn complete() -> models::ModelRef {
-        models::refer(models::qwen3::COMPLETION_QUANTIZED_MODEL).expect("built-in model ids are valid")
+        models::refer(models::qwen2::QUANTIZED_MODEL).expect("built-in model ids are valid")
     }
 }

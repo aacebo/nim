@@ -34,9 +34,18 @@ impl Loader {
         if self.repo.exists(Path::new("vocab.json")) {
             let vocab = self.resolve(Path::new("vocab.json"))?;
             let merges = self.resolve(Path::new("merges.txt"))?;
-            let added = self.resolve(Path::new("added_tokens.json"))?;
+            let added = self
+                .repo
+                .exists(Path::new("added_tokens.json"))
+                .then(|| self.resolve(Path::new("added_tokens.json")))
+                .transpose()?;
+            let special = self
+                .repo
+                .exists(Path::new("special_tokens_map.json"))
+                .then(|| self.resolve(Path::new("special_tokens_map.json")))
+                .transpose()?;
 
-            return tokenizer::from_bpe(vocab, merges, added);
+            return tokenizer::from_bpe(vocab, merges, added.as_deref(), special.as_deref());
         }
 
         let path = self.resolve(Path::new("vocab.txt"))?;
@@ -61,11 +70,21 @@ impl Loader {
                 .iter()
                 .map(|file| self.resolve(Path::new(file)))
                 .collect::<Result<Vec<_>, _>>()?
-        } else {
+        } else if self.repo.exists(Path::new("model.safetensors")) {
             vec![self.resolve(Path::new("model.safetensors"))?]
+        } else {
+            Vec::new()
         };
 
-        Ok(unsafe { VarBuilder::from_mmaped_safetensors(&paths, self.dtype, &self.device) }?)
+        if !paths.is_empty() {
+            return Ok(unsafe { VarBuilder::from_mmaped_safetensors(&paths, self.dtype, &self.device) }?);
+        }
+
+        Ok(VarBuilder::from_pth(
+            self.resolve(Path::new("pytorch_model.bin"))?,
+            self.dtype,
+            &self.device,
+        )?)
     }
 
     pub fn json<T: serde::de::DeserializeOwned>(&self, file: &str) -> nim_error::Result<T> {

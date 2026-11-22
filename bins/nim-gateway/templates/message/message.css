@@ -73,8 +73,9 @@
 
 .message-artifact-row { display: grid; width: 100%; grid-template-columns: 34px minmax(0, 1fr) 18px; align-items: center; gap: 11px; min-height: 58px; padding: 8px 12px; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
 .message-artifact-row:hover, .message-artifact-row:focus-visible { background: #383838; outline: 0; }
-.message-artifact-icon { display: flex; width: 34px; height: 34px; align-items: center; justify-content: center; border-radius: 8px; background: #171717; color: #d8d8d8; }
-.message-artifact-icon svg, .message-artifact-open svg { display: block; flex: 0 0 auto; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.message-artifact-icon { position: relative; width: 34px; height: 34px; border-radius: 8px; background: #171717; color: #d8d8d8; }
+.message-artifact-icon svg, .message-artifact-open svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.message-artifact-icon svg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 .message-artifact-row strong, .message-artifact-row span { display: block; }
 .message-artifact-row > div { min-width: 0; }
 .message-artifact-row strong { font-size: 12px; font-weight: 500; }

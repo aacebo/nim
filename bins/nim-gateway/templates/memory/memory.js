@@ -451,8 +451,8 @@ customElements.define("nim-memory", class extends HTMLElement {
         }
 
         function makeMemoryArt(memory) {
-            const image = memory.record.artifacts?.find((artifact) => host.closest("#nim-app").querySelector("nim-artifacts")?.controller?.isImage(artifact));
-            if (image) return host.closest("#nim-app").querySelector("nim-artifacts").controller.image(image, "memory-art");
+            const image = window.nimArtifact && memory.record.artifacts?.find(window.nimArtifact.isImage);
+            if (image) return window.nimArtifact.image(image, "memory-art");
             const art = makeSvgElement("svg", {
                 class: "memory-art",
                 viewBox: "0 0 100 80",
@@ -996,7 +996,7 @@ customElements.define("nim-memory", class extends HTMLElement {
                 node.title = summary;
                 node.setAttribute("aria-label", summary);
                 node.querySelector(".memory-graph-label").textContent = summary;
-                const image = memory.record.artifacts?.find((artifact) => host.closest("#nim-app").querySelector("nim-artifacts")?.controller?.isImage(artifact));
+                const image = window.nimArtifact && memory.record.artifacts?.find(window.nimArtifact.isImage);
                 const imageKey = image ? `${image.id}:${image.version}` : "";
                 if (node.dataset.imageKey !== imageKey) {
                     node.dataset.imageKey = imageKey;
@@ -1297,7 +1297,7 @@ customElements.define("nim-memory", class extends HTMLElement {
                     query.set("cursor", page.next);
                 }
 
-                if ([...records.values()].some((record) => record.artifacts?.length)) await loadView("artifacts");
+                if ([...records.values()].some((record) => record.artifacts?.length)) await loadArtifactView();
                 for (const record of records.values()) {
                     updateMemory(record, true);
                 }
@@ -1384,7 +1384,7 @@ customElements.define("nim-memory", class extends HTMLElement {
         socket.addEventListener("open", () => { void this.controller.refresh(); }, { signal: this.listeners.signal });
         for (const event of pendingMemorySignals.splice(0)) {
             if (event.content?.artifacts?.length) {
-                void loadView("artifacts").then(() => this.controller.handleSignal(event)).catch(console.error);
+                void loadArtifactView().then(() => this.controller.handleSignal(event)).catch(console.error);
             } else {
                 this.controller.handleSignal(event);
             }
@@ -1397,7 +1397,7 @@ customElements.define("nim-memory", class extends HTMLElement {
             try {
                 const payload = typeof event.data === "string" ? event.data : new TextDecoder().decode(event.data);
                 const incoming = JSON.parse(payload);
-                if (incoming.content?.artifacts?.length) await loadView("artifacts");
+                if (incoming.content?.artifacts?.length) await loadArtifactView();
                 if (this.controller.handleSignal(incoming)) {
                     this.dispatchEvent(new CustomEvent("memory-change", { bubbles: true, detail: { hasMemories: this.controller.hasMemories() } }));
                 }

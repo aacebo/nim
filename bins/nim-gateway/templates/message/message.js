@@ -23,6 +23,11 @@ customElements.define("nim-message", class extends HTMLElement {
         return `${Math.round((value || 0) * 100)}%`;
     }
 
+    confidenceClass(value) {
+        const percent = Math.round((value || 0) * 100);
+        return percent < 50 ? "is-low" : percent < 80 ? "is-medium" : "is-high";
+    }
+
     messageText(content) {
         if (typeof content === "string") return content;
         if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("\n");
@@ -128,11 +133,8 @@ customElements.define("nim-message", class extends HTMLElement {
         return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2h9l5 5v15H5zM14 2v6h5M8 12h8M8 16h8"></path></svg>';
     }
 
-    async openArtifact(artifact) {
-        await loadView("artifacts");
-        const artifactView = document.querySelector("nim-artifacts").controller;
-        artifactView.remember(this.artifacts);
-        artifactView.open(this.artifacts, this.artifacts.indexOf(artifact));
+    async openArtifact(artifact, trigger) {
+        await openArtifactView(artifact.id, trigger);
     }
 
     annotationView() {
@@ -160,6 +162,7 @@ customElements.define("nim-message", class extends HTMLElement {
             line.append(label, text, value);
             const progress = document.createElement("div");
             const fill = document.createElement("span");
+            fill.className = this.confidenceClass(annotation.confidence);
             fill.style.width = this.percent(annotation.confidence);
             progress.append(fill);
             row.append(line, progress);
@@ -201,7 +204,7 @@ customElements.define("nim-message", class extends HTMLElement {
             open.className = "message-artifact-open";
             open.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8"></path><path d="M18 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></svg>';
             row.append(icon, content, open);
-            row.onclick = () => { void this.openArtifact(artifact); };
+            row.onclick = () => { void this.openArtifact(artifact, row); };
             table.append(row);
         }
         section.append(table);

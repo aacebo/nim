@@ -46,19 +46,19 @@ socket.addEventListener("message", (event) => {
 });
 
 const viewAssets = {
-    artifacts: { css: ["artifacts/artifacts.css"], js: ["artifacts/artifacts.js?v=5"] },
+    artifact: { css: ["message/message.css?v=26", "artifact/artifact.css?v=5"], js: ["artifact/artifact.js?v=5"] },
     chat: {
         css: ["chat/transcript/transcript.css?v=13", "chat/chat.css?v=4"],
         js: [
             "https://unpkg.com/marked@15.0.7/marked.min.js",
             "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",
-            "chat/transcript/transcript.js?v=13",
-            "chat/chat.js?v=16",
+            "chat/transcript/transcript.js?v=14",
+            "chat/chat.js?v=18",
         ],
     },
     memory: {
         css: ["memory/timeline/timeline.css", "memory/graph/graph.css?v=2", "memory/details/details.css", "memory/memory.css?v=3"],
-        js: ["memory/timeline/timeline.js", "memory/graph/graph.js", "memory/details/details.js?v=2", "memory/memory.js?v=9"],
+        js: ["memory/timeline/timeline.js", "memory/graph/graph.js", "memory/details/details.js?v=3", "memory/memory.js?v=10"],
     },
     "dev-tools": { css: ["dev-tools/dev-tools.css?v=4"], js: ["dev-tools/dev-tools.js?v=7"] },
 };
@@ -85,6 +85,26 @@ function loadAsset(path, type) {
     return load;
 }
 
+async function loadArtifactView() {
+    await Promise.all(viewAssets.artifact.css.map((path) => loadAsset(path, "css")));
+    for (const path of viewAssets.artifact.js) await loadAsset(path, "js");
+}
+
+async function openArtifactView(id, trigger) {
+    await loadArtifactView();
+    const response = await fetch(`/web/views/artifacts/${encodeURIComponent(id)}`);
+    if (!response.ok) throw new Error("Unable to load artifact details");
+    const documentView = new DOMParser().parseFromString(await response.text(), "text/html");
+    const template = documentView.getElementById("artifact-template");
+    if (!template) throw new Error("Artifact details are unavailable");
+    document.getElementById("artifact-template")?.remove();
+    document.querySelector("nim-artifact")?.remove();
+    document.body.append(template);
+    const view = document.createElement("nim-artifact");
+    document.body.append(view);
+    view.open(trigger);
+}
+
 function loadView(name) {
     if (viewLoads.has(name)) return viewLoads.get(name);
     const load = (async () => {
@@ -95,8 +115,12 @@ function loadView(name) {
         if (!template) throw new Error(`Missing ${name} template`);
         document.getElementById(`${name}-template`)?.remove();
         document.body.append(template);
-        if (name === "memory" && JSON.parse(template.dataset.state).some((record) => record.artifacts?.length)) {
-            await loadView("artifacts");
+        const state = template.content.querySelector(".action-view")?.dataset;
+        const hasArtifacts = name === "memory"
+            ? JSON.parse(state?.state ?? "[]").some((record) => record.artifacts?.length)
+            : name === "chat" && JSON.parse(state?.messages ?? "[]").some((message) => JSON.stringify(message.content).includes('"type":"artifact"'));
+        if (hasArtifacts) {
+            await loadArtifactView();
         }
         await Promise.all(viewAssets[name].css.map((path) => loadAsset(path, "css")));
         for (const path of viewAssets[name].js) {

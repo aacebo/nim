@@ -32,9 +32,9 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         return DOMPurify.sanitize(marked.parse(content, { gfm: true, renderer }));
     }
 
-    messageArtifacts(content, artifactView) {
-        if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item, artifactView));
-        return content?.type === "artifact" ? [artifactView?.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
+    messageArtifacts(content, artifacts) {
+        if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item, artifacts));
+        return content?.type === "artifact" ? [artifacts?.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
     }
 
     messageOrder(message) {
@@ -49,7 +49,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         });
     }
 
-    render({ open, chatMessages, historyLoading, historyError, artifactView }) {
+    render({ open, chatMessages, historyLoading, historyError, artifacts }) {
         const chatTranscript = this.querySelector("#chat-transcript");
         const chatScroll = this.querySelector(".chat-scroll");
         const chatMessageList = this.querySelector("#chat-messages");
@@ -103,8 +103,8 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             }
             row.append(header);
             if (content) row.append(text);
-            const artifacts = this.messageArtifacts(message.content, artifactView);
-            if (artifacts.length && artifactView) row.append(artifactView.list(artifacts));
+            const attachments = this.messageArtifacts(message.content, artifacts);
+            if (attachments.length && window.nimArtifact) row.append(window.nimArtifact.list(attachments));
             rows.append(row);
         }
 

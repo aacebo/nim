@@ -1,0 +1,25 @@
+<template id="artifact-template" data-artifact="{{ self.artifact|json }}" data-annotations="{{ self.annotations|json }}">
+    <dialog class="message-view artifact-view">
+        <header class="message-view-header">
+            <div class="message-view-heading">
+                <span class="artifact-view-icon" aria-hidden="true"></span>
+                <h3>Artifact</h3>
+                <span data-type></span>
+            </div>
+            <div class="artifact-view-actions">
+                <a class="artifact-download" data-download aria-disabled="true" aria-label="Preparing download" title="Preparing download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 19h14"></path></svg></a>
+                <button type="button" data-close aria-label="Close artifact details">×</button>
+            </div>
+            <div class="message-view-context">
+                <span data-id></span>
+                <time></time>
+            </div>
+        </header>
+        <div class="message-view-tabs" role="tablist" aria-label="Artifact view">
+            <button type="button" role="tab" data-tab="content">Content</button>
+            <button type="button" role="tab" data-tab="details">Details</button>
+            <button type="button" role="tab" data-tab="json">JSON</button>
+        </div>
+        <div class="message-view-body"></div>
+    </dialog>
+</template>

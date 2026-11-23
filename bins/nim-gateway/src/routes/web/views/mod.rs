@@ -1,4 +1,4 @@
-pub mod artifacts;
+pub mod artifact;
 pub mod chat;
 pub mod dev_tools;
 pub mod memory;

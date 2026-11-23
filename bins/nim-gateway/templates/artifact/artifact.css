@@ -1,0 +1,20 @@
+.artifact-view-icon { display: grid; width: 14px; height: 14px; place-items: center; color: #d4d4d4; }
+.artifact-view-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.artifact-content { display: flex; box-sizing: border-box; height: calc(var(--message-view-body-height) - 28px); align-items: center; justify-content: center; gap: 16px; padding: 0; }
+.artifact-content > img, .artifact-content > video { display: block; max-width: 100%; max-height: calc(100% - 48px); object-fit: contain; }
+.artifact-content > audio { width: min(100%, 540px); }
+.artifact-content > pre { align-self: stretch; box-sizing: border-box; width: 100%; margin: 0; padding: 14px; overflow: auto; border: 1px solid #202020; border-radius: 10px; background: #111111; color: #eeeeee; font: 12px/1.42 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.artifact-content-state { max-width: 360px; margin: 0; color: #c6c6c6; font-size: 12px; line-height: 1.42; text-align: center; }
+.artifact-content-state button, .artifact-download { margin-top: 12px; border: 1px solid #626262; border-radius: 999px; padding: 6px 10px; background: transparent; color: #ddd; font: 500 10px ui-sans-serif, system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+.artifact-view-actions { position: absolute; top: 18px; right: 14px; display: flex; align-items: center; gap: 10px; }
+.artifact-view-actions [data-close] { position: static; }
+.artifact-view-actions .artifact-download { display: grid; width: 16px; height: 16px; margin: 0; padding: 0; place-items: center; border: 0; border-radius: 0; color: #c5c5c5; }
+.artifact-view-actions .artifact-download svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.artifact-view-actions .artifact-download:hover { color: #fff; }
+.artifact-download[aria-disabled=true] { cursor: wait; opacity: 0.55; }
+.artifact-details { padding-bottom: 19px; }
+.artifact-metadata { margin: 14px 0 0; padding: 0; overflow: hidden; border: 1px solid #565656; border-radius: 11px; }
+.artifact-metadata > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; padding: 9px 11px; border-bottom: 1px solid #484848; font-size: 10px; }
+.artifact-metadata > div:last-child { border-bottom: 0; }
+.artifact-metadata dt { color: #c6c6c6; }
+.artifact-metadata dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }

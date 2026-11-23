@@ -2,6 +2,44 @@ nim-chat-transcript {
     display: contents;
 }
 
+.artifact-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.artifact-list:empty { display: none; }
+.artifact-list .artifact-chip {
+    display: inline-flex;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 44px;
+    max-width: 100%;
+    align-items: center;
+    gap: 8px;
+    overflow-wrap: anywhere;
+    border: 1px solid #899ac466;
+    border-radius: 6px;
+    padding: 8px 12px;
+    background: #9c57ff14;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.artifact-list .artifact-chip:hover { background: #9c57ff30; }
+.artifact-list .artifact-chip:focus-visible { outline: 2px solid #00e7ff; outline-offset: 3px; }
+.artifact-icon { width: 16px; height: 16px; flex: 0 0 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; color: var(--ui-muted, #b5c4dc); }
+.artifact-chip-name { min-width: 0; }
+#chat-messages .artifact-list { gap: 6px; margin-top: 8px; }
+#chat-messages .artifact-chip { min-height: 30px; gap: 6px; border-radius: 5px; padding: 5px 8px; border-color: rgb(176 200 235 / 22%); background: rgb(12 17 36 / 40%); font-size: 11px; line-height: 18px; letter-spacing: normal; text-transform: none; }
+#chat-messages .artifact-chip:hover { border-color: rgb(0 231 255 / 45%); background: rgb(0 231 255 / 7%); }
+#chat-messages .artifact-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#chat-messages .artifact-icon { width: 14px; height: 14px; flex-basis: 14px; }
+@media (pointer: coarse) {
+    #chat-messages .artifact-chip { min-height: 44px; }
+}
+
 #chat-transcript {
     position: absolute;
     top: 50%;

@@ -27,6 +27,7 @@ customElements.define("nim-chat", class extends HTMLElement {
         const initialMessages = JSON.parse(initialState.messages);
         const initialArtifacts = JSON.parse(initialState.artifacts);
         const chatMessages = new Map(initialMessages.map((message) => [message.id, message]));
+        const artifacts = new Map(initialArtifacts.map((artifact) => [artifact.id, artifact]));
         const signalDecoder = new TextDecoder();
         const historyLimit = 100;
 
@@ -38,6 +39,13 @@ customElements.define("nim-chat", class extends HTMLElement {
         let chatStatusTimer;
         let chatErrorTimer;
 
+        function rememberArtifacts(items) {
+            for (const artifact of items) {
+                const previous = artifacts.get(artifact.id);
+                if (!previous || (artifact.version ?? 0) >= (previous.version ?? 0)) artifacts.set(artifact.id, artifact);
+            }
+        }
+
         async function openMessageView(id, trigger) {
             const response = await fetch(`/web/views/messages/${encodeURIComponent(id)}`);
             if (!response.ok) throw new Error("Unable to load message details");
@@ -47,7 +55,7 @@ customElements.define("nim-chat", class extends HTMLElement {
             document.getElementById("message-template")?.remove();
             document.querySelector("nim-message")?.remove();
             document.body.append(template);
-            await Promise.all([loadAsset("message/message.css?v=23", "css"), loadAsset("message/message.js?v=23", "js")]);
+            await Promise.all([loadAsset("message/message.css?v=26", "css"), loadAsset("message/message.js?v=24", "js")]);
             const view = document.createElement("nim-message");
             document.body.append(view);
             view.open(trigger);
@@ -98,8 +106,7 @@ customElements.define("nim-chat", class extends HTMLElement {
             if (isChat) {
                 if (initialArtifacts.length && !artifactsLoaded) {
                     artifactsLoaded = true;
-                    void loadView("artifacts").then(() => {
-                        host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(initialArtifacts);
+                    void loadArtifactView().then(() => {
                         renderChatTranscript();
                     }).catch(() => { artifactsLoaded = false; });
                 }
@@ -130,8 +137,8 @@ customElements.define("nim-chat", class extends HTMLElement {
                 if (!response.ok) throw new Error("Unable to load attachments");
                 const page = await response.json();
                 if (page.data.length) {
-                    await loadView("artifacts");
-                    host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(page.data);
+                    await loadArtifactView();
+                    rememberArtifacts(page.data);
                 }
                 if (!page.next) break;
                 if (cursors.has(page.next)) throw new Error("Attachment cursor did not advance");
@@ -159,7 +166,7 @@ customElements.define("nim-chat", class extends HTMLElement {
         function renderChatTranscript() {
             host.querySelector("nim-chat-transcript").render({
                 open: isChatOpen(), chatMessages, historyLoading, historyError,
-                artifactView: host.closest("#nim-app").querySelector("nim-artifacts")?.controller,
+                artifacts,
             });
         }
 
@@ -215,7 +222,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                 const response = signal?.subject === "nim.message.response" && signal.content?.chat_id === chatId;
                 if (mergeChatMessage(signal?.content)) {
                     if (host.querySelector("nim-chat-transcript").messageArtifacts(signal.content.content).length) {
-                        await loadView("artifacts");
+                        await loadArtifactView();
                         void loadChatArtifacts(chatId).then(renderChatTranscript).catch(() => {});
                     }
                     renderChatTranscript();
@@ -376,8 +383,6 @@ customElements.define("nim-chat", class extends HTMLElement {
             if (!Array.isArray(artifacts) || artifacts.length !== 1 || typeof artifacts[0]?.id !== "string" || !artifacts[0].id) {
                 throw new Error(`Invalid upload response for ${file.name}. Try again.`);
             }
-            await loadView("artifacts");
-            host.closest("#nim-app").querySelector("nim-artifacts").controller.remember(artifacts);
             attachment.artifactId = artifacts[0].id;
         }
 

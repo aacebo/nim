@@ -21,8 +21,7 @@
 nim-orb,
 nim-chat,
 nim-memory,
-nim-dev-tools,
-nim-artifacts {
+nim-dev-tools {
     display: contents;
 }
 

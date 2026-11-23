@@ -1,5 +1,4 @@
 (() => {
-    const blobs = new Map();
     const extensions = {
         avif: "image/avif", gif: "image/gif", jpeg: "image/jpeg", jpg: "image/jpeg", png: "image/png", svg: "image/svg+xml", webp: "image/webp",
         m4a: "audio/mp4", mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav", mp4: "video/mp4", webm: "video/webm",
@@ -30,21 +29,12 @@
     };
     const contentUrl = (artifact) => `/artifacts/${encodeURIComponent(artifact.id)}/content`;
     const blob = (artifact) => {
-        const key = `${artifact.id}:${artifact.version ?? 0}`;
-        if (!blobs.has(key)) {
-            const request = fetch(contentUrl(artifact)).then(async (response) => {
-                if (!response.ok) throw new Error(`Artifact content request failed (HTTP ${response.status}).`);
-                const data = await response.blob();
-                if (!data.size) throw new Error("The content endpoint returned an empty file.");
-                return data.slice(0, data.size, mime(artifact));
-            }).catch((error) => {
-                blobs.delete(key);
-                throw error;
-            });
-            blobs.set(key, request);
-            if (blobs.size > 12) blobs.delete(blobs.keys().next().value);
-        }
-        return blobs.get(key);
+        return fetch(contentUrl(artifact)).then(async (response) => {
+            if (!response.ok) throw new Error(`Artifact content request failed (HTTP ${response.status}).`);
+            const data = await response.blob();
+            if (!data.size) throw new Error("The content endpoint returned an empty file.");
+            return data.slice(0, data.size, mime(artifact));
+        });
     };
     const icon = (artifact) => {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -138,13 +128,14 @@ customElements.define("nim-artifact", class extends HTMLElement {
         const generation = this.generation;
         const section = document.createElement("section");
         section.className = "artifact-content";
+        const type = window.nimArtifact.mime(this.artifact);
+        if (type.startsWith("audio/")) section.classList.add("is-audio");
         const state = document.createElement("p");
         state.className = "artifact-content-state";
         state.textContent = "Loading artifact…";
         section.append(state);
         void window.nimArtifact.blob(this.artifact).then(async (data) => {
             if (!section.isConnected || generation !== this.generation) return;
-            const type = window.nimArtifact.mime(this.artifact);
             const url = URL.createObjectURL(data);
             this.previewUrl = url;
             let preview;
@@ -197,20 +188,24 @@ customElements.define("nim-artifact", class extends HTMLElement {
     detailsView() {
         const section = document.createElement("section");
         section.className = "artifact-details";
+        const summaryHeader = document.createElement("div");
+        summaryHeader.className = "message-summary-header";
         const summary = document.createElement("section");
         summary.className = "message-summary";
-        const heading = document.createElement("div");
         const title = document.createElement("h4");
         const confidence = document.createElement("strong");
         const text = document.createElement("p");
         title.textContent = "Summary";
         confidence.textContent = `${this.percent(this.artifact.confidence)} confidence`;
         text.textContent = this.artifact.summary || "No summary available.";
-        heading.append(title, confidence);
-        summary.append(heading, text);
+        summaryHeader.append(title, confidence);
+        summary.append(text);
         const metadata = document.createElement("dl");
         metadata.className = "artifact-metadata";
-        for (const [label, value] of [["Type", window.nimArtifact.mime(this.artifact)], ["Size", this.formatSize(this.artifact.size)], ["Created", this.formatDate(this.artifact.created_at)], ["Updated", this.formatDate(this.artifact.updated_at)]].filter(([, value]) => value)) {
+        const scores = [["Confidence", this.artifact.confidence], ["Salience", this.artifact.salience], ["Strength", this.artifact.strength]]
+            .filter(([, value]) => Number.isFinite(value))
+            .map(([label, value]) => [label, this.percent(value)]);
+        for (const [label, value] of [["Type", window.nimArtifact.mime(this.artifact)], ["Size", this.formatSize(this.artifact.size)], ...scores, ["Created", this.formatDate(this.artifact.created_at)], ["Updated", this.formatDate(this.artifact.updated_at)]].filter(([, value]) => value)) {
             const row = document.createElement("div");
             const key = document.createElement("dt");
             const detail = document.createElement("dd");
@@ -245,7 +240,7 @@ customElements.define("nim-artifact", class extends HTMLElement {
             table.append(row);
         }
         annotations.append(table);
-        section.append(summary, metadata, annotations);
+        section.append(summaryHeader, summary, metadata, annotations);
         return section;
     }
 
@@ -319,7 +314,7 @@ customElements.define("nim-artifact", class extends HTMLElement {
         this.trigger = trigger;
         this.querySelector("[data-type]").textContent = this.label(window.nimArtifact.kind(this.artifact));
         this.querySelector(".artifact-view-icon").append(window.nimArtifact.icon(this.artifact));
-        this.querySelector("[data-id]").textContent = `${this.artifact.id.slice(0, 16)}…`;
+        this.querySelector("[data-id]").textContent = this.artifact.id;
         const timestamp = this.querySelector("time");
         timestamp.dateTime = this.artifact.created_at;
         timestamp.textContent = this.formatDate(this.artifact.created_at);

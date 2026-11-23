@@ -32,3 +32,13 @@ Add platt scaling weights to models in database and read/write to them.
 1. Message::parent_id -> Message::reply_to_id
 2. move message content mapping from exec -> state service
 3. agent messages should be processed and parsed the same way we do user messages
+
+## Chat
+
+1. message replies
+2. chat threads
+
+## Logs/Tracing
+
+Add a new logs view that is a live trace/log stream that can be used to
+trace actions to linked stored data.

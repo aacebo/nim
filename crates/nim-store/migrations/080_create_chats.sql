@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS chats (
     id                  UUID            PRIMARY KEY,
+    parent_id           UUID            REFERENCES chats(id) ON DELETE SET NULL,
     version             INT             NOT NULL,
     summary             TEXT,
     embedding           VECTOR(768),

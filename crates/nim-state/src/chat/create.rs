@@ -11,6 +11,7 @@ impl<'a> ChatService<'a> {
             .chats()
             .create(ChatRow {
                 id: uuid::Uuid::now_v7(),
+                parent_id: None,
                 version: 0,
                 summary: None,
                 embedding: None,

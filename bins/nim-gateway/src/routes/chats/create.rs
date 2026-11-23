@@ -18,7 +18,7 @@ pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> nim::error::R
         .messages()
         .create(nim::state::MessageCreate {
             chat_id: chat.id,
-            parent_id: None,
+            reply_to_id: None,
             role: body.role,
             content: body.content.clone(),
         })

@@ -30,9 +30,24 @@ class NimSocket extends EventTarget {
 const socket = new NimSocket(socketUrl);
 const pendingMemorySignals = [];
 let memorySignalsOverflowed = false;
+const devEvents = [];
+let nextDevEvent = 0;
 socket.addEventListener("message", (event) => {
     try {
         const signal = JSON.parse(typeof event.data === "string" ? event.data : new TextDecoder().decode(event.data));
+        const subject = typeof signal.subject === "string" ? signal.subject : "Event";
+        const parts = subject.split(".").filter(Boolean);
+        if (parts[0] === "nim") parts.shift();
+        const events = window.Alpine?.store?.("nim")?.events ?? devEvents;
+        events.push({
+            key: nextDevEvent++,
+            date: new Date().toISOString(),
+            time: new Date().toLocaleTimeString(),
+            subject,
+            label: parts.map((part) => part.replaceAll("_", " ")).join(" / ") || "Event",
+            content: signal.content ?? null,
+        });
+        if (events.length > 100) events.shift();
         if (!signal.subject?.startsWith("nim.memory.")) return;
         if (!document.querySelector("nim-memory")?.controller) {
             pendingMemorySignals.push(signal);
@@ -46,9 +61,9 @@ socket.addEventListener("message", (event) => {
 });
 
 const viewAssets = {
-    artifact: { css: ["message/message.css?v=26", "artifact/artifact.css?v=5"], js: ["artifact/artifact.js?v=5"] },
+    artifact: { css: ["message/message.css?v=32", "artifact/artifact.css?v=6"], js: ["artifact/artifact.js?v=7"] },
     chat: {
-        css: ["chat/transcript/transcript.css?v=13", "chat/chat.css?v=4"],
+        css: ["chat/transcript/transcript.css?v=14", "chat/chat.css?v=4"],
         js: [
             "https://unpkg.com/marked@15.0.7/marked.min.js",
             "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",
@@ -137,7 +152,7 @@ function loadView(name) {
 }
 
 document.addEventListener("alpine:init", () => {
-    Alpine.store("nim", { events: [] });
+    Alpine.store("nim", { events: devEvents });
     Alpine.data("nimApp", () => ({
         hud: "idle",
         memoryDisabled: true,

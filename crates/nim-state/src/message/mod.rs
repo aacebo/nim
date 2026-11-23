@@ -7,7 +7,7 @@ mod find_annotation_by_label;
 mod find_annotations;
 mod find_by_chat_id;
 mod find_by_id;
-mod find_by_parent_id;
+mod find_by_reply_to_id;
 mod find_history;
 mod update;
 mod update_annotation;

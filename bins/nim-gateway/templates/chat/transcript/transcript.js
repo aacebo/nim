@@ -11,6 +11,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             this.scrollPosition = scroll.scrollTop;
             this.followLatest = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop < 16;
             scroll.classList.toggle("has-earlier-messages", scroll.scrollTop > 0);
+            if (scroll.scrollTop < 16) this.dispatchEvent(new CustomEvent("nim-chat-history", { bubbles: true }));
         }, true);
     }
 
@@ -32,9 +33,9 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         return DOMPurify.sanitize(marked.parse(content, { gfm: true, renderer }));
     }
 
-    messageArtifacts(content, artifacts) {
-        if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item, artifacts));
-        return content?.type === "artifact" ? [artifacts?.get(content.artifact_id) ?? { id: content.artifact_id }] : [];
+    messageArtifacts(content) {
+        if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item));
+        return content?.type === "artifact" ? [{ id: content.artifact_id }] : [];
     }
 
     messageOrder(message) {
@@ -49,7 +50,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         });
     }
 
-    render({ open, chatMessages, historyLoading, historyError, artifacts }) {
+    render({ open, chatMessages, historyLoading, historyError }) {
         const chatTranscript = this.querySelector("#chat-transcript");
         const chatScroll = this.querySelector(".chat-scroll");
         const chatMessageList = this.querySelector("#chat-messages");
@@ -103,7 +104,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             }
             row.append(header);
             if (content) row.append(text);
-            const attachments = this.messageArtifacts(message.content, artifacts);
+            const attachments = this.messageArtifacts(message.content);
             if (attachments.length && window.nimArtifact) row.append(window.nimArtifact.list(attachments));
             rows.append(row);
         }

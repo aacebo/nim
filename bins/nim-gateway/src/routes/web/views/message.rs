@@ -1,6 +1,34 @@
 use askama::Template;
 
-use super::chat::ArtifactView;
+#[derive(Clone, serde::Serialize)]
+pub struct ArtifactView {
+    pub id: nim::state::ArtifactId,
+    pub version: nim::state::Version,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub kind: &'static str,
+    pub media_type: Option<String>,
+    pub size: Option<u64>,
+}
+
+impl From<nim::state::Artifact> for ArtifactView {
+    fn from(value: nim::state::Artifact) -> Self {
+        let (kind, media_type, size) = match value.content {
+            nim::state::ArtifactContent::Text { .. } => ("text", Some("text/plain".into()), None),
+            nim::state::ArtifactContent::File { media_type, size, .. } => ("file", media_type, Some(size)),
+            nim::state::ArtifactContent::Resource { .. } => ("resource", None, None),
+        };
+
+        Self {
+            id: value.id,
+            version: value.version,
+            name: value.name,
+            kind,
+            media_type,
+            size,
+        }
+    }
+}
 
 #[derive(Template)]
 #[template(path = "message/message.html")]

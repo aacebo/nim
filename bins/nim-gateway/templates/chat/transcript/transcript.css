@@ -28,7 +28,7 @@ nim-chat-transcript {
     cursor: pointer;
 }
 .artifact-list .artifact-chip:hover { background: #9c57ff30; }
-.artifact-list .artifact-chip:focus-visible { outline: 2px solid #00e7ff; outline-offset: 3px; }
+.artifact-list .artifact-chip:focus-visible { border-color: #00e7ff; outline: 0; box-shadow: 0 0 0 2px rgb(0 231 255 / 72%), 0 0 12px rgb(0 231 255 / 20%); }
 .artifact-icon { width: 16px; height: 16px; flex: 0 0 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; color: var(--ui-muted, #b5c4dc); }
 .artifact-chip-name { min-width: 0; }
 #chat-messages .artifact-list { gap: 6px; margin-top: 8px; }
@@ -53,6 +53,8 @@ nim-chat-transcript {
     backdrop-filter: blur(4px);
     transform: translate(-50%, -50%);
     pointer-events: auto;
+    -webkit-user-select: none;
+    user-select: none;
 }
 #chat-transcript:not([hidden]) {
     display: flex;
@@ -180,6 +182,8 @@ nim-chat-transcript {
 }
 .chat-message-text {
     overflow-wrap: anywhere;
+    -webkit-user-select: text;
+    user-select: text;
 }
 .chat-message-text > :first-child {
     margin-top: 0;

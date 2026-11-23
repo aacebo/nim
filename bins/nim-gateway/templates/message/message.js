@@ -85,21 +85,33 @@ customElements.define("nim-message", class extends HTMLElement {
 
     detailsView() {
         const fragment = document.createDocumentFragment();
+        const summaryHeader = document.createElement("div");
+        summaryHeader.className = "message-summary-header";
         const summary = document.createElement("section");
         summary.className = "message-summary";
-        const heading = document.createElement("div");
         const title = document.createElement("h4");
         title.textContent = "Summary";
-        heading.append(title);
+        summaryHeader.append(title);
         if (this.message.confidence > 0) {
             const confidence = document.createElement("strong");
             confidence.textContent = `${this.percent(this.message.confidence)} confidence`;
-            heading.append(confidence);
+            summaryHeader.append(confidence);
         }
         const text = document.createElement("p");
         text.textContent = this.message.summary || "No summary available.";
-        summary.append(heading, text);
-        fragment.append(summary, this.annotationView(), this.artifactView());
+        summary.append(text);
+        const metadata = document.createElement("dl");
+        metadata.className = "message-metadata";
+        for (const [label, value] of [["Confidence", this.message.confidence]].filter(([, value]) => Number.isFinite(value))) {
+            const row = document.createElement("div");
+            const key = document.createElement("dt");
+            const detail = document.createElement("dd");
+            key.textContent = label;
+            detail.textContent = this.percent(value);
+            row.append(key, detail);
+            metadata.append(row);
+        }
+        fragment.append(summaryHeader, summary, metadata, this.annotationView(), this.artifactView());
         return fragment;
     }
 
@@ -292,7 +304,7 @@ customElements.define("nim-message", class extends HTMLElement {
     open(trigger) {
         this.trigger = trigger;
         this.querySelector("[data-role]").textContent = this.label(this.message.role);
-        this.querySelector("[data-id]").textContent = `${this.message.id.slice(0, 16)}…`;
+        this.querySelector("[data-id]").textContent = this.message.id;
         const timestamp = this.querySelector("time");
         timestamp.dateTime = this.message.created_at;
         timestamp.textContent = this.formatDate(this.message.created_at);

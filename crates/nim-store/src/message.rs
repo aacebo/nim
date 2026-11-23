@@ -17,7 +17,7 @@ impl<'a> MessageStorage<'a> {
             SELECT
                 id,
                 chat_id,
-                parent_id,
+                reply_to_id,
                 version,
                 role,
                 content,
@@ -43,7 +43,7 @@ impl<'a> MessageStorage<'a> {
             SELECT
                 id,
                 chat_id,
-                parent_id,
+                reply_to_id,
                 version,
                 role,
                 content,
@@ -54,8 +54,8 @@ impl<'a> MessageStorage<'a> {
                 updated_at
             FROM messages
             WHERE chat_id = $1
-            AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3::uuid))
-            ORDER BY created_at, id
+            AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3::uuid))
+            ORDER BY created_at DESC, id DESC
             LIMIT $4
             "#,
         )
@@ -77,9 +77,9 @@ impl<'a> MessageStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_by_parent_id(
+    pub async fn find_by_reply_to_id(
         &self,
-        parent_id: uuid::Uuid,
+        reply_to_id: uuid::Uuid,
         page: Page,
     ) -> Result<PageResponse<types::MessageRow>, sqlx::Error> {
         let (cursor_id, cursor_at) = page.cursor.map(|cursor| (cursor.id, cursor.timestamp)).unzip();
@@ -88,7 +88,7 @@ impl<'a> MessageStorage<'a> {
             SELECT
                 id,
                 chat_id,
-                parent_id,
+                reply_to_id,
                 version,
                 role,
                 content,
@@ -98,13 +98,13 @@ impl<'a> MessageStorage<'a> {
                 created_at,
                 updated_at
             FROM messages
-            WHERE parent_id = $1
-            AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3::uuid))
-            ORDER BY created_at, id
+            WHERE reply_to_id = $1
+            AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3::uuid))
+            ORDER BY created_at DESC, id DESC
             LIMIT $4
             "#,
         )
-        .bind(parent_id)
+        .bind(reply_to_id)
         .bind(cursor_at)
         .bind(cursor_id)
         .bind(i64::try_from(page.limit).unwrap_or(i64::MAX))
@@ -129,7 +129,7 @@ impl<'a> MessageStorage<'a> {
             SELECT
                 id,
                 chat_id,
-                parent_id,
+                reply_to_id,
                 version,
                 role,
                 content,
@@ -167,7 +167,7 @@ impl<'a> MessageStorage<'a> {
             INSERT INTO messages (
                 id,
                 chat_id,
-                parent_id,
+                reply_to_id,
                 version,
                 role,
                 content,
@@ -193,7 +193,7 @@ impl<'a> MessageStorage<'a> {
             RETURNING
                 id,
                 chat_id,
-                parent_id,
+                reply_to_id,
                 version,
                 role,
                 content,
@@ -206,7 +206,7 @@ impl<'a> MessageStorage<'a> {
         )
         .bind(value.id)
         .bind(value.chat_id)
-        .bind(value.parent_id)
+        .bind(value.reply_to_id)
         .bind(value.version)
         .bind(value.role)
         .bind(value.content)
@@ -235,7 +235,7 @@ impl<'a> MessageStorage<'a> {
             RETURNING
                 id,
                 chat_id,
-                parent_id,
+                reply_to_id,
                 version,
                 role,
                 content,

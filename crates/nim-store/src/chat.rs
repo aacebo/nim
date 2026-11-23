@@ -17,6 +17,7 @@ impl<'a> ChatStorage<'a> {
             r#"
             SELECT
                 id,
+                parent_id,
                 version,
                 summary,
                 embedding,
@@ -53,6 +54,7 @@ impl<'a> ChatStorage<'a> {
             r#"
             SELECT
                 id,
+                parent_id,
                 version,
                 summary,
                 embedding,
@@ -76,6 +78,7 @@ impl<'a> ChatStorage<'a> {
             r#"
             SELECT
                 id,
+                parent_id,
                 version,
                 summary,
                 embedding,
@@ -129,6 +132,7 @@ impl<'a> ChatStorage<'a> {
             r#"
             INSERT INTO chats (
                 id,
+                parent_id,
                 version,
                 summary,
                 embedding,
@@ -147,10 +151,12 @@ impl<'a> ChatStorage<'a> {
                 $6,
                 $7,
                 $8,
-                $9
+                $9,
+                $10
             )
             RETURNING
                 id,
+                parent_id,
                 version,
                 summary,
                 embedding,
@@ -162,6 +168,7 @@ impl<'a> ChatStorage<'a> {
             "#,
         )
         .bind(value.id)
+        .bind(value.parent_id)
         .bind(value.version)
         .bind(value.summary)
         .bind(value.embedding)
@@ -190,6 +197,7 @@ impl<'a> ChatStorage<'a> {
             WHERE id = $1 AND version = $8
             RETURNING
                 id,
+                parent_id,
                 version,
                 summary,
                 embedding,

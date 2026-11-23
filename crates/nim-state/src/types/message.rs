@@ -23,7 +23,7 @@ impl std::fmt::Display for Role {
 pub struct Message {
     pub id: MessageId,
     pub chat_id: ChatId,
-    pub parent_id: Option<MessageId>,
+    pub reply_to_id: Option<MessageId>,
     pub version: Version,
     pub role: Role,
     pub content: MessageContent,
@@ -93,7 +93,7 @@ impl TryFrom<nim_store::MessageRow> for Message {
         Ok(Self {
             id: value.id.into(),
             chat_id: value.chat_id.into(),
-            parent_id: value.parent_id.map(Into::into),
+            reply_to_id: value.reply_to_id.map(Into::into),
             version: value.version.into(),
             role: serde_json::from_value(serde_json::Value::String(value.role))?,
             content: serde_json::from_value(value.content)?,

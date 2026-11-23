@@ -3,6 +3,7 @@ use crate::{ArtifactId, Embedding, EntityId, MessageId, Version};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Chat {
     pub id: ChatId,
+    pub parent_id: Option<ChatId>,
     pub version: Version,
     pub summary: Option<String>,
     #[serde(skip)]
@@ -69,6 +70,7 @@ impl From<nim_store::ChatRow> for Chat {
     fn from(value: nim_store::ChatRow) -> Self {
         Self {
             id: value.id.into(),
+            parent_id: value.parent_id.map(Into::into),
             version: value.version.into(),
             summary: value.summary,
             embedding: value.embedding.map(Into::into),

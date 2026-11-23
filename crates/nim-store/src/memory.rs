@@ -31,8 +31,8 @@ impl<'a> MemoryStorage<'a> {
                 created_at,
                 updated_at
             FROM memories
-            WHERE ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
-            ORDER BY created_at, id
+            WHERE ($1::timestamptz IS NULL OR (created_at, id) < ($1, $2::uuid))
+            ORDER BY created_at DESC, id DESC
             LIMIT $3
             "#,
         )

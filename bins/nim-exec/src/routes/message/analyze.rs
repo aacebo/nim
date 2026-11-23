@@ -29,7 +29,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
         .messages()
         .create(nim::state::MessageCreate {
             chat_id: message.chat_id,
-            parent_id: message.parent_id,
+            reply_to_id: message.reply_to_id,
             role: nim::state::Role::Agent,
             content: persist_content(&ctx, assistant.content).await?,
         })

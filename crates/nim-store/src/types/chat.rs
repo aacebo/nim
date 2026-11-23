@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
 pub struct ChatRow {
     pub id: uuid::Uuid,
+    pub parent_id: Option<uuid::Uuid>,
     pub version: i32,
     pub summary: Option<String>,
     #[serde(skip)]

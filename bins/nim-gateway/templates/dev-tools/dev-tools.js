@@ -39,45 +39,11 @@ customElements.define("nim-dev-tools", class extends HTMLElement {
         }
     }
 
-    eventLabel(subject) {
-        const parts = subject.split(".").filter(Boolean);
-        if (parts[0] === "nim") parts.shift();
-        return parts.map((part) => part.replaceAll("_", " ")).join(" / ") || "Event";
-    }
-
-    addDevEvent(signal) {
-        const date = new Date();
-        const subject = typeof signal?.subject === "string" ? signal.subject : "Event";
-
-        const item = {
-            key: this.nextEvent++,
-            date: date.toISOString(),
-            time: date.toLocaleTimeString(),
-            subject,
-            label: this.eventLabel(subject),
-            content: signal?.content ?? null,
-            details: [],
-        };
-        const events = window.Alpine?.store?.("nim")?.events;
-        if (events) {
-            events.push(item);
-            if (events.length > 80) events.shift();
-        } else {
-            this.queuedEvents.push(item);
-            if (this.queuedEvents.length > 80) this.queuedEvents.shift();
-        }
-    }
-
     connectedCallback() {
         if (!this.hasChildNodes()) {
             this.append(document.getElementById("dev-tools-template").content.cloneNode(true));
         }
         this.listeners = new AbortController();
-        this.queuedEvents ??= [];
-        this.nextEvent ??= 0;
-        const flush = () => Alpine.store("nim").events.push(...this.queuedEvents.splice(0));
-        if (window.Alpine) flush();
-        else document.addEventListener("alpine:init", flush, { once: true, signal: this.listeners.signal });
         this.querySelector("#dev-tools-events").addEventListener("toggle", (event) => {
             const details = event.target;
             if (!details.open || !details.matches(".dev-event > details")) return;
@@ -88,15 +54,6 @@ customElements.define("nim-dev-tools", class extends HTMLElement {
             this.renderEventDetails(tree, item.content);
             tree.dataset.rendered = "true";
         }, { capture: true, signal: this.listeners.signal });
-
-        socket.addEventListener("message", (event) => {
-            try {
-                const payload = typeof event.data === "string" ? event.data : new TextDecoder().decode(event.data);
-                this.addDevEvent(JSON.parse(payload));
-            } catch {
-                // Ignore non-JSON websocket frames in the developer event view.
-            }
-        }, { signal: this.listeners.signal });
     }
 
     disconnectedCallback() {

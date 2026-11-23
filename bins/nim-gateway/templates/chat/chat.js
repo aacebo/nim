@@ -25,26 +25,17 @@ customElements.define("nim-chat", class extends HTMLElement {
         const initialState = host.querySelector(".action-view").dataset;
         const initialChat = JSON.parse(initialState.chat);
         const initialMessages = JSON.parse(initialState.messages);
-        const initialArtifacts = JSON.parse(initialState.artifacts);
         const chatMessages = new Map(initialMessages.map((message) => [message.id, message]));
-        const artifacts = new Map(initialArtifacts.map((artifact) => [artifact.id, artifact]));
         const signalDecoder = new TextDecoder();
         const historyLimit = 100;
 
         let chatId = initialChat?.id;
-        let artifactsLoaded = false;
-        let historyLoaded = Boolean(chatId);
+        let historyCursor;
+        let historyLoaded = false;
         let historyLoading = false;
         let historyError = false;
         let chatStatusTimer;
         let chatErrorTimer;
-
-        function rememberArtifacts(items) {
-            for (const artifact of items) {
-                const previous = artifacts.get(artifact.id);
-                if (!previous || (artifact.version ?? 0) >= (previous.version ?? 0)) artifacts.set(artifact.id, artifact);
-            }
-        }
 
         async function openMessageView(id, trigger) {
             const response = await fetch(`/web/views/messages/${encodeURIComponent(id)}`);
@@ -55,7 +46,7 @@ customElements.define("nim-chat", class extends HTMLElement {
             document.getElementById("message-template")?.remove();
             document.querySelector("nim-message")?.remove();
             document.body.append(template);
-            await Promise.all([loadAsset("message/message.css?v=26", "css"), loadAsset("message/message.js?v=24", "js")]);
+            await Promise.all([loadAsset("message/message.css?v=32", "css"), loadAsset("message/message.js?v=26", "js")]);
             const view = document.createElement("nim-message");
             document.body.append(view);
             view.open(trigger);
@@ -64,6 +55,7 @@ customElements.define("nim-chat", class extends HTMLElement {
         host.addEventListener("nim-message-inspect", (event) => {
             void openMessageView(event.detail.id, event.detail.trigger).catch(() => setChatError("Unable to load message details."));
         }, { signal });
+        host.addEventListener("nim-chat-history", () => { void loadChatHistory(); }, { signal });
 
         function setChatStatus(text, dismiss = false) {
             clearTimeout(chatStatusTimer);
@@ -104,12 +96,6 @@ customElements.define("nim-chat", class extends HTMLElement {
             actionPanel.classList.toggle("chat-panel", isChat);
             renderChatTranscript();
             if (isChat) {
-                if (initialArtifacts.length && !artifactsLoaded) {
-                    artifactsLoaded = true;
-                    void loadArtifactView().then(() => {
-                        renderChatTranscript();
-                    }).catch(() => { artifactsLoaded = false; });
-                }
                 if (!chatSend.disabled) setChatStatus("");
                 Alpine.nextTick(() => {
                     let attempts = 0;
@@ -126,24 +112,6 @@ customElements.define("nim-chat", class extends HTMLElement {
                 void loadChatHistory();
             } else {
                 Alpine.nextTick(() => actionBack.focus());
-            }
-        }
-
-        async function loadChatArtifacts(id) {
-            const query = new URLSearchParams({ limit: "100" });
-            const cursors = new Set();
-            while (true) {
-                const response = await fetch(`/chats/${encodeURIComponent(id)}/artifacts?${query}`);
-                if (!response.ok) throw new Error("Unable to load attachments");
-                const page = await response.json();
-                if (page.data.length) {
-                    await loadArtifactView();
-                    rememberArtifacts(page.data);
-                }
-                if (!page.next) break;
-                if (cursors.has(page.next)) throw new Error("Attachment cursor did not advance");
-                cursors.add(page.next);
-                query.set("cursor", page.next);
             }
         }
 
@@ -166,12 +134,11 @@ customElements.define("nim-chat", class extends HTMLElement {
         function renderChatTranscript() {
             host.querySelector("nim-chat-transcript").render({
                 open: isChatOpen(), chatMessages, historyLoading, historyError,
-                artifacts,
             });
         }
 
         async function loadChatHistory() {
-            if (!chatId || historyLoading || historyLoaded) {
+            if (!chatId || historyLoading || historyLoaded && !historyCursor) {
                 return;
             }
 
@@ -180,30 +147,13 @@ customElements.define("nim-chat", class extends HTMLElement {
             chatHistoryStatus.textContent = "Loading history…";
 
             try {
-                await loadChatArtifacts(chatId).catch(() => { historyError = true; });
                 const query = new URLSearchParams({ limit: historyLimit });
-
-                while (true) {
-                    const response = await fetch(`/chats/${encodeURIComponent(chatId)}/messages?${query}`);
-
-                    if (!response.ok) {
-                        throw new Error("Chat history request failed");
-                    }
-
-                    const page = await response.json();
-
-                    for (const message of page.data) {
-                        mergeChatMessage(message);
-                    }
-
-                    const cursor = page.next;
-
-                    if (!cursor) {
-                        break;
-                    }
-
-                    query.set("cursor", cursor);
-                }
+                if (historyCursor) query.set("cursor", historyCursor);
+                const response = await fetch(`/chats/${encodeURIComponent(chatId)}/messages?${query}`);
+                if (!response.ok) throw new Error("Chat history request failed");
+                const page = await response.json();
+                for (const message of page.data) mergeChatMessage(message);
+                historyCursor = page.next;
                 historyLoaded = true;
             } catch {
                 historyError = true;

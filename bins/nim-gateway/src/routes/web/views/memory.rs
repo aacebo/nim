@@ -8,28 +8,15 @@ pub struct MemoryView {
 
 impl MemoryView {
     pub async fn load(ctx: &crate::Context) -> nim::error::Result<Self> {
-        use nim::error::IntoDiagnostic;
-
-        let mut records = Vec::new();
-        let mut cursor = None;
-        let mut cursors = Vec::new();
-
-        loop {
-            let page = ctx
-                .services()
-                .memories()
-                .find(nim::state::Page { cursor, limit: 100 })
-                .await?;
-            records.extend(page.data);
-            let Some(next) = page.next else { break };
-
-            if cursors.contains(&next) {
-                return Err(std::io::Error::other("memory cursor did not advance").into_diagnostic());
-            }
-
-            cursors.push(next);
-            cursor = Some(next);
-        }
+        let records = ctx
+            .services()
+            .memories()
+            .find(nim::state::Page {
+                cursor: None,
+                limit: 100,
+            })
+            .await?
+            .data;
 
         Ok(Self { records })
     }

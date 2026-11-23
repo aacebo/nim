@@ -80,10 +80,6 @@ nim-chat-transcript {
     -webkit-mask-image: linear-gradient(to bottom, transparent, black 140px);
     mask-image: linear-gradient(to bottom, transparent, black 140px);
 }
-.chat-scroll:focus-visible {
-    outline: 1px solid var(--hud-line);
-    outline-offset: -1px;
-}
 #chat-messages {
     display: grid;
     box-sizing: border-box;

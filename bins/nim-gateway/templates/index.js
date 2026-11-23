@@ -92,6 +92,14 @@ document.addEventListener("pointermove", (event) => setScrollbarHover(scrollbarA
 document.addEventListener("pointerout", (event) => {
     if (!event.relatedTarget) setScrollbarHover();
 }, { passive: true });
+document.addEventListener("click", (event) => {
+    const dialog = event.target;
+    if (!(dialog instanceof HTMLDialogElement) || !dialog.open) return;
+    const bounds = dialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+        dialog.close();
+    }
+});
 socket.addEventListener("message", (event) => {
     try {
         const signal = JSON.parse(typeof event.data === "string" ? event.data : new TextDecoder().decode(event.data));
@@ -123,12 +131,12 @@ socket.addEventListener("message", (event) => {
 const viewAssets = {
     artifact: { css: ["message/message.css?v=35", "artifact/artifact.css?v=10"], js: ["artifact/artifact.js?v=7"] },
     chat: {
-        css: ["chat/transcript/transcript.css?v=36", "chat/chat.css?v=44"],
+        css: ["chat/transcript/transcript.css?v=37", "chat/chat.css?v=44"],
         js: [
             "https://unpkg.com/marked@15.0.7/marked.min.js",
             "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",
             "chat/transcript/transcript.js?v=22",
-            "chat/chat.js?v=55",
+            "chat/chat.js?v=56",
         ],
     },
     memory: {
@@ -333,12 +341,16 @@ document.addEventListener("alpine:init", () => {
                     this.closeDevTools();
                 }
             } else if (event.key === "Escape") {
-                if (this.devToolsOpen) this.closeDevTools();
-                else if (this.hud === "memory") {
-                    if (!this.memory.dismissDetails()) this.backToHub();
-                } else if (this.hud === "panel") this.backToHub();
-                else if (this.hud === "hub") this.closeOrbHub();
-                else return;
+                const dialog = document.querySelector("dialog[open]");
+                if (dialog) dialog.close();
+                else if (!this.chat?.dismissOverlayDrawer()) {
+                    if (this.devToolsOpen) this.closeDevTools();
+                    else if (this.hud === "memory") {
+                        if (!this.memory.dismissDetails()) this.backToHub();
+                    } else if (this.hud === "panel" && this.activeAction !== "chat") this.backToHub();
+                    else if (this.hud === "hub") this.closeOrbHub();
+                    else return;
+                }
                 event.preventDefault();
             }
         },

@@ -25,6 +25,20 @@ body,
 * {
     scrollbar-width: thin !important;
     scrollbar-color: var(--scrollbar-thumb) transparent !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+:is(a, button, input, textarea, select, option, [contenteditable="true"]),
+:is(a, button, [contenteditable="true"]) * {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+}
+
+:not(:is(a, button, input, textarea, select, option, [contenteditable="true"])):focus,
+:not(:is(a, button, input, textarea, select, option, [contenteditable="true"])):focus-visible {
+    outline: 0 !important;
+    box-shadow: none !important;
 }
 
 *::-webkit-scrollbar {

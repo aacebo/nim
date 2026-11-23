@@ -10,6 +10,9 @@
 Create unified model config type that is configured via environment variables
 for binary containers.
 
+Add configurable chat decoding inputs for temperature, top-p, top-k, and seed,
+while keeping greedy decoding as the default.
+
 ## Errors
 
 Error nesting/rollup.

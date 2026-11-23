@@ -118,6 +118,12 @@ customElements.define("nim-chat", class extends HTMLElement {
             setDrawerOpen(false, false);
         }
 
+        function dismissOverlayDrawer() {
+            if (pushDrawer.matches || !actionView.classList.contains("drawer-open")) return false;
+            setDrawerOpen(false);
+            return true;
+        }
+
         function restoreDrawer() {
             let drawerOpen;
             try { drawerOpen = localStorage.getItem(drawerPreferenceKey); } catch {}
@@ -630,7 +636,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         return {
             openAction, renderChatTranscript, submitChatMessage, handleChatFiles, setChatError,
-            clearAwaitingResponse: () => setAwaitingResponse(false), closeDrawer,
+            clearAwaitingResponse: () => setAwaitingResponse(false), closeDrawer, dismissOverlayDrawer,
         };
     }
 

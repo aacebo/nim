@@ -146,7 +146,6 @@ pub enum MessageContentPart {
         text: String,
     },
     Artifact {
-        #[serde(alias = "artifact_id")]
         id: ArtifactId,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         name: Option<String>,

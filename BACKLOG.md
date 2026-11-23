@@ -32,14 +32,27 @@ Add platt scaling weights to models in database and read/write to them.
 
 ## Debt
 
-1. Message::parent_id -> Message::reply_to_id
-2. move message content mapping from exec -> state service
-3. agent messages should be processed and parsed the same way we do user messages
+1. Move message content mapping from exec to the state service.
+2. Process and parse agent messages the same way as user messages.
 
 ## Chat
 
 1. message replies
 2. chat threads
+3. Replace the static context-window meter with a live context-usage indicator.
+4. Add slash commands to the chat composer.
+5. Render structured assistant UI blocks, including charts and inputs.
+
+## Frontend
+
+1. Add a Cmd+Shift+P command palette.
+2. Replace the dev-tools overlay with draggable, resizable command windows.
+3. Add universal search UI across chats, messages, memories, and artifacts.
+
+## Integrations
+
+1. Add MCP plugin support.
+2. Add OpenAI-compatible Responses API support.
 
 ## Logs/Tracing
 

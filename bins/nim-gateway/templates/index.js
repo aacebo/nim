@@ -128,7 +128,7 @@ const viewAssets = {
             "https://unpkg.com/marked@15.0.7/marked.min.js",
             "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",
             "chat/transcript/transcript.js?v=22",
-            "chat/chat.js?v=53",
+            "chat/chat.js?v=55",
         ],
     },
     memory: {

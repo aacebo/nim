@@ -126,9 +126,18 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         function chatLabel(chat) {
             const content = chat.last_message?.content;
+            return messageLabel(content, chat.summary);
+        }
+
+        function messageLabel(content, fallback = "") {
             const text = typeof content === "string" ? content : Array.isArray(content)
                 ? content.filter((part) => part?.type === "text").map((part) => part.text).join(" ") : "";
-            return (text || chat.summary || "New chat").replace(/\s+/g, " ").trim();
+            return (text || fallback || "New chat").replace(/\s+/g, " ").trim();
+        }
+
+        function updateActiveChatPreview(message) {
+            const link = chatHistory.querySelector('a[aria-current="page"]');
+            if (link) link.textContent = messageLabel(message.content);
         }
 
         function renderChatList(chats, append = false) {
@@ -147,7 +156,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         async function loadChatList() {
             const query = new URLSearchParams({ limit: "50" });
-            const response = await fetch(`/chats?${query}`);
+            const response = await fetch(`/chats?${query}`, { cache: "no-store" });
             if (!response.ok) return;
             const page = await response.json();
             renderChatList(page.data);
@@ -355,7 +364,11 @@ customElements.define("nim-chat", class extends HTMLElement {
                     }
                     renderChatTranscript();
                 }
-                if (response) setAwaitingResponse(false);
+                if (response) {
+                    setAwaitingResponse(false);
+                    updateActiveChatPreview(signal.content);
+                    void loadChatList();
+                }
             } catch {
                 return;
             }

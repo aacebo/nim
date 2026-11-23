@@ -2,7 +2,7 @@ use crate::chat::{Media, ToolCall};
 use crate::types::Annotation;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "role")]
+#[serde(tag = "role", rename_all = "snake_case")]
 pub enum ChatMessage {
     System(ChatSystemMessage),
     User(ChatUserMessage),

@@ -189,8 +189,9 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             }
             if (content) bubble.append(text);
             const attachments = this.messageArtifacts(message.content);
-            if (attachments.length && window.nimArtifact) bubble.append(window.nimArtifact.list(attachments));
-            body.append(bubble, metadata);
+            if (attachments.length && window.nimArtifact) body.append(window.nimArtifact.list(attachments));
+            if (content) body.append(bubble);
+            body.append(metadata);
             row.append(body);
             rows.append(row);
             if (activity?.messageId === message.id) rows.append(this.activityRow(activity));

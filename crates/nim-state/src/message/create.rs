@@ -32,6 +32,11 @@ impl<'a> MessageService<'a> {
             })
             .await?;
 
+        let mut chat = self.storage.chats().find_by_id(row.chat_id).await?;
+        chat.last_message_id = Some(row.id);
+        chat.last_message_at = Some(row.created_at);
+        self.storage.chats().update(chat).await?;
+
         for artifact_id in value.content.artifacts() {
             self.storage
                 .message_artifacts()

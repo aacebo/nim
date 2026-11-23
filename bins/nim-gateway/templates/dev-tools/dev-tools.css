@@ -101,7 +101,7 @@
     padding: 4px 0;
     overflow: auto;
     list-style: none;
-    scrollbar-color: #5a9146 transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
     font-size: 12px;
 }
 .dev-event + .dev-event {
@@ -156,7 +156,7 @@
     padding: 8px 0 2px 12px;
     border-left: 1px solid rgb(140 255 102 / 20%);
     overflow-x: auto;
-    scrollbar-color: #5a9146 transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .dev-event-tree {
     width: max-content;

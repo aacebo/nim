@@ -6,9 +6,9 @@
 .artifact-content > audio { width: min(100%, 540px); }
 .artifact-content > pre { align-self: stretch; box-sizing: border-box; width: 100%; margin: 0; padding: 14px; overflow: auto; border: 1px solid #202020; border-radius: 10px; background: #111111; color: #eeeeee; font: 12px/1.42 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .artifact-content-state { max-width: 360px; margin: 0; color: #c6c6c6; font-size: 12px; line-height: 1.42; text-align: center; }
-.artifact-content-state button, .artifact-download { margin-top: 12px; border: 1px solid #626262; border-radius: 999px; padding: 6px 10px; background: transparent; color: #ddd; font: 500 10px ui-sans-serif, system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+.artifact-content-state button, .artifact-download { margin-top: 12px; border: 1px solid #626262; border-radius: 6px; padding: 6px 10px; background: transparent; color: #ddd; font: 500 10px ui-sans-serif, system-ui, sans-serif; cursor: pointer; text-decoration: none; }
 .artifact-view-actions { position: absolute; top: 18px; right: 14px; display: flex; align-items: center; gap: 10px; }
-.artifact-view-actions [data-close] { position: static; }
+.artifact-view .artifact-view-actions [data-close] { position: static; top: auto; right: auto; }
 .artifact-view-actions .artifact-download { display: grid; width: 16px; height: 16px; margin: 0; padding: 0; place-items: center; border: 0; border-radius: 0; color: #c5c5c5; }
 .artifact-view-actions .artifact-download svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .artifact-view-actions .artifact-download:hover { color: #fff; }

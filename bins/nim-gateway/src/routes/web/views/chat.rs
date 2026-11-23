@@ -1,20 +1,16 @@
 use askama::Template;
 
-#[derive(Template)]
-#[template(path = "chat/chat.html")]
+use crate::routes::web::views::chats::ChatsView;
+
+#[derive(serde::Serialize)]
 pub struct ChatView {
-    pub chat: Option<nim::state::Chat>,
+    pub chat: nim::state::Chat,
     pub messages: Vec<nim::state::Message>,
 }
 
 impl ChatView {
-    pub async fn load(ctx: &crate::Context) -> nim::error::Result<Self> {
-        let Some(chat) = ctx.services().chats().find_latest().await? else {
-            return Ok(Self {
-                chat: None,
-                messages: Vec::new(),
-            });
-        };
+    pub async fn load(ctx: &crate::Context, chat_id: nim::state::ChatId) -> nim::error::Result<Self> {
+        let chat = ctx.services().chats().find_by_id(chat_id).await?;
 
         let messages = ctx
             .services()
@@ -29,17 +25,22 @@ impl ChatView {
             .await?
             .data;
 
-        Ok(Self {
-            chat: Some(chat),
-            messages,
-        })
+        Ok(Self { chat, messages })
     }
 }
 
-pub async fn route(ctx: crate::http::HttpContext) -> nim::error::Result<impl axum::response::IntoResponse> {
+#[derive(serde::Deserialize)]
+pub struct Params {
+    pub chat_id: nim::state::ChatId,
+}
+
+pub async fn route(
+    ctx: crate::http::HttpContext,
+    params: axum::extract::Path<Params>,
+) -> nim::error::Result<impl axum::response::IntoResponse> {
     use nim::error::IntoDiagnostic;
 
-    let view = ChatView::load(&ctx).await?;
+    let view = ChatsView::load(&ctx, Some(params.chat_id)).await?;
     let body = view.render().map_err(|error| error.into_diagnostic())?;
     Ok(([(axum::http::header::CACHE_CONTROL, "no-store")], axum::response::Html(body)))
 }

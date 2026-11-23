@@ -6,7 +6,7 @@ nim-memory-graph {
     margin-top: 105px;
     overflow: auto;
     overscroll-behavior: contain;
-    scrollbar-color: #343765 transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .memory-graph-surface {
     position: relative;

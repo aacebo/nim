@@ -85,6 +85,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
                 confidence: artifact.confidence.map(|v| v as f32),
                 last_analyzed_id: Some(last_analyzed_id),
                 last_analyzed_at: Some(last_analyzed_at),
+                ..Default::default()
             },
         )
         .await?;

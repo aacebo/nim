@@ -1,5 +1,6 @@
 pub mod artifact;
 pub mod chat;
+pub mod chats;
 pub mod dev_tools;
 pub mod memory;
 pub mod message;

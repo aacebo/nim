@@ -9,6 +9,7 @@ mod find_by_chat_id;
 mod find_by_id;
 mod find_by_reply_to_id;
 mod find_history;
+mod find_last_message;
 mod update;
 mod update_annotation;
 

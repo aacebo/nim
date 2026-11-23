@@ -10,8 +10,15 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
 
     axum::Router::new()
         .route("/", axum::routing::get(crate::diagnose(get::route)))
+        .route("/chat", axum::routing::get(crate::diagnose(get::route)))
+        .route("/chat/{chat_id}", axum::routing::get(crate::diagnose(get::route)))
+        .route("/memory", axum::routing::get(crate::diagnose(get::route)))
         .route("/connect", axum::routing::any(crate::diagnose(connect::route)))
-        .route("/views/chat", axum::routing::get(crate::diagnose(views::chat::route)))
+        .route("/views/chat", axum::routing::get(crate::diagnose(views::chats::route)))
+        .route(
+            "/view/chats/{chat_id}",
+            axum::routing::get(crate::diagnose(views::chat::route)),
+        )
         .route(
             "/views/messages/{message_id}",
             axum::routing::get(crate::diagnose(views::message::route)),

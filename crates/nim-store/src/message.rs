@@ -77,6 +77,33 @@ impl<'a> MessageStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn find_last_message(&self, chat_id: uuid::Uuid) -> Result<Option<types::MessageRow>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            SELECT
+                id,
+                chat_id,
+                reply_to_id,
+                version,
+                role,
+                content,
+                summary,
+                embedding,
+                confidence,
+                created_at,
+                updated_at
+            FROM messages
+            WHERE chat_id = $1
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(chat_id)
+        .fetch_optional(self.pool)
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn find_by_reply_to_id(
         &self,
         reply_to_id: uuid::Uuid,
@@ -122,7 +149,12 @@ impl<'a> MessageStorage<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn find_history(&self, id: uuid::Uuid, count: usize) -> Result<PageResponse<types::MessageRow>, sqlx::Error> {
+    pub async fn find_history(
+        &self,
+        chat_id: uuid::Uuid,
+        id: uuid::Uuid,
+        count: usize,
+    ) -> Result<PageResponse<types::MessageRow>, sqlx::Error> {
         let message = self.find_by_id(id).await?;
         let data: Vec<types::MessageRow> = sqlx::query_as(
             r#"
@@ -139,11 +171,13 @@ impl<'a> MessageStorage<'a> {
                 created_at,
                 updated_at
             FROM messages
-            WHERE (created_at, id) < ($2, $1::uuid)
+            WHERE chat_id = $1
+                AND (created_at, id) < ($3, $2::uuid)
             ORDER BY created_at, id DESC
-            LIMIT $3
+            LIMIT $4
             "#,
         )
+        .bind(chat_id)
         .bind(message.id)
         .bind(message.created_at)
         .bind(i64::try_from(count).unwrap_or(i64::MAX))

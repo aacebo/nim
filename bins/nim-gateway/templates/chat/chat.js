@@ -10,6 +10,11 @@ customElements.define("nim-chat", class extends HTMLElement {
         const chatFiles = host.querySelector("#chat-files");
         const chatAttachments = host.querySelector("#chat-attachments");
         const chatAttachmentDrawer = host.querySelector("#chat-attachment-drawer");
+        const chatDrawer = host.querySelector("#chat-drawer");
+        const chatDrawerToggle = host.querySelector("#chat-drawer-toggle");
+        const chatDrawerScrim = host.querySelector("#chat-drawer-scrim");
+        const chatHistory = host.querySelector("#chat-history");
+        const chatNew = host.querySelector("#chat-new");
         const pendingAttachments = [];
         // Leave room for multipart headers within the gateway's 10 MiB request limit.
         const maxAttachmentSize = 10 * 1024 * 1024 - 64 * 1024;
@@ -22,12 +27,13 @@ customElements.define("nim-chat", class extends HTMLElement {
         const chatError = host.querySelector("#chat-error");
         const chatHistoryStatus = host.querySelector("#chat-history-status");
         const initialState = host.querySelector(".action-view").dataset;
-        const initialChat = JSON.parse(initialState.chat);
-        const initialMessages = JSON.parse(initialState.messages);
+        const initialChatView = JSON.parse(initialState.chat);
+        const initialChat = initialChatView?.chat ?? null;
+        const initialMessages = initialChatView?.messages ?? [];
         const chatMessages = new Map(initialMessages.map((message) => [message.id, message]));
         const signalDecoder = new TextDecoder();
         const historyLimit = 100;
-        const reasoningBackground = "radial-gradient(ellipse at 38% 38%, #5d3515, transparent 48%), radial-gradient(ellipse at 64% 66%, #531136, transparent 52%), #13060e";
+        const reasoningBackground = "radial-gradient(ellipse var(--orb-hue-inner-x, 50vmax) var(--orb-hue-inner-y, 50vmax) at var(--orb-center-x, 50%) var(--orb-center-y, 50%), rgb(15 58 126 / 42%), transparent), #02070f";
         let reasoningOverlay = orbScene.querySelector("#reasoning-background");
 
         if (!reasoningOverlay) {
@@ -52,6 +58,116 @@ customElements.define("nim-chat", class extends HTMLElement {
         let awaitingResponse = false;
         let activity;
         let activityTimer;
+        let orbCenterFrame;
+        const drawerPreferenceKey = "nim.chat.drawer-open";
+        const pushDrawer = matchMedia("(min-width: 961px)");
+        const orbTrigger = orbScene.querySelector("#orb-trigger");
+        const orbResizeObserver = new ResizeObserver(syncOrbCenter);
+        orbResizeObserver.observe(orbTrigger);
+
+        function syncOrbCenter() {
+            const sceneBounds = orbScene.getBoundingClientRect();
+            const orbBounds = orbTrigger.getBoundingClientRect();
+            orbScene.style.setProperty("--orb-center-x", `${orbBounds.left - sceneBounds.left + orbBounds.width / 2}px`);
+            orbScene.style.setProperty("--orb-center-y", `${orbBounds.top - sceneBounds.top + orbBounds.height / 2}px`);
+            orbScene.style.setProperty("--orb-hue-inner-x", `${orbBounds.width * 0.75}px`);
+            orbScene.style.setProperty("--orb-hue-inner-y", `${orbBounds.height * 0.75}px`);
+            orbScene.style.setProperty("--orb-hue-outer-x", `${orbBounds.width * 1.1}px`);
+            orbScene.style.setProperty("--orb-hue-outer-y", `${orbBounds.height * 1.1}px`);
+        }
+
+        function followOrbCenter() {
+            cancelAnimationFrame(orbCenterFrame);
+            const end = performance.now() + 400;
+
+            function frame(now) {
+                syncOrbCenter();
+                if (now < end) orbCenterFrame = requestAnimationFrame(frame);
+            }
+
+            orbCenterFrame = requestAnimationFrame(frame);
+        }
+
+        function syncOrbScale() {
+            const viewportWidth = window.innerWidth;
+            const drawerWidth = actionView.classList.contains("drawer-open") && pushDrawer.matches
+                ? chatDrawer.getBoundingClientRect().width
+                : 0;
+            orbScene.style.setProperty("--chat-orb-scale", String(0.66125 * (viewportWidth - drawerWidth) / viewportWidth));
+            syncOrbCenter();
+        }
+
+        function saveDrawerPreference(open) {
+            try { localStorage.setItem(drawerPreferenceKey, String(open)); } catch {}
+        }
+
+        function setDrawerOpen(open, save = true) {
+            actionView.classList.toggle("drawer-open", open);
+            orbScene.classList.toggle("chat-drawer-open", open);
+            orbScene.classList.toggle("chat-drawer-push", open && pushDrawer.matches);
+            syncOrbScale();
+            followOrbCenter();
+            chatDrawer.inert = !open;
+            chatDrawerToggle.setAttribute("aria-expanded", String(open));
+            chatDrawerToggle.setAttribute("aria-label", open ? "Close chat history" : "Open chat history");
+            if (save) saveDrawerPreference(open);
+        }
+
+        function closeDrawer() {
+            saveDrawerPreference(actionView.classList.contains("drawer-open"));
+            setDrawerOpen(false, false);
+        }
+
+        function restoreDrawer() {
+            let drawerOpen;
+            try { drawerOpen = localStorage.getItem(drawerPreferenceKey); } catch {}
+            setDrawerOpen(drawerOpen === null || drawerOpen === undefined ? pushDrawer.matches : drawerOpen === "true", false);
+        }
+
+        function chatLabel(chat) {
+            const content = chat.last_message?.content;
+            const text = typeof content === "string" ? content : Array.isArray(content)
+                ? content.filter((part) => part?.type === "text").map((part) => part.text).join(" ") : "";
+            return (text || chat.summary || "New chat").replace(/\s+/g, " ").trim();
+        }
+
+        function renderChatList(chats, append = false) {
+            const rows = chats.map((chat) => {
+                const item = document.createElement("li");
+                const link = document.createElement("a");
+                link.href = `/web/chat/${encodeURIComponent(chat.id)}`;
+                link.textContent = chatLabel(chat);
+                if (chat.id === chatId) link.setAttribute("aria-current", "page");
+                item.append(link);
+                return item;
+            });
+            if (append) chatHistory.append(...rows);
+            else chatHistory.replaceChildren(...rows);
+        }
+
+        async function loadChatList() {
+            const query = new URLSearchParams({ limit: "50" });
+            const response = await fetch(`/chats?${query}`);
+            if (!response.ok) return;
+            const page = await response.json();
+            renderChatList(page.data);
+        }
+
+        chatDrawerToggle.addEventListener("click", () => setDrawerOpen(!actionView.classList.contains("drawer-open")), { signal });
+        chatDrawerScrim.addEventListener("click", () => setDrawerOpen(false), { signal });
+        chatNew.addEventListener("click", () => { window.location.assign("/web/chat"); }, { signal });
+        pushDrawer.addEventListener("change", () => {
+            orbScene.classList.toggle("chat-drawer-push", actionView.classList.contains("drawer-open") && pushDrawer.matches);
+            syncOrbScale();
+        }, { signal });
+        window.addEventListener("resize", syncOrbScale, { signal });
+        signal.addEventListener("abort", () => {
+            cancelAnimationFrame(orbCenterFrame);
+            orbResizeObserver.disconnect();
+            orbScene.classList.remove("chat-drawer-open", "chat-drawer-push");
+        }, { once: true });
+        restoreDrawer();
+        void loadChatList();
 
         function updateTranscriptInset() {
             actionView?.style.setProperty("--chat-composer-height", `${Math.ceil(actionPanel.getBoundingClientRect().height)}px`);
@@ -157,6 +273,7 @@ customElements.define("nim-chat", class extends HTMLElement {
             actionPanel.classList.toggle("chat-panel", isChat);
             renderChatTranscript();
             if (isChat) {
+                restoreDrawer();
                 Alpine.nextTick(() => {
                     let attempts = 0;
                     const focus = () => {
@@ -477,6 +594,8 @@ customElements.define("nim-chat", class extends HTMLElement {
                 renderChatTranscript();
 
                 if (firstMessage) {
+                    window.history.replaceState({}, "", `/web/chat/${encodeURIComponent(chatId)}`);
+                    void loadChatList();
                     void loadChatHistory();
                 }
             } catch (error) {
@@ -498,7 +617,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         return {
             openAction, renderChatTranscript, submitChatMessage, handleChatFiles, setChatError,
-            clearAwaitingResponse: () => setAwaitingResponse(false),
+            clearAwaitingResponse: () => setAwaitingResponse(false), closeDrawer,
         };
     }
 

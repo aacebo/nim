@@ -31,16 +31,12 @@ customElements.define("nim-orb", class extends HTMLElement {
             [[103, 107, 255], [129, 121, 255], [189, 143, 255], [247, 105, 203], [255, 118, 155]],
             [[18, 245, 182], [48, 200, 227], [64, 139, 255], [127, 87, 255], [191, 104, 255]],
         ];
-        const reasoningPalettes = [
-            [[255, 213, 92], [255, 175, 71], [255, 116, 83], [237, 77, 151], [197, 78, 195]],
-            [[255, 191, 69], [255, 143, 68], [247, 90, 123], [218, 75, 172], [255, 113, 191]],
-        ];
-        const chatPalette = [[10, 40, 91], [10, 40, 91], [10, 40, 91], [10, 40, 91], [10, 40, 91]];
-        const chatSparkleColor = "rgb(70, 123, 186)";
+        const chatPalette = [[14, 49, 108], [14, 49, 108], [14, 49, 108], [14, 49, 108], [14, 49, 108]];
+        const chatActivePalette = [[20, 81, 180], [20, 81, 180], [20, 81, 180], [20, 81, 180], [20, 81, 180]];
         const transitionDuration = 18;
         const rippleDuration = 1.5;
         const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-        const beads = Array.from({ length: 760 }, (_, index) => ({
+        const beads = Array.from({ length: 1200 }, (_, index) => ({
             latitude: Math.asin(2 * Math.random() - 1),
             longitude: Math.random() * turn,
             phase: Math.random() * turn,
@@ -63,18 +59,20 @@ customElements.define("nim-orb", class extends HTMLElement {
         let frame;
         let previous;
         let time = 0;
+        let particleTime = 0;
         let ripple;
         let rippleFront;
         let rippleStrength;
         let rippleGlow;
         let reasoning = false;
+        let activity = 0;
 
         function isReasoning() {
             return scene?.dataset.reasoning === "true";
         }
 
         function isChat() {
-            return scene?.classList.contains("is-chat") && !isReasoning();
+            return scene?.classList.contains("is-chat") || document.documentElement.classList.contains("chat-route");
         }
 
         function direction(latitude, longitude) {
@@ -142,8 +140,8 @@ customElements.define("nim-orb", class extends HTMLElement {
                 return context.createLinearGradient(0, 0, 1, 1);
             }
 
-            const paletteSet = reasoning ? reasoningPalettes : isChat() ? [chatPalette] : palettes;
-            const position = time / (reasoning ? 5 : transitionDuration);
+            const paletteSet = isChat() ? [chatPalette] : palettes;
+            const position = time / transitionDuration;
             const index = Math.floor(position);
             const progress = position - index;
             const blend = progress * progress * (3 - 2 * progress);
@@ -152,7 +150,10 @@ customElements.define("nim-orb", class extends HTMLElement {
             const result = context.createLinearGradient(-radius * 0.83, -radius, radius * 0.65, radius);
 
             for (let stop = 0; stop < gradientStops.length; stop++) {
-                const channels = from[stop].map((channel, i) => channel + (to[stop][i] - channel) * blend);
+                const channels = from[stop].map((channel, i) => {
+                    const value = channel + (to[stop][i] - channel) * blend;
+                    return isChat() ? value + (chatActivePalette[stop][i] - value) * activity : value;
+                });
                 result.addColorStop(gradientStops[stop], `rgb(${channels.join(", ")})`);
             }
 
@@ -197,13 +198,13 @@ customElements.define("nim-orb", class extends HTMLElement {
 
             context.strokeStyle = color;
             context.lineWidth = 0.55;
-            context.globalAlpha = 0.21;
+            context.globalAlpha = 0.21 + 0.13 * activity;
             context.stroke(far);
             context.lineWidth = 2.4;
-            context.globalAlpha = 0.11;
+            context.globalAlpha = 0.11 + 0.07 * activity;
             context.stroke(near);
             context.lineWidth = 0.75;
-            context.globalAlpha = 0.87;
+            context.globalAlpha = 0.87 + 0.13 * activity;
             context.stroke(near);
 
             if (crest) {
@@ -218,30 +219,34 @@ customElements.define("nim-orb", class extends HTMLElement {
         }
 
         function drawBeads() {
-            const count = size < 500 ? 440 : beads.length;
-            context.fillStyle = sparkleColor;
+            const idleCount = size < 500 ? 440 : 760;
+            const activeCount = size < 500 ? 900 : beads.length;
+            const count = Math.round(idleCount + (activeCount - idleCount) * activity);
 
             for (let index = 0; index < count; index++) {
                 const bead = beads[index];
-                const phase = bead.phase + time * bead.speed;
+                const phase = bead.phase + particleTime * bead.speed;
                 const pulse = 0.5 + 0.5 * Math.sin(phase * 1.4);
-                const longitude = bead.longitude + 0.038 * Math.sin(phase);
+                const motion = activity;
+                const longitude = bead.longitude + (0.038 + 0.11 * motion) * Math.sin(phase);
 
                 if (bead.halo) {
-                    const distance = radius * (bead.distance + 0.027 * Math.sin(phase));
+                    const distance = radius * (bead.distance + (0.027 + 0.06 * motion) * Math.sin(phase));
                     beadPoint.x = Math.cos(longitude) * distance;
                     beadPoint.y = Math.sin(longitude) * distance;
                     beadPoint.z = 0;
                     applyRipple(beadPoint, 0.5);
                 } else {
-                    const latitude = bead.latitude + 0.026 * Math.cos(phase);
+                    const latitude = bead.latitude + (0.026 + 0.05 * motion) * Math.cos(phase * (1 + 0.7 * motion));
                     project(direction(latitude, longitude), beadPoint);
                 }
 
                 const light = beadPoint.z < 0 ? 0.33 : 1;
                 const glow = beadPoint.glow * (ripple ? rippleGlow : 0);
-                const dot = bead.size * (0.82 + 0.28 * pulse + 0.6 * glow) * Math.max(0.67, size / 760);
-                context.globalAlpha = light * Math.min(1, 0.44 + 0.52 * pulse + glow);
+                const intensity = 1 + 0.6 * activity;
+                const dot = intensity * bead.size * (0.82 + 0.28 * pulse + 0.6 * glow) * Math.max(0.67, size / 760);
+                context.fillStyle = sparkleColor;
+                context.globalAlpha = light * Math.min(1, 0.44 + 0.38 * activity + 0.52 * pulse + glow);
                 context.beginPath();
                 context.arc(beadPoint.x, beadPoint.y, dot, 0, turn);
                 context.fill();
@@ -266,7 +271,9 @@ customElements.define("nim-orb", class extends HTMLElement {
             }
 
             color = gradient();
-            sparkleColor = isChat() ? chatSparkleColor : color;
+            sparkleColor = isChat()
+                ? `rgb(${80 + 40 * activity}, ${140 + 60 * activity}, ${205 + 50 * activity})`
+                : color;
             context.clearRect(-size / 2, -size / 2, size, size);
             drawMesh();
             drawBeads();
@@ -274,7 +281,7 @@ customElements.define("nim-orb", class extends HTMLElement {
         }
 
         function resize() {
-            const nextSize = canvas.getBoundingClientRect().width;
+            const nextSize = canvas.offsetWidth;
 
             if (!Number.isFinite(nextSize) || nextSize <= 0) {
                 return;
@@ -299,7 +306,10 @@ customElements.define("nim-orb", class extends HTMLElement {
 
         function tick(now) {
             if (previous !== undefined) {
-                time += Math.min(now - previous, 50) / 1000 * (isReasoning() ? 3 : 1);
+                const delta = Math.min(now - previous, 50) / 1000;
+                time += delta;
+                activity += ((isReasoning() ? 1 : 0) - activity) * (1 - Math.exp(-delta / 1.6));
+                particleTime += delta * (1 + 11 * activity);
             }
 
             previous = now;

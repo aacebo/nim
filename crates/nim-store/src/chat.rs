@@ -16,19 +16,30 @@ impl<'a> ChatStorage<'a> {
         let data: Vec<types::ChatRow> = sqlx::query_as(
             r#"
             SELECT
-                id,
-                parent_id,
-                version,
-                summary,
-                embedding,
-                confidence,
-                last_analyzed_id,
-                last_analyzed_at,
-                created_at,
-                updated_at
+                chats.id,
+                chats.parent_id,
+                chats.version,
+                chats.summary,
+                chats.embedding,
+                chats.confidence,
+                chats.last_analyzed_id,
+                chats.last_analyzed_at,
+                chats.last_message_id,
+                chats.last_message_at,
+                CASE WHEN last_message.id IS NULL THEN NULL ELSE jsonb_build_object(
+                    'id', 'message_' || replace(last_message.id::text, '-', ''),
+                    'role', last_message.role,
+                    'content', last_message.content,
+                    'summary', last_message.summary,
+                    'created_at', last_message.created_at,
+                    'updated_at', last_message.updated_at
+                ) END AS last_message,
+                chats.created_at,
+                chats.updated_at
             FROM chats
-            WHERE ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
-            ORDER BY created_at, id
+            LEFT JOIN messages AS last_message ON last_message.id = chats.last_message_id
+            WHERE ($1::timestamptz IS NULL OR (COALESCE(chats.last_message_at, chats.created_at), chats.id) < ($1, $2::uuid))
+            ORDER BY COALESCE(chats.last_message_at, chats.created_at) DESC, chats.id DESC
             LIMIT $3
             "#,
         )
@@ -42,7 +53,7 @@ impl<'a> ChatStorage<'a> {
             size: page.limit,
             next: data.last().filter(|_| data.len() == page.limit).map(|v| Cursor {
                 id: v.id,
-                timestamp: v.created_at,
+                timestamp: v.last_message_at.unwrap_or(v.created_at),
             }),
             data,
         })
@@ -53,18 +64,29 @@ impl<'a> ChatStorage<'a> {
         sqlx::query_as(
             r#"
             SELECT
-                id,
-                parent_id,
-                version,
-                summary,
-                embedding,
-                confidence,
-                last_analyzed_id,
-                last_analyzed_at,
-                created_at,
-                updated_at
+                chats.id,
+                chats.parent_id,
+                chats.version,
+                chats.summary,
+                chats.embedding,
+                chats.confidence,
+                chats.last_analyzed_id,
+                chats.last_analyzed_at,
+                chats.last_message_id,
+                chats.last_message_at,
+                CASE WHEN last_message.id IS NULL THEN NULL ELSE jsonb_build_object(
+                    'id', 'message_' || replace(last_message.id::text, '-', ''),
+                    'role', last_message.role,
+                    'content', last_message.content,
+                    'summary', last_message.summary,
+                    'created_at', last_message.created_at,
+                    'updated_at', last_message.updated_at
+                ) END AS last_message,
+                chats.created_at,
+                chats.updated_at
             FROM chats
-            ORDER BY created_at DESC, id DESC
+            LEFT JOIN messages AS last_message ON last_message.id = chats.last_message_id
+            ORDER BY COALESCE(chats.last_message_at, chats.created_at) DESC, chats.id DESC
             LIMIT 1
             "#,
         )
@@ -77,18 +99,29 @@ impl<'a> ChatStorage<'a> {
         sqlx::query_as(
             r#"
             SELECT
-                id,
-                parent_id,
-                version,
-                summary,
-                embedding,
-                confidence,
-                last_analyzed_id,
-                last_analyzed_at,
-                created_at,
-                updated_at
+                chats.id,
+                chats.parent_id,
+                chats.version,
+                chats.summary,
+                chats.embedding,
+                chats.confidence,
+                chats.last_analyzed_id,
+                chats.last_analyzed_at,
+                chats.last_message_id,
+                chats.last_message_at,
+                CASE WHEN last_message.id IS NULL THEN NULL ELSE jsonb_build_object(
+                    'id', 'message_' || replace(last_message.id::text, '-', ''),
+                    'role', last_message.role,
+                    'content', last_message.content,
+                    'summary', last_message.summary,
+                    'created_at', last_message.created_at,
+                    'updated_at', last_message.updated_at
+                ) END AS last_message,
+                chats.created_at,
+                chats.updated_at
             FROM chats
-            WHERE id = $1
+            LEFT JOIN messages AS last_message ON last_message.id = chats.last_message_id
+            WHERE chats.id = $1
             "#,
         )
         .bind(id)
@@ -100,7 +133,7 @@ impl<'a> ChatStorage<'a> {
     pub async fn find_by_entity_id(&self, entity_id: uuid::Uuid) -> Result<Vec<types::ChatRow>, sqlx::Error> {
         sqlx::query_as(
             r#"
-            SELECT chats.*
+            SELECT chats.*, NULL::jsonb AS last_message
             FROM chats
             JOIN chats_entities ON chats_entities.chat_id = chats.id
             WHERE chats_entities.entity_id = $1
@@ -115,7 +148,7 @@ impl<'a> ChatStorage<'a> {
     pub async fn find_by_artifact_id(&self, artifact_id: uuid::Uuid) -> Result<Vec<types::ChatRow>, sqlx::Error> {
         sqlx::query_as(
             r#"
-            SELECT chats.*
+            SELECT chats.*, NULL::jsonb AS last_message
             FROM chats
             JOIN chats_artifacts ON chats_artifacts.chat_id = chats.id
             WHERE chats_artifacts.artifact_id = $1
@@ -139,6 +172,8 @@ impl<'a> ChatStorage<'a> {
                 confidence,
                 last_analyzed_id,
                 last_analyzed_at,
+                last_message_id,
+                last_message_at,
                 created_at,
                 updated_at
             )
@@ -152,7 +187,9 @@ impl<'a> ChatStorage<'a> {
                 $7,
                 $8,
                 $9,
-                $10
+                $10,
+                $11,
+                $12
             )
             RETURNING
                 id,
@@ -163,6 +200,9 @@ impl<'a> ChatStorage<'a> {
                 confidence,
                 last_analyzed_id,
                 last_analyzed_at,
+                last_message_id,
+                last_message_at,
+                NULL::jsonb AS last_message,
                 created_at,
                 updated_at
             "#,
@@ -175,6 +215,8 @@ impl<'a> ChatStorage<'a> {
         .bind(value.confidence)
         .bind(value.last_analyzed_id)
         .bind(value.last_analyzed_at)
+        .bind(value.last_message_id)
+        .bind(value.last_message_at)
         .bind(value.created_at)
         .bind(value.updated_at)
         .fetch_one(self.pool)
@@ -193,8 +235,10 @@ impl<'a> ChatStorage<'a> {
                 confidence = $4,
                 last_analyzed_id = $5,
                 last_analyzed_at = $6,
-                updated_at = $7
-            WHERE id = $1 AND version = $8
+                last_message_id = $7,
+                last_message_at = $8,
+                updated_at = $9
+            WHERE id = $1 AND version = $10
             RETURNING
                 id,
                 parent_id,
@@ -204,6 +248,9 @@ impl<'a> ChatStorage<'a> {
                 confidence,
                 last_analyzed_id,
                 last_analyzed_at,
+                last_message_id,
+                last_message_at,
+                NULL::jsonb AS last_message,
                 created_at,
                 updated_at
             "#,
@@ -214,6 +261,8 @@ impl<'a> ChatStorage<'a> {
         .bind(value.confidence)
         .bind(value.last_analyzed_id)
         .bind(value.last_analyzed_at)
+        .bind(value.last_message_id)
+        .bind(value.last_message_at)
         .bind(chrono::Utc::now())
         .bind(value.version)
         .fetch_optional(self.pool)

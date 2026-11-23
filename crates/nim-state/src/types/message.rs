@@ -35,6 +35,16 @@ pub struct Message {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MessagePartial {
+    pub id: MessageId,
+    pub role: Role,
+    pub content: MessageContent,
+    pub summary: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MessageId(uuid::Uuid);
 

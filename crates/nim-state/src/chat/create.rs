@@ -18,6 +18,9 @@ impl<'a> ChatService<'a> {
                 confidence: 0.0,
                 last_analyzed_id: None,
                 last_analyzed_at: None,
+                last_message_id: None,
+                last_message_at: None,
+                last_message: None,
                 created_at: now,
                 updated_at: now,
             })

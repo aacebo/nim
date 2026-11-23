@@ -9,6 +9,9 @@ pub struct ChatRow {
     pub confidence: f32,
     pub last_analyzed_id: Option<uuid::Uuid>,
     pub last_analyzed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_message_id: Option<uuid::Uuid>,
+    pub last_message_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_message: Option<sqlx::types::JsonValue>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }

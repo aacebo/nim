@@ -5,7 +5,12 @@ use crate::SignalContext;
 #[tracing::instrument(skip(ctx, signal))]
 pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Result<()> {
     let message = signal.content;
-    let mut messages = ctx.services().messages().find_history(message.id, 20).await?.data;
+    let mut messages = ctx
+        .services()
+        .messages()
+        .find_history(message.chat_id, message.id, 20)
+        .await?
+        .data;
 
     messages.sort_by_key(|a| a.created_at);
     messages.extend([message.clone()]);

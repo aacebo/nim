@@ -7,6 +7,8 @@ pub struct ChatUpdate {
     pub confidence: Option<f32>,
     pub last_analyzed_id: Option<MessageId>,
     pub last_analyzed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_message_id: Option<MessageId>,
+    pub last_message_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl<'a> ChatService<'a> {
@@ -32,6 +34,14 @@ impl<'a> ChatService<'a> {
 
         if let Some(value) = value.last_analyzed_at {
             row.last_analyzed_at = Some(value);
+        }
+
+        if let Some(value) = value.last_message_id {
+            row.last_message_id = Some(value.into());
+        }
+
+        if let Some(value) = value.last_message_at {
+            row.last_message_at = Some(value);
         }
 
         Ok(self.storage.chats().update(row).await?.into())

@@ -1,4 +1,4 @@
-use crate::{ArtifactId, Embedding, EntityId, MessageId, Version};
+use crate::{ArtifactId, Embedding, EntityId, MessageId, MessagePartial, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Chat {
@@ -11,6 +11,9 @@ pub struct Chat {
     pub confidence: f32,
     pub last_analyzed_id: Option<MessageId>,
     pub last_analyzed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_message_id: Option<MessageId>,
+    pub last_message_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_message: Option<MessagePartial>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -77,6 +80,9 @@ impl From<nim_store::ChatRow> for Chat {
             confidence: value.confidence,
             last_analyzed_id: value.last_analyzed_id.map(Into::into),
             last_analyzed_at: value.last_analyzed_at,
+            last_message_id: value.last_message_id.map(Into::into),
+            last_message_at: value.last_message_at,
+            last_message: value.last_message.and_then(|v| serde_json::from_value(v).ok()),
             created_at: value.created_at,
             updated_at: value.updated_at,
         }

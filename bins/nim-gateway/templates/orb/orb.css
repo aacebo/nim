@@ -14,12 +14,15 @@ main {
         radial-gradient(ellipse at 64% 66%, #310c35, transparent 52%),
         #04030c;
 }
+html.chat-route main {
+    background: #02040c;
+}
 .orb-scene::before {
     position: absolute;
     z-index: 0;
     inset: 0;
-    background: radial-gradient(ellipse at center, #07162c, transparent 58%),
-        radial-gradient(ellipse at center, #030916, transparent 72%),
+    background: radial-gradient(ellipse var(--orb-hue-inner-x, 50vmax) var(--orb-hue-inner-y, 50vmax) at var(--orb-center-x, 50%) var(--orb-center-y, 50%), #07162c, transparent),
+        radial-gradient(ellipse var(--orb-hue-outer-x, 75vmax) var(--orb-hue-outer-y, 75vmax) at var(--orb-center-x, 50%) var(--orb-center-y, 50%), #030916, transparent),
         #02040c;
     opacity: 0;
     transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -27,6 +30,7 @@ main {
     pointer-events: none;
 }
 .orb-scene.is-chat::before,
+html.chat-route .orb-scene::before,
 .orb-scene:has(#chat-form:not([hidden]))::before {
     opacity: 1;
 }
@@ -34,8 +38,7 @@ main {
     -webkit-appearance: none;
     appearance: none;
     display: block;
-    width: min(94vw, 90vh, 760px);
-    width: min(94vw, 90dvh, 760px);
+    width: 50vw;
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -76,9 +79,6 @@ main {
     position: relative;
     transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.orb-scene[data-reasoning="true"] #orb-trigger {
-    filter: drop-shadow(0 0 16px rgb(255 168 68 / 46%)) drop-shadow(0 0 34px rgb(235 75 154 / 30%));
-}
 .orb-scene[data-reasoning="true"] #orb {
     transform: scale(1.1);
 }
@@ -97,18 +97,22 @@ main {
     opacity: 1;
 }
 .orb-scene.is-chat .hud-grid,
+html.chat-route .orb-scene .hud-grid,
 .orb-scene:has(#chat-form:not([hidden])) .hud-grid {
     opacity: 0;
     visibility: hidden;
 }
 .orb-scene.is-chat .hud-cubes,
+html.chat-route .orb-scene .hud-cubes,
 .orb-scene:has(#chat-form:not([hidden])) .hud-cubes {
     opacity: 0;
     transform: scale(1.08);
 }
 .orb-scene.is-chat #orb-trigger,
+html.chat-route .orb-scene #orb-trigger,
 .orb-scene:has(#chat-form:not([hidden])) #orb-trigger {
-    transform: scale(0.5);
+    transform: scale(var(--chat-orb-scale, 0.66125));
+    pointer-events: none;
 }
 .grid-lines {
     fill: none;
@@ -265,13 +269,22 @@ main {
     visibility: hidden;
     transition: opacity 180ms ease, transform 220ms ease, visibility 0s linear 220ms;
 }
+.orb-scene.skip-chat-entry :is(#orb-trigger, .hud-grid, .hud-cubes, #action-panel) { transition: none; }
 .orb-scene[data-hud="panel"] #action-panel {
     opacity: 1;
     visibility: visible;
     transform: none;
     transition-delay: 0s;
 }
+@media (min-width: 961px) {
+    html.chat-route .orb-scene:has(.action-view.drawer-open) #orb-trigger {
+        transform: translateX(140px) scale(var(--chat-orb-scale, 0.66125)) !important;
+    }
+}
 @media (max-width: 760px) {
+    html.chat-route .orb-scene #orb-trigger {
+        transform: scale(1.3225) !important;
+    }
     #orb-hub {
         top: max(var(--hub-top), calc(100% - 232px - env(safe-area-inset-bottom)));
         left: var(--hub-left);

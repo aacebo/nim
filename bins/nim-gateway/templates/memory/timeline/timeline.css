@@ -14,7 +14,7 @@ nim-memory-timeline {
 #memory-timeline {
     overflow: auto hidden;
     overscroll-behavior: contain;
-    scrollbar-width: none;
+    scrollbar-width: none !important;
 }
 #memory-timeline::-webkit-scrollbar {
     display: none;

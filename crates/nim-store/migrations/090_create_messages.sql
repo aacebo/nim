@@ -42,6 +42,10 @@ CREATE TABLE IF NOT EXISTS messages_artifacts (
 );
 
 ALTER TABLE chats
+ADD last_message_id UUID REFERENCES messages(id) ON DELETE SET NULL DEFAULT NULL,
+ADD last_message_at TIMESTAMPTZ DEFAULT NULL;
+
+ALTER TABLE chats
 ADD last_analyzed_id UUID REFERENCES messages(id) ON DELETE SET NULL,
 ADD last_analyzed_at TIMESTAMPTZ;
 

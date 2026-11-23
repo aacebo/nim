@@ -2,14 +2,14 @@ customElements.define("nim-chat", class extends HTMLElement {
     createView(host, signal) {
         const orbScene = document.querySelector(".orb-scene");
         const actionPanel = host.querySelector("#action-panel");
-        const actionTitle = host.querySelector("#action-title");
-        const actionBack = host.querySelector("#action-back");
+        const actionView = actionPanel.closest(".action-view");
         const chatForm = host.querySelector("#chat-form");
         const chatInput = host.querySelector("#chat-input");
         const chatSend = host.querySelector("#chat-send");
         const chatAttach = host.querySelector("#chat-attach");
         const chatFiles = host.querySelector("#chat-files");
         const chatAttachments = host.querySelector("#chat-attachments");
+        const chatAttachmentDrawer = host.querySelector("#chat-attachment-drawer");
         const pendingAttachments = [];
         // Leave room for multipart headers within the gateway's 10 MiB request limit.
         const maxAttachmentSize = 10 * 1024 * 1024 - 64 * 1024;
@@ -20,7 +20,6 @@ customElements.define("nim-chat", class extends HTMLElement {
             text: "M5 2h9l5 5v15H5z M14 2v6h5 M8 12h8 M8 16h8",
         };
         const chatError = host.querySelector("#chat-error");
-        const chatStatus = host.querySelector("#chat-status");
         const chatHistoryStatus = host.querySelector("#chat-history-status");
         const initialState = host.querySelector(".action-view").dataset;
         const initialChat = JSON.parse(initialState.chat);
@@ -28,14 +27,53 @@ customElements.define("nim-chat", class extends HTMLElement {
         const chatMessages = new Map(initialMessages.map((message) => [message.id, message]));
         const signalDecoder = new TextDecoder();
         const historyLimit = 100;
+        const reasoningBackground = "radial-gradient(ellipse at 38% 38%, #5d3515, transparent 48%), radial-gradient(ellipse at 64% 66%, #531136, transparent 52%), #13060e";
+        let reasoningOverlay = orbScene.querySelector("#reasoning-background");
+
+        if (!reasoningOverlay) {
+            reasoningOverlay = document.createElement("div");
+            reasoningOverlay.id = "reasoning-background";
+            reasoningOverlay.style.cssText = `position:absolute;z-index:0;inset:0;pointer-events:none;background:${reasoningBackground};opacity:0;transition:opacity 900ms ease`;
+            orbScene.prepend(reasoningOverlay);
+        }
+        for (const child of orbScene.children) {
+            if (child !== reasoningOverlay) {
+                child.style.position = "relative";
+                child.style.zIndex = "1";
+            }
+        }
 
         let chatId = initialChat?.id;
         let historyCursor;
         let historyLoaded = false;
         let historyLoading = false;
         let historyError = false;
-        let chatStatusTimer;
         let chatErrorTimer;
+        let awaitingResponse = false;
+        let activity;
+        let activityTimer;
+
+        function updateTranscriptInset() {
+            actionView?.style.setProperty("--chat-composer-height", `${Math.ceil(actionPanel.getBoundingClientRect().height)}px`);
+        }
+
+        const composerObserver = new ResizeObserver(updateTranscriptInset);
+        composerObserver.observe(actionPanel);
+        signal.addEventListener("abort", () => composerObserver.disconnect(), { once: true });
+        requestAnimationFrame(updateTranscriptInset);
+
+        function resizeChatInput() {
+            chatInput.style.height = "auto";
+            chatInput.style.height = `${Math.min(chatInput.scrollHeight, 144)}px`;
+            chatInput.style.overflowY = chatInput.scrollHeight > 144 ? "auto" : "hidden";
+        }
+
+        chatInput.addEventListener("input", resizeChatInput, { signal });
+        chatInput.addEventListener("keydown", (event) => {
+            if (event.isComposing || event.key !== "Enter" || event.shiftKey) return;
+            event.preventDefault();
+            void submitChatMessage();
+        }, { signal });
 
         async function openMessageView(id, trigger) {
             const response = await fetch(`/web/views/messages/${encodeURIComponent(id)}`);
@@ -56,28 +94,15 @@ customElements.define("nim-chat", class extends HTMLElement {
             void openMessageView(event.detail.id, event.detail.trigger).catch(() => setChatError("Unable to load message details."));
         }, { signal });
         host.addEventListener("nim-chat-history", () => { void loadChatHistory(); }, { signal });
-
-        function setChatStatus(text, dismiss = false) {
-            clearTimeout(chatStatusTimer);
-            chatStatus.classList.remove("is-fading");
-            chatStatus.textContent = text;
-
-            if (dismiss) {
-                chatStatusTimer = setTimeout(() => {
-                    chatStatus.classList.add("is-fading");
-                    chatStatusTimer = setTimeout(() => {
-                        chatStatus.textContent = "";
-                    }, 300);
-                }, 2200);
-            }
-        }
+        host.addEventListener("nim-chat-activity-toggle", (event) => {
+            if (activity) activity.expanded = event.detail.expanded;
+        }, { signal });
 
         function setChatError(text) {
             clearTimeout(chatErrorTimer);
             chatError.classList.remove("is-fading");
             chatError.textContent = text;
             if (!text) return;
-            setChatStatus("");
             chatErrorTimer = setTimeout(() => {
                 chatError.classList.add("is-fading");
                 chatErrorTimer = setTimeout(() => {
@@ -86,17 +111,52 @@ customElements.define("nim-chat", class extends HTMLElement {
             }, 2200);
         }
 
+        function formatElapsed(startedAt) {
+            const seconds = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
+            return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+        }
+
+        function setAwaitingResponse(value, discard = false) {
+            if (awaitingResponse === value) return;
+            awaitingResponse = value;
+            orbScene.dataset.reasoning = String(value);
+            reasoningOverlay.style.opacity = value ? "1" : "0";
+            if (value) {
+                activity = { active: true, elapsed: "", expanded: false, startedAt: Date.now(), updates: [] };
+                activityTimer = setInterval(() => {
+                    activity.elapsed = formatElapsed(activity.startedAt);
+                    renderChatTranscript();
+                }, 1000);
+            } else {
+                clearInterval(activityTimer);
+                activityTimer = undefined;
+                if (discard) activity = undefined;
+                else if (activity) {
+                    activity.active = false;
+                    activity.elapsed = formatElapsed(activity.startedAt);
+                    activity.expanded = false;
+                }
+            }
+            renderChatTranscript();
+        }
+
+        function updateActivity(update) {
+            if (!awaitingResponse || !activity || typeof update?.text !== "string" || !update.text.trim()) return;
+            if (Number.isInteger(update.sequence) && activity.updates.at(-1)?.sequence >= update.sequence) return;
+            if (activity.updates.at(-1)?.text === update.text) return;
+            activity.updates.push({ text: update.text, sequence: update.sequence });
+            renderChatTranscript();
+        }
+
         function isChatOpen() {
             const state = Alpine.$data(orbScene);
             return state.hud === "panel" && state.showChatForm;
         }
 
         function openAction(isChat, title) {
-            actionTitle.textContent = title;
             actionPanel.classList.toggle("chat-panel", isChat);
             renderChatTranscript();
             if (isChat) {
-                if (!chatSend.disabled) setChatStatus("");
                 Alpine.nextTick(() => {
                     let attempts = 0;
                     const focus = () => {
@@ -110,8 +170,6 @@ customElements.define("nim-chat", class extends HTMLElement {
                     requestAnimationFrame(focus);
                 });
                 void loadChatHistory();
-            } else {
-                Alpine.nextTick(() => actionBack.focus());
             }
         }
 
@@ -133,7 +191,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         function renderChatTranscript() {
             host.querySelector("nim-chat-transcript").render({
-                open: isChatOpen(), chatMessages, historyLoading, historyError,
+                open: isChatOpen(), chatMessages, historyLoading, historyError, activity,
             });
         }
 
@@ -170,6 +228,9 @@ customElements.define("nim-chat", class extends HTMLElement {
                 const payload = typeof event.data === "string" ? event.data : signalDecoder.decode(event.data);
                 const signal = JSON.parse(payload);
                 const response = signal?.subject === "nim.message.response" && signal.content?.chat_id === chatId;
+                if (signal?.subject === "nim.message.progress" && signal.content?.chat_id === chatId) {
+                    updateActivity(signal.content);
+                }
                 if (mergeChatMessage(signal?.content)) {
                     if (host.querySelector("nim-chat-transcript").messageArtifacts(signal.content.content).length) {
                         await loadArtifactView();
@@ -177,7 +238,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                     }
                     renderChatTranscript();
                 }
-                if (response) setChatStatus("");
+                if (response) setAwaitingResponse(false);
             } catch {
                 return;
             }
@@ -185,6 +246,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         function renderAttachments() {
             chatAttachments.hidden = pendingAttachments.length === 0;
+            chatAttachmentDrawer.hidden = pendingAttachments.length === 0;
             chatAttachments.replaceChildren(...pendingAttachments.map((attachment) => {
                 const item = document.createElement("li");
                 const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -250,13 +312,27 @@ customElements.define("nim-chat", class extends HTMLElement {
                 else content.push({ type: "text", text: value });
             };
             const fencedEnd = (offset) => {
-                if (offset !== 0 && text[offset - 1] !== "\n") return null;
-                const marker = text.slice(offset, offset + 3);
-                if (marker !== "```" && marker !== "~~~") return null;
-                const end = text.indexOf(`\n${marker}`, offset + 3);
-                if (end < 0) return text.length;
-                const lineEnd = text.indexOf("\n", end + 4);
-                return lineEnd < 0 ? text.length : lineEnd + 1;
+                const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
+                if (text.slice(lineStart, offset).trim()) return null;
+                const marker = text.slice(offset).match(/^(`{3,}|~{3,})/)?.[1];
+                if (!marker) return null;
+                const lineEnd = text.indexOf("\n", offset);
+                let cursor = lineEnd < 0 ? text.length : lineEnd + 1;
+                while (cursor < text.length) {
+                    const end = text.indexOf("\n", cursor);
+                    const line = text.slice(cursor, end < 0 ? text.length : end).replace(/\r$/, "");
+                    if (line.match(new RegExp(`^[ \\t]{0,3}${marker[0]}{${marker.length},}[ \\t]*$`))) {
+                        return end < 0 ? text.length : end + 1;
+                    }
+                    cursor = end < 0 ? text.length : end + 1;
+                }
+                return text.length;
+            };
+            const inlineCodeEnd = (offset) => {
+                const marker = text.slice(offset).match(/^`+/)?.[0];
+                if (!marker) return null;
+                const end = text.indexOf(marker, offset + marker.length);
+                return end < 0 ? text.length : end + marker.length;
             };
             const jsonEnd = (offset) => {
                 const stack = [];
@@ -285,8 +361,13 @@ customElements.define("nim-chat", class extends HTMLElement {
                     index = fence;
                     continue;
                 }
+                const inlineCode = inlineCodeEnd(index);
+                if (inlineCode) {
+                    index = inlineCode;
+                    continue;
+                }
                 const boundary = index === 0 || !/[A-Za-z0-9_]/.test(text[index - 1]);
-                if (boundary && text.startsWith("http://", index) || boundary && text.startsWith("https://", index)) {
+                if (boundary && (text.startsWith("http://", index) || text.startsWith("https://", index))) {
                     const match = text.slice(index).match(/^https?:\/\/[^\s<]+/);
                     const url = match?.[0].replace(/[.,;:!?)}\]]+$/, "");
                     if (url) {
@@ -338,7 +419,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         async function submitChatMessage() {
 
-            if (chatSend.disabled) {
+            if (chatInput.readOnly) {
                 return;
             }
 
@@ -362,13 +443,13 @@ customElements.define("nim-chat", class extends HTMLElement {
             try {
                 const uploads = pendingAttachments.filter((attachment) => !attachment.artifactId);
                 for (const [index, attachment] of uploads.entries()) {
-                    setChatStatus(`Uploading ${index + 1}/${uploads.length}…`);
                     await uploadAttachment(attachment);
                 }
-                const content = parseContent(text);
-                content.push(...pendingAttachments.map(({ artifactId }) => ({ type: "artifact", artifact_id: artifactId })));
-                setChatStatus("Sending…");
+                const parts = parseContent(text);
+                parts.push(...pendingAttachments.map(({ artifactId }) => ({ type: "artifact", artifact_id: artifactId })));
+                const content = parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts;
                 const path = chatId ? `/chats/${encodeURIComponent(chatId)}/messages` : "/chats/messages";
+                setAwaitingResponse(true);
                 const response = await fetch(path, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -388,18 +469,18 @@ customElements.define("nim-chat", class extends HTMLElement {
                 const firstMessage = !chatId;
                 chatId = message.chat_id;
                 state.draft = "";
+                requestAnimationFrame(resizeChatInput);
                 pendingAttachments.length = 0;
                 renderAttachments();
                 mergeChatMessage(message);
+                if (activity) activity.messageId = message.id;
                 renderChatTranscript();
 
                 if (firstMessage) {
                     void loadChatHistory();
                 }
-
-                setChatStatus("Thinking…");
             } catch (error) {
-                setChatStatus("");
+                setAwaitingResponse(false, true);
                 setChatError(error.message?.startsWith("Upload") || error.message?.startsWith("Invalid upload")
                     ? error.message : "Send failed. Try again.");
             } finally {
@@ -415,7 +496,10 @@ customElements.define("nim-chat", class extends HTMLElement {
             }
         }
 
-        return { openAction, renderChatTranscript, submitChatMessage, handleChatFiles, setChatError };
+        return {
+            openAction, renderChatTranscript, submitChatMessage, handleChatFiles, setChatError,
+            clearAwaitingResponse: () => setAwaitingResponse(false),
+        };
     }
 
     connectedCallback() {

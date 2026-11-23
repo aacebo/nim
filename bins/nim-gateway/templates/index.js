@@ -63,19 +63,19 @@ socket.addEventListener("message", (event) => {
 const viewAssets = {
     artifact: { css: ["message/message.css?v=32", "artifact/artifact.css?v=6"], js: ["artifact/artifact.js?v=7"] },
     chat: {
-        css: ["chat/transcript/transcript.css?v=14", "chat/chat.css?v=4"],
+        css: ["chat/transcript/transcript.css?v=25", "chat/chat.css?v=35"],
         js: [
             "https://unpkg.com/marked@15.0.7/marked.min.js",
             "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",
-            "chat/transcript/transcript.js?v=14",
-            "chat/chat.js?v=18",
+            "chat/transcript/transcript.js?v=21",
+            "chat/chat.js?v=37",
         ],
     },
     memory: {
         css: ["memory/timeline/timeline.css", "memory/graph/graph.css?v=2", "memory/details/details.css", "memory/memory.css?v=3"],
         js: ["memory/timeline/timeline.js", "memory/graph/graph.js", "memory/details/details.js?v=3", "memory/memory.js?v=10"],
     },
-    "dev-tools": { css: ["dev-tools/dev-tools.css?v=4"], js: ["dev-tools/dev-tools.js?v=7"] },
+    "dev-tools": { css: ["dev-tools/dev-tools.css?v=5"], js: ["dev-tools/dev-tools.js?v=8"] },
 };
 const viewLoads = new Map();
 const assetLoads = new Map();
@@ -168,6 +168,7 @@ document.addEventListener("alpine:init", () => {
 
         setHud(view) {
             if (this.hud === "memory" && view !== "memory") this.memory?.close();
+            if (view !== "panel" || this.activeAction !== "chat") this.chat?.clearAwaitingResponse();
             this.hud = view;
             this.showChatForm = view === "panel" && this.activeAction === "chat";
             this.chat?.renderChatTranscript();
@@ -214,17 +215,23 @@ document.addEventListener("alpine:init", () => {
         sendChatMessage() { return this.chat.submitChatMessage(); },
         selectChatFiles(event) { this.chat.handleChatFiles(event.target.files); },
         clearChatError() { this.chat.setChatError(""); },
-        closeDevTools() { this.devToolsOpen = false; },
+        closeDevTools() {
+            if (this.$refs.devTools?.open) this.$refs.devTools.close();
+            this.devToolsOpen = false;
+        },
         async handleKey(event) {
             if (event.isComposing) return;
             if (event.key === "F12") {
                 event.preventDefault();
-                if (!this.devToolsOpen) {
+                if (!this.$refs.devTools?.open) {
                     try { await loadView("dev-tools"); }
                     catch (error) { console.error(error); this.viewError = "Unable to load developer tools. Please try again."; return; }
+                    this.$refs.devTools.showModal();
+                    this.devToolsOpen = true;
+                    this.$refs.devTools.focus({ preventScroll: true });
+                } else {
+                    this.closeDevTools();
                 }
-                this.devToolsOpen = !this.devToolsOpen;
-                if (this.devToolsOpen) this.$nextTick(() => this.$refs.devTools.focus({ preventScroll: true }));
             } else if (event.key === "Escape") {
                 if (this.devToolsOpen) this.closeDevTools();
                 else if (this.hud === "memory") {

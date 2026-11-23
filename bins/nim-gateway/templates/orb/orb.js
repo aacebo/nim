@@ -14,6 +14,7 @@ customElements.define("nim-orb", class extends HTMLElement {
     animateOrb(canvas, trigger) {
         const context = canvas.getContext("2d");
         if (!context) return;
+        const scene = canvas.closest(".orb-scene");
         const listeners = new AbortController();
         const turn = 2 * Math.PI;
         const latitudeSteps = 38;
@@ -30,6 +31,12 @@ customElements.define("nim-orb", class extends HTMLElement {
             [[103, 107, 255], [129, 121, 255], [189, 143, 255], [247, 105, 203], [255, 118, 155]],
             [[18, 245, 182], [48, 200, 227], [64, 139, 255], [127, 87, 255], [191, 104, 255]],
         ];
+        const reasoningPalettes = [
+            [[255, 213, 92], [255, 175, 71], [255, 116, 83], [237, 77, 151], [197, 78, 195]],
+            [[255, 191, 69], [255, 143, 68], [247, 90, 123], [218, 75, 172], [255, 113, 191]],
+        ];
+        const chatPalette = [[10, 40, 91], [10, 40, 91], [10, 40, 91], [10, 40, 91], [10, 40, 91]];
+        const chatSparkleColor = "rgb(70, 123, 186)";
         const transitionDuration = 18;
         const rippleDuration = 1.5;
         const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -52,6 +59,7 @@ customElements.define("nim-orb", class extends HTMLElement {
         let size;
         let radius;
         let color;
+        let sparkleColor;
         let frame;
         let previous;
         let time = 0;
@@ -59,6 +67,15 @@ customElements.define("nim-orb", class extends HTMLElement {
         let rippleFront;
         let rippleStrength;
         let rippleGlow;
+        let reasoning = false;
+
+        function isReasoning() {
+            return scene?.dataset.reasoning === "true";
+        }
+
+        function isChat() {
+            return scene?.classList.contains("is-chat") && !isReasoning();
+        }
 
         function direction(latitude, longitude) {
             const ring = Math.cos(latitude);
@@ -91,21 +108,19 @@ customElements.define("nim-orb", class extends HTMLElement {
         function applyRipple(point, amplitude = 1) {
             point.glow = 0;
 
-            if (!ripple) {
-                return;
+            if (ripple) {
+                const dx = point.x / radius - ripple.x;
+                const dy = point.y / radius - ripple.y;
+                const distance = Math.hypot(dx, dy);
+                const wave = (distance - rippleFront) / 0.21;
+                const band = Math.exp(-wave * wave);
+                const displacement = amplitude * rippleStrength * Math.cos(wave * 1.7) * band;
+                const scale = displacement / Math.max(distance, 0.09);
+
+                point.x += dx * scale;
+                point.y += dy * scale;
+                point.glow = band;
             }
-
-            const dx = point.x / radius - ripple.x;
-            const dy = point.y / radius - ripple.y;
-            const distance = Math.hypot(dx, dy);
-            const wave = (distance - rippleFront) / 0.21;
-            const band = Math.exp(-wave * wave);
-            const displacement = amplitude * rippleStrength * Math.cos(wave * 1.7) * band;
-            const scale = displacement / Math.max(distance, 0.09);
-
-            point.x += dx * scale;
-            point.y += dy * scale;
-            point.glow = band;
         }
 
         function startRipple(event) {
@@ -127,12 +142,13 @@ customElements.define("nim-orb", class extends HTMLElement {
                 return context.createLinearGradient(0, 0, 1, 1);
             }
 
-            const position = time / transitionDuration;
+            const paletteSet = reasoning ? reasoningPalettes : isChat() ? [chatPalette] : palettes;
+            const position = time / (reasoning ? 5 : transitionDuration);
             const index = Math.floor(position);
             const progress = position - index;
             const blend = progress * progress * (3 - 2 * progress);
-            const from = palettes[index % palettes.length];
-            const to = palettes[(index + 1) % palettes.length];
+            const from = paletteSet[index % paletteSet.length];
+            const to = paletteSet[(index + 1) % paletteSet.length];
             const result = context.createLinearGradient(-radius * 0.83, -radius, radius * 0.65, radius);
 
             for (let stop = 0; stop < gradientStops.length; stop++) {
@@ -191,18 +207,19 @@ customElements.define("nim-orb", class extends HTMLElement {
             context.stroke(near);
 
             if (crest) {
+                const crestGlow = ripple ? rippleGlow : 0.68;
                 context.lineWidth = 3.4;
-                context.globalAlpha = rippleGlow * 0.3;
+                context.globalAlpha = crestGlow * 0.3;
                 context.stroke(crest);
                 context.lineWidth = 1.6;
-                context.globalAlpha = rippleGlow;
+                context.globalAlpha = crestGlow;
                 context.stroke(crest);
             }
         }
 
         function drawBeads() {
             const count = size < 500 ? 440 : beads.length;
-            context.fillStyle = color;
+            context.fillStyle = sparkleColor;
 
             for (let index = 0; index < count; index++) {
                 const bead = beads[index];
@@ -222,7 +239,7 @@ customElements.define("nim-orb", class extends HTMLElement {
                 }
 
                 const light = beadPoint.z < 0 ? 0.33 : 1;
-                const glow = ripple ? beadPoint.glow * rippleGlow : 0;
+                const glow = beadPoint.glow * (ripple ? rippleGlow : 0);
                 const dot = bead.size * (0.82 + 0.28 * pulse + 0.6 * glow) * Math.max(0.67, size / 760);
                 context.globalAlpha = light * Math.min(1, 0.44 + 0.52 * pulse + glow);
                 context.beginPath();
@@ -233,6 +250,8 @@ customElements.define("nim-orb", class extends HTMLElement {
 
         function draw() {
             if (!Number.isFinite(radius) || radius <= 0) return;
+
+            reasoning = isReasoning();
 
             if (ripple) {
                 const progress = (time - ripple.start) / rippleDuration;
@@ -247,6 +266,7 @@ customElements.define("nim-orb", class extends HTMLElement {
             }
 
             color = gradient();
+            sparkleColor = isChat() ? chatSparkleColor : color;
             context.clearRect(-size / 2, -size / 2, size, size);
             drawMesh();
             drawBeads();
@@ -279,7 +299,7 @@ customElements.define("nim-orb", class extends HTMLElement {
 
         function tick(now) {
             if (previous !== undefined) {
-                time += Math.min(now - previous, 50) / 1000;
+                time += Math.min(now - previous, 50) / 1000 * (isReasoning() ? 3 : 1);
             }
 
             previous = now;
@@ -305,6 +325,8 @@ customElements.define("nim-orb", class extends HTMLElement {
         // Layout changes can resize the canvas without a window resize event.
         const resizeObserver = new ResizeObserver(resize);
         resizeObserver.observe(canvas);
+        const reasoningObserver = new MutationObserver(syncMotion);
+        if (scene) reasoningObserver.observe(scene, { attributes: true, attributeFilter: ["data-reasoning"] });
         window.addEventListener("resize", resize, { signal: listeners.signal });
 
         // Re-arm when zoom or moving between displays changes pixel density.
@@ -322,6 +344,7 @@ customElements.define("nim-orb", class extends HTMLElement {
         return () => {
             listeners.abort();
             resizeObserver.disconnect();
+            reasoningObserver.disconnect();
             cancelAnimationFrame(frame);
         };
     }

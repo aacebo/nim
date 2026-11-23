@@ -1,14 +1,11 @@
 <template id="dev-tools-template">
-    <div
+    <dialog
         id="dev-tools"
-        role="dialog"
         aria-label="Developer tools"
-        aria-modal="true"
         tabindex="-1"
         x-ref="devTools"
-        x-show="devToolsOpen"
-        x-transition.opacity.duration.180ms
-        x-cloak
+        @close="devToolsOpen = false"
+        @cancel.prevent="closeDevTools()"
         @click.self="closeDevTools()"
     >
         <button id="dev-tools-close" type="button" aria-label="Close developer overlay" @click="closeDevTools()">
@@ -45,5 +42,5 @@
                 </template>
             </ol>
         </section>
-    </div>
+    </dialog>
 </template>

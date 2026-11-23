@@ -16,7 +16,7 @@ pub async fn route(
 
     match artifact.content {
         nim::state::ArtifactContent::Text { text } => Ok(text.into_response()),
-        nim::state::ArtifactContent::Resource { url, headers } => {
+        nim::state::ArtifactContent::Resource { url, headers, .. } => {
             let client = reqwest::Client::new();
             let mut request = client.get(url);
 

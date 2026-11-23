@@ -12,7 +12,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Artifact>) -> nim::error::Re
             size: _,
             media_type: _,
         } => tokio::fs::read_to_string(path).await?.to_lowercase(),
-        nim::state::ArtifactContent::Resource { url, headers } => {
+        nim::state::ArtifactContent::Resource { url, headers, .. } => {
             let mut request = reqwest::Client::new().get(url);
 
             for (name, value) in headers {

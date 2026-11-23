@@ -65,7 +65,12 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
 
     messageArtifacts(content) {
         if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item));
-        return content?.type === "artifact" ? [{ id: content.artifact_id }] : [];
+        return content?.type === "artifact" ? [{
+            id: content.id,
+            name: content.name,
+            size: content.size,
+            media_type: content.media_type,
+        }] : [];
     }
 
     messageOrder(message) {

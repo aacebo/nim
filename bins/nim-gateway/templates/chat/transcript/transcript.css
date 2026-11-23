@@ -36,6 +36,7 @@ nim-chat-transcript {
 #chat-messages .artifact-chip:hover { border-color: rgb(255 255 255 / 22%); background: rgb(34 39 49 / 96%); }
 #chat-messages .artifact-chip:focus-visible { border-color: rgb(255 255 255 / 12%); outline: 0; box-shadow: none; }
 #chat-messages .artifact-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#chat-messages .artifact-chip-size { flex: 0 0 auto; color: rgb(211 216 224 / 64%); font-variant-numeric: tabular-nums; }
 #chat-messages .artifact-icon { width: 14px; height: 14px; flex-basis: 14px; }
 #chat-messages > .chat-message-user .artifact-chip { border-color: rgb(255 255 255 / 14%); background: rgb(31 35 43 / 94%); color: #e0e4ea; transition: border-color 150ms ease, background 150ms ease; }
 #chat-messages > .chat-message-user .artifact-chip:hover { border-color: rgb(255 255 255 / 26%); background: rgb(39 43 52 / 98%); }

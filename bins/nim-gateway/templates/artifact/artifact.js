@@ -27,6 +27,17 @@
         if (type.startsWith("text/") || ["application/json", "application/xml"].includes(type)) return "text";
         return "file";
     };
+    const formatSize = (value) => {
+        if (!Number.isFinite(value) || value < 0) return "";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let size = value;
+        let unit = 0;
+        while (size >= 1000 && unit < units.length - 1) {
+            size /= 1000;
+            unit++;
+        }
+        return `${Number(size.toFixed(1))} ${units[unit]}`;
+    };
     const contentUrl = (artifact) => `/artifacts/${encodeURIComponent(artifact.id)}/content`;
     const blob = (artifact) => {
         return fetch(contentUrl(artifact)).then(async (response) => {
@@ -65,18 +76,25 @@
         for (const artifact of artifacts) {
             const button = document.createElement("button");
             const name = document.createElement("span");
+            const size = document.createElement("span");
             button.type = "button";
             button.className = "artifact-chip";
             button.append(icon(artifact));
             name.className = "artifact-chip-name";
             name.textContent = artifact.name || "Attachment";
             button.append(name);
+            const value = formatSize(artifact.size);
+            if (value) {
+                size.className = "artifact-chip-size";
+                size.textContent = value;
+                button.append(size);
+            }
             button.onclick = () => { void openArtifactView(artifact.id, button); };
             list.append(button);
         }
         return list;
     };
-    window.nimArtifact = { blob, contentUrl, icon, image, isImage: (artifact) => kind(artifact) === "image", kind, list, mime };
+    window.nimArtifact = { blob, contentUrl, formatSize, icon, image, isImage: (artifact) => kind(artifact) === "image", kind, list, mime };
 })();
 
 customElements.define("nim-artifact", class extends HTMLElement {

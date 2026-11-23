@@ -69,19 +69,13 @@ async fn persist_content(
                         output.push(nim::state::MessageContentPart::Url { url });
                     }
                     nim::ai::ChatMessageContentPart::Image(media) => {
-                        output.push(nim::state::MessageContentPart::Artifact {
-                            artifact_id: persist_media(ctx, media, "image/png").await?,
-                        });
+                        output.push(media_artifact(persist_media(ctx, media, "image/png").await?));
                     }
                     nim::ai::ChatMessageContentPart::Audio(media) => {
-                        output.push(nim::state::MessageContentPart::Artifact {
-                            artifact_id: persist_media(ctx, media, "audio/mpeg").await?,
-                        });
+                        output.push(media_artifact(persist_media(ctx, media, "audio/mpeg").await?));
                     }
                     nim::ai::ChatMessageContentPart::Video(media) => {
-                        output.push(nim::state::MessageContentPart::Artifact {
-                            artifact_id: persist_media(ctx, media, "video/mp4").await?,
-                        });
+                        output.push(media_artifact(persist_media(ctx, media, "video/mp4").await?));
                     }
                 }
             }
@@ -95,13 +89,30 @@ async fn persist_content(
     }
 }
 
-async fn persist_media(
-    ctx: &SignalContext,
-    media: nim::ai::Media,
-    media_type: &str,
-) -> nim::error::Result<nim::state::ArtifactId> {
+fn media_artifact(artifact: nim::state::Artifact) -> nim::state::MessageContentPart {
+    let (size, media_type) = match artifact.content {
+        nim::state::ArtifactContent::File { size, media_type, .. } => (Some(size), media_type),
+        nim::state::ArtifactContent::Resource { size, media_type, .. } => (size, media_type),
+        nim::state::ArtifactContent::Text { .. } => (None, None),
+    };
+
+    nim::state::MessageContentPart::Artifact {
+        id: artifact.id,
+        name: Some(artifact.name),
+        size,
+        media_type,
+    }
+}
+
+async fn persist_media(ctx: &SignalContext, media: nim::ai::Media, media_type: &str) -> nim::error::Result<nim::state::Artifact> {
     let (name, content, summary) = match media {
-        nim::ai::Media::Path { name, path, summary } => {
+        nim::ai::Media::Path {
+            name,
+            path,
+            mime_type,
+            summary,
+            ..
+        } => {
             let metadata = tokio::fs::metadata(&path).await?;
             let name = name
                 .or_else(|| path.file_name().map(|value| value.to_string_lossy().into_owned()))
@@ -111,12 +122,18 @@ async fn persist_media(
                 nim::state::ArtifactContent::File {
                     path,
                     size: metadata.len(),
-                    media_type: Some(media_type.into()),
+                    media_type: mime_type.or_else(|| Some(media_type.into())),
                 },
                 summary,
             )
         }
-        nim::ai::Media::Url { name, url, summary } => {
+        nim::ai::Media::Url {
+            name,
+            url,
+            size,
+            mime_type,
+            summary,
+        } => {
             let name = name
                 .or_else(|| {
                     url.path_segments()
@@ -129,6 +146,8 @@ async fn persist_media(
                 nim::state::ArtifactContent::Resource {
                     url: url.to_string(),
                     headers: Default::default(),
+                    size: size.and_then(|value| value.try_into().ok()),
+                    media_type: mime_type.or_else(|| Some(media_type.into())),
                 },
                 summary,
             )
@@ -148,5 +167,5 @@ async fn persist_media(
             strength: None,
         })
         .await?;
-    Ok(artifact.id)
+    Ok(artifact)
 }

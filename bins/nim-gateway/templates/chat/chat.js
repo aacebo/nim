@@ -215,7 +215,7 @@ customElements.define("nim-chat", class extends HTMLElement {
             document.getElementById("message-template")?.remove();
             document.querySelector("nim-message")?.remove();
             document.body.append(template);
-            await Promise.all([loadAsset("message/message.css?v=32", "css"), loadAsset("message/message.js?v=26", "js")]);
+            await Promise.all([loadAsset("message/message.css?v=39", "css"), loadAsset("message/message.js?v=26", "js")]);
             const view = document.createElement("nim-message");
             document.body.append(view);
             view.open(trigger);
@@ -428,7 +428,7 @@ customElements.define("nim-chat", class extends HTMLElement {
                 } else if (file.size > maxAttachmentSize) {
                     errors.push(`${file.name}: must be smaller than 10 MiB.`);
                 } else {
-                    pendingAttachments.push({ file, kind, artifactId: null });
+                    pendingAttachments.push({ file, kind, artifactId: null, name: null, size: null, mediaType: null });
                 }
             }
             chatFiles.value = "";
@@ -550,7 +550,11 @@ customElements.define("nim-chat", class extends HTMLElement {
             if (!Array.isArray(artifacts) || artifacts.length !== 1 || typeof artifacts[0]?.id !== "string" || !artifacts[0].id) {
                 throw new Error(`Invalid upload response for ${file.name}. Try again.`);
             }
-            attachment.artifactId = artifacts[0].id;
+            const artifact = artifacts[0];
+            attachment.artifactId = artifact.id;
+            attachment.name = typeof artifact.name === "string" ? artifact.name : null;
+            attachment.size = Number.isFinite(artifact.size) ? artifact.size : null;
+            attachment.mediaType = typeof artifact.media_type === "string" ? artifact.media_type : null;
         }
 
         async function submitChatMessage() {
@@ -582,7 +586,13 @@ customElements.define("nim-chat", class extends HTMLElement {
                     await uploadAttachment(attachment);
                 }
                 const parts = parseContent(text);
-                parts.push(...pendingAttachments.map(({ artifactId }) => ({ type: "artifact", artifact_id: artifactId })));
+                parts.push(...pendingAttachments.map(({ artifactId, name, size, mediaType }) => ({
+                    type: "artifact",
+                    id: artifactId,
+                    name,
+                    size,
+                    media_type: mediaType,
+                })));
                 const content = parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts;
                 const path = chatId ? `/chats/${encodeURIComponent(chatId)}/messages` : "/chats/messages";
                 setAwaitingResponse(true);

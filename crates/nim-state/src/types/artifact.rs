@@ -1,5 +1,44 @@
 use crate::{AnnotationId, AnnotationPartial, Embedding, Label, MemoryId, Span, Version};
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Artifact {
+    pub id: ArtifactId,
+    pub version: Version,
+    pub name: String,
+    #[serde(flatten)]
+    pub content: ArtifactContent,
+    pub summary: Option<String>,
+    #[serde(skip)]
+    pub embedding: Option<Embedding>,
+    pub confidence: f32,
+    pub salience: f32,
+    pub strength: f32,
+    pub annotations: Vec<AnnotationPartial>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl TryFrom<nim_store::ArtifactRow> for Artifact {
+    type Error = nim_error::Diagnostic;
+
+    fn try_from(value: nim_store::ArtifactRow) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: value.id.into(),
+            version: value.version.into(),
+            name: value.name,
+            content: serde_json::from_value(value.content)?,
+            summary: value.summary,
+            embedding: value.embedding.map(Into::into),
+            confidence: value.confidence,
+            salience: value.salience,
+            strength: value.strength,
+            annotations: Default::default(),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ArtifactContent {
@@ -9,11 +48,19 @@ pub enum ArtifactContent {
     File {
         path: std::path::PathBuf,
         size: u64,
+
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         media_type: Option<String>,
     },
     Resource {
         url: String,
         headers: std::collections::BTreeMap<String, String>,
+
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        size: Option<u64>,
+
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media_type: Option<String>,
     },
 }
 
@@ -60,45 +107,6 @@ impl std::fmt::Display for ArtifactContent {
             Self::File { path, .. } => write!(f, "{}", path.display()),
             Self::Resource { url, .. } => write!(f, "{url}"),
         }
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Artifact {
-    pub id: ArtifactId,
-    pub version: Version,
-    pub name: String,
-    #[serde(flatten)]
-    pub content: ArtifactContent,
-    pub summary: Option<String>,
-    #[serde(skip)]
-    pub embedding: Option<Embedding>,
-    pub confidence: f32,
-    pub salience: f32,
-    pub strength: f32,
-    pub annotations: Vec<AnnotationPartial>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
-impl TryFrom<nim_store::ArtifactRow> for Artifact {
-    type Error = nim_error::Diagnostic;
-
-    fn try_from(value: nim_store::ArtifactRow) -> Result<Self, Self::Error> {
-        Ok(Self {
-            id: value.id.into(),
-            version: value.version.into(),
-            name: value.name,
-            content: serde_json::from_value(value.content)?,
-            summary: value.summary,
-            embedding: value.embedding.map(Into::into),
-            confidence: value.confidence,
-            salience: value.salience,
-            strength: value.strength,
-            annotations: Default::default(),
-            created_at: value.created_at,
-            updated_at: value.updated_at,
-        })
     }
 }
 

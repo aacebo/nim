@@ -16,7 +16,7 @@ impl From<nim::state::Artifact> for ArtifactView {
         let (kind, media_type, size) = match value.content {
             nim::state::ArtifactContent::Text { .. } => ("text", Some("text/plain".into()), None),
             nim::state::ArtifactContent::File { media_type, size, .. } => ("file", media_type, Some(size)),
-            nim::state::ArtifactContent::Resource { .. } => ("resource", None, None),
+            nim::state::ArtifactContent::Resource { media_type, size, .. } => ("resource", media_type, size),
         };
 
         Self {

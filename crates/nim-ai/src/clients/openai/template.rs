@@ -118,22 +118,90 @@ impl Render<ChatMessageContentPart> for OpenAITemplate {
             ChatMessageContentPart::Text { text: value } => text(value.clone()),
             ChatMessageContentPart::Json { json } => text(serde_json::to_string(json)?),
             ChatMessageContentPart::Url { url } => text(url.to_string()),
-            ChatMessageContentPart::Image(Media::Url { name, url, summary }) => Ok(Some(
-                serde_json::json!({ "type": "image", "name": name, "image": url, "summary": summary }),
-            )),
-            ChatMessageContentPart::Image(Media::Path { name, path, summary }) => Ok(Some(
-                serde_json::json!({ "type": "image", "name": name, "image": path, "summary": summary }),
-            )),
-            ChatMessageContentPart::Audio(Media::Url { name, url, summary }) => Ok(Some(
-                serde_json::json!({ "type": "audio", "name": name, "image": url, "summary": summary }),
-            )),
-            ChatMessageContentPart::Audio(Media::Path { name, path, summary }) => Ok(Some(
-                serde_json::json!({ "type": "audio", "name": name, "image": path, "summary": summary }),
-            )),
-            _ if self.compat == CompatMode::Ignore => Ok(None),
-            _ => Err(nim_error::Diagnostic::message(
-                "remote completion does not support this media content",
-            )),
+            ChatMessageContentPart::Image(Media::Url {
+                name,
+                url,
+                size,
+                mime_type,
+                summary,
+            }) => Ok(Some(serde_json::json!({
+                "type": "image",
+                "name": name,
+                "size": size,
+                "mime_type": mime_type,
+                "image": url,
+                "summary": summary,
+            }))),
+            ChatMessageContentPart::Image(Media::Path {
+                name,
+                path,
+                size,
+                mime_type,
+                summary,
+            }) => Ok(Some(serde_json::json!({
+                "type": "image",
+                "name": name,
+                "size": size,
+                "mime_type": mime_type,
+                "image": path,
+                "summary": summary,
+            }))),
+            ChatMessageContentPart::Video(Media::Url {
+                name,
+                url,
+                size,
+                mime_type,
+                summary,
+            }) => Ok(Some(serde_json::json!({
+                "type": "video",
+                "name": name,
+                "size": size,
+                "mime_type": mime_type,
+                "video": url,
+                "summary": summary,
+            }))),
+            ChatMessageContentPart::Video(Media::Path {
+                name,
+                path,
+                size,
+                mime_type,
+                summary,
+            }) => Ok(Some(serde_json::json!({
+                "type": "video",
+                "name": name,
+                "size": size,
+                "mime_type": mime_type,
+                "video": path,
+                "summary": summary,
+            }))),
+            ChatMessageContentPart::Audio(Media::Url {
+                name,
+                url,
+                size,
+                mime_type,
+                summary,
+            }) => Ok(Some(serde_json::json!({
+                "type": "audio",
+                "name": name,
+                "size": size,
+                "mime_type": mime_type,
+                "audio": url,
+                "summary": summary,
+            }))),
+            ChatMessageContentPart::Audio(Media::Path {
+                name,
+                path,
+                size,
+                mime_type,
+                summary,
+            }) => Ok(Some(serde_json::json!({
+                "type": "audio",
+                "name": name,
+                "size": size,
+                "mime_type": mime_type,
+                "audio": path,
+                "summary": summary,
+            }))),
         }
     }
 }
@@ -142,9 +210,14 @@ impl Render<Tool> for OpenAITemplate {
     type Output = serde_json::Value;
 
     fn render(&self, value: &Tool) -> nim_error::Result<Self::Output> {
-        Ok(
-            serde_json::json!({ "type": "function", "function": { "name": value.name, "description": value.description, "parameters": value.params } }),
-        )
+        Ok(serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": value.name,
+                "description": value.description,
+                "parameters": value.params,
+            },
+        }))
     }
 }
 
@@ -152,8 +225,13 @@ impl Render<ToolCall> for OpenAITemplate {
     type Output = serde_json::Value;
 
     fn render(&self, value: &ToolCall) -> nim_error::Result<Self::Output> {
-        Ok(
-            serde_json::json!({ "id": value.id, "type": "function", "function": { "name": value.name, "arguments": serde_json::to_string(&value.args)? } }),
-        )
+        Ok(serde_json::json!({
+            "id": value.id,
+            "type": "function",
+            "function": {
+                "name": value.name,
+                "arguments": serde_json::to_string(&value.args)?,
+            },
+        }))
     }
 }

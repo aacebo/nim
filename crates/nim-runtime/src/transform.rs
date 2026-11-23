@@ -89,20 +89,18 @@ impl Transform for MessageContentPart {
                 Self::Text { text } => Ok(nim_ai::ChatMessageContentPart::Text { text: text.clone() }),
                 Self::Json { json } => Ok(nim_ai::ChatMessageContentPart::Json { json: json.clone() }),
                 Self::Url { url } => Ok(nim_ai::ChatMessageContentPart::Url { url: url.clone() }),
-                Self::Artifact { artifact_id } => {
-                    let artifact = s.artifacts().find_by_id(*artifact_id).await?;
+                Self::Artifact { id, .. } => {
+                    let artifact = s.artifacts().find_by_id(*id).await?;
 
                     match &artifact.content {
                         ArtifactContent::Text { text } => Ok(nim_ai::ChatMessageContentPart::Text { text: text.clone() }),
-                        ArtifactContent::File {
-                            path,
-                            size: _,
-                            media_type,
-                        } => Ok(match media_type {
+                        ArtifactContent::File { path, size, media_type } => Ok(match media_type {
                             Some(media_type) if media_type.starts_with("image") => {
                                 nim_ai::ChatMessageContentPart::Image(nim_ai::Media::Path {
                                     name: Some(artifact.name),
                                     path: path.clone(),
+                                    size: (*size).try_into().ok(),
+                                    mime_type: Some(media_type.clone()),
                                     summary: artifact.summary,
                                 })
                             }
@@ -110,6 +108,8 @@ impl Transform for MessageContentPart {
                                 nim_ai::ChatMessageContentPart::Audio(nim_ai::Media::Path {
                                     name: Some(artifact.name),
                                     path: path.clone(),
+                                    size: (*size).try_into().ok(),
+                                    mime_type: Some(media_type.clone()),
                                     summary: artifact.summary,
                                 })
                             }
@@ -117,42 +117,60 @@ impl Transform for MessageContentPart {
                                 nim_ai::ChatMessageContentPart::Video(nim_ai::Media::Path {
                                     name: Some(artifact.name),
                                     path: path.clone(),
+                                    size: (*size).try_into().ok(),
+                                    mime_type: Some(media_type.clone()),
                                     summary: artifact.summary,
                                 })
                             }
                             _ => return Err(nim_error::Diagnostic::message("render: invalid artifact without media_type")),
                         }),
-                        ArtifactContent::Resource { url, headers: _ } => Ok(match url::Url::parse(url) {
+                        ArtifactContent::Resource {
+                            url, size, media_type, ..
+                        } => Ok(match url::Url::parse(url) {
                             Err(err) => return Err(nim_error::Diagnostic::error(err)),
                             Ok(url) => {
-                                let Some(ext) = url
-                                    .path_segments()
-                                    .and_then(|mut segments| segments.next_back())
-                                    .and_then(|filename| std::path::Path::new(filename).extension())
-                                    .and_then(|ext| ext.to_str())
-                                else {
-                                    return Err(nim_error::Diagnostic::message(
-                                        "render: no artifact file extension for resource",
-                                    ));
+                                let kind = match media_type
+                                    .as_deref()
+                                    .and_then(|value| value.parse::<mime_guess::mime::Mime>().ok())
+                                {
+                                    Some(value) => value.type_().to_string(),
+                                    None => {
+                                        let Some(ext) = url
+                                            .path_segments()
+                                            .and_then(|mut segments| segments.next_back())
+                                            .and_then(|filename| std::path::Path::new(filename).extension())
+                                            .and_then(|ext| ext.to_str())
+                                        else {
+                                            return Err(nim_error::Diagnostic::message(
+                                                "render: no artifact media_type or file extension for resource",
+                                            ));
+                                        };
+
+                                        mime_guess::from_ext(ext).first_or_text_plain().type_().to_string()
+                                    }
                                 };
 
-                                let guess = mime_guess::from_ext(ext);
-
-                                match guess.first_or_text_plain().type_() {
-                                    mime_guess::mime::TEXT => nim_ai::ChatMessageContentPart::Text { text: url.to_string() },
-                                    mime_guess::mime::IMAGE => nim_ai::ChatMessageContentPart::Image(nim_ai::Media::Url {
+                                match kind.as_str() {
+                                    "text" => nim_ai::ChatMessageContentPart::Text { text: url.to_string() },
+                                    "image" => nim_ai::ChatMessageContentPart::Image(nim_ai::Media::Url {
                                         name: Some(artifact.name),
                                         url,
+                                        size: size.and_then(|value| value.try_into().ok()),
+                                        mime_type: media_type.clone(),
                                         summary: artifact.summary,
                                     }),
-                                    mime_guess::mime::AUDIO => nim_ai::ChatMessageContentPart::Audio(nim_ai::Media::Url {
+                                    "audio" => nim_ai::ChatMessageContentPart::Audio(nim_ai::Media::Url {
                                         name: Some(artifact.name),
                                         url,
+                                        size: size.and_then(|value| value.try_into().ok()),
+                                        mime_type: media_type.clone(),
                                         summary: artifact.summary,
                                     }),
-                                    mime_guess::mime::VIDEO => nim_ai::ChatMessageContentPart::Video(nim_ai::Media::Url {
+                                    "video" => nim_ai::ChatMessageContentPart::Video(nim_ai::Media::Url {
                                         name: Some(artifact.name),
                                         url,
+                                        size: size.and_then(|value| value.try_into().ok()),
+                                        mime_type: media_type.clone(),
                                         summary: artifact.summary,
                                     }),
                                     v => return Err(nim_error::Diagnostic::message(format!("unsupported mime_type {v}"))),

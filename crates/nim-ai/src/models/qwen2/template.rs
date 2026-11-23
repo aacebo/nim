@@ -167,19 +167,55 @@ impl Render<Media> for Qwen2Template {
 
     fn render(&self, value: &Media) -> nim_error::Result<String> {
         match value {
-            Media::Path { name, path, summary } => Ok(format!(
-                "name={} summary={} path={}",
-                name.as_deref().unwrap_or_default(),
-                summary.as_deref().unwrap_or_default(),
-                path.display()
+            Media::Path {
+                name,
+                path,
+                size,
+                mime_type,
+                summary,
+            } => Ok(media_fields(
+                name,
+                *size,
+                mime_type,
+                summary,
+                "path",
+                path.display().to_string(),
             )),
-            Media::Url { name, url, summary } => Ok(format!(
-                "name={} summary={} url={url}",
-                name.as_deref().unwrap_or_default(),
-                summary.as_deref().unwrap_or_default()
-            )),
+            Media::Url {
+                name,
+                url,
+                size,
+                mime_type,
+                summary,
+            } => Ok(media_fields(name, *size, mime_type, summary, "url", url.to_string())),
         }
     }
+}
+
+fn media_fields(
+    name: &Option<String>,
+    size: Option<usize>,
+    mime_type: &Option<String>,
+    summary: &Option<String>,
+    source: &str,
+    value: String,
+) -> String {
+    let mut fields = vec![];
+
+    if let Some(name) = name {
+        fields.push(format!("name={name}"));
+    }
+    if let Some(size) = size {
+        fields.push(format!("size={size}"));
+    }
+    if let Some(mime_type) = mime_type {
+        fields.push(format!("mime_type={mime_type}"));
+    }
+    if let Some(summary) = summary {
+        fields.push(format!("summary={summary}"));
+    }
+    fields.push(format!("{source}={value}"));
+    fields.join(" ")
 }
 impl Render<Tool> for Qwen2Template {
     type Output = String;

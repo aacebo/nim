@@ -146,7 +146,14 @@ pub enum MessageContentPart {
         text: String,
     },
     Artifact {
-        artifact_id: ArtifactId,
+        #[serde(alias = "artifact_id")]
+        id: ArtifactId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        size: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media_type: Option<String>,
     },
     Json {
         json: serde_json::Value,
@@ -159,7 +166,7 @@ pub enum MessageContentPart {
 impl MessageContentPart {
     pub fn artifacts(&self) -> Vec<ArtifactId> {
         match self {
-            Self::Artifact { artifact_id } => vec![*artifact_id],
+            Self::Artifact { id, .. } => vec![*id],
             _ => Default::default(),
         }
     }

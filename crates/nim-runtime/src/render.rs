@@ -42,8 +42,8 @@ impl Render for MessageContentPart {
                 Self::Text { text } => Ok(text.clone()),
                 Self::Url { url } => Ok(url.to_string()),
                 Self::Json { json } => Ok(json.to_string()),
-                Self::Artifact { artifact_id } => {
-                    let artifact = s.artifacts().find_by_id(*artifact_id).await?;
+                Self::Artifact { id, .. } => {
+                    let artifact = s.artifacts().find_by_id(*id).await?;
                     artifact.render(s).await
                 }
                 _ => Err(nim_error::Diagnostic::message("render: unsupported message content")),
@@ -61,7 +61,7 @@ impl Render for Artifact {
                 Some(summary) => Ok(summary.clone()),
                 None => match &self.content {
                     ArtifactContent::Text { text } => Ok(text.clone()),
-                    ArtifactContent::Resource { url, headers: _ } => Ok(format!("[{}]({})", self.name, url,)),
+                    ArtifactContent::Resource { url, .. } => Ok(format!("[{}]({})", self.name, url,)),
                     ArtifactContent::File {
                         path,
                         size: _,

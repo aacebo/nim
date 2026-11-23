@@ -33,6 +33,8 @@ pub async fn route(ctx: HttpContext, body: extract::Json<Body>) -> nim::error::R
             nim::state::ArtifactContent::Resource {
                 url: url.to_string(),
                 headers,
+                size: None,
+                media_type: None,
             }
         }
         _ => {

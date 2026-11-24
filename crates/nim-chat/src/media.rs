@@ -24,6 +24,12 @@ pub enum Media {
         mime_type: Option<String>,
         summary: Option<String>,
     },
+    Data {
+        data: Vec<u8>,
+        name: Option<String>,
+        mime_type: String,
+        summary: Option<String>,
+    },
 }
 
 impl Media {
@@ -31,6 +37,7 @@ impl Media {
         match self {
             Self::Path { name, .. } => name.as_deref(),
             Self::Url { name, .. } => name.as_deref(),
+            Self::Data { name, .. } => name.as_deref(),
         }
     }
 
@@ -38,6 +45,7 @@ impl Media {
         match self {
             Self::Path { size, .. } => size.as_ref().map(|v| *v),
             Self::Url { size, .. } => size.as_ref().map(|v| *v),
+            Self::Data { data, .. } => Some(data.len()),
         }
     }
 
@@ -45,6 +53,7 @@ impl Media {
         match self {
             Self::Path { mime_type, .. } => mime_type.as_deref(),
             Self::Url { mime_type, .. } => mime_type.as_deref(),
+            Self::Data { mime_type, .. } => Some(mime_type),
         }
     }
 
@@ -52,6 +61,7 @@ impl Media {
         match self {
             Self::Path { summary, .. } => summary.as_deref(),
             Self::Url { summary, .. } => summary.as_deref(),
+            Self::Data { summary, .. } => summary.as_deref(),
         }
     }
 }

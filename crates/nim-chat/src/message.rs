@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::ChatMessageContent;
+use crate::{Annotation, ChatMessageContent};
 
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -79,6 +79,7 @@ impl From<ChatToolMessage> for ChatMessage {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatSystemMessage {
+    pub name: Option<String>,
     pub content: ChatMessageContent,
 
     #[serde(flatten)]
@@ -87,6 +88,7 @@ pub struct ChatSystemMessage {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatUserMessage {
+    pub name: Option<String>,
     pub content: ChatMessageContent,
 
     #[serde(flatten)]
@@ -95,7 +97,11 @@ pub struct ChatUserMessage {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatAgentMessage {
+    pub name: Option<String>,
     pub content: Option<ChatMessageContent>,
+
+    #[serde(default)]
+    pub annotations: Vec<Annotation>,
 
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,

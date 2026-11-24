@@ -224,6 +224,7 @@ customElements.define("nim-orb", class extends HTMLElement {
             const idleCount = size < 500 ? 440 : 760;
             const activeCount = size < 500 ? 900 : beads.length;
             const count = Math.round(idleCount + (activeCount - idleCount) * activity);
+            const chat = isChat();
 
             for (let index = 0; index < count; index++) {
                 const bead = beads[index];
@@ -231,24 +232,22 @@ customElements.define("nim-orb", class extends HTMLElement {
                 const pulse = 0.5 + 0.5 * Math.sin(phase * 1.4);
                 const motion = activity;
                 const orbit = activeTime * (0.65 + bead.speed * 1.45) * (index % 2 === 0 ? 1 : -1);
-                const longitude = bead.longitude
-                    + 0.038 * Math.sin(phase)
-                    + motion * (orbit + 0.16 * Math.sin(orbit * 2.1 + bead.phase * 2.3));
+                const longitude = chat
+                    ? bead.longitude + 0.038 * Math.sin(phase) + motion * (orbit + 0.16 * Math.sin(orbit * 2.1 + bead.phase * 2.3))
+                    : bead.longitude + (0.038 + 0.11 * motion) * Math.sin(phase);
 
                 if (bead.halo) {
-                    const distance = radius * (bead.distance
-                        + 0.027 * Math.sin(phase)
-                        + motion * (0.075 * Math.cos(orbit * 1.7 - bead.phase * 1.9)
-                            + 0.035 * Math.sin(orbit * 3.2 + bead.phase)));
+                    const distance = radius * (chat
+                        ? bead.distance + 0.027 * Math.sin(phase) + motion * (0.075 * Math.cos(orbit * 1.7 - bead.phase * 1.9) + 0.035 * Math.sin(orbit * 3.2 + bead.phase))
+                        : bead.distance + (0.027 + 0.06 * motion) * Math.sin(phase));
                     beadPoint.x = Math.cos(longitude) * distance;
                     beadPoint.y = Math.sin(longitude) * distance;
                     beadPoint.z = 0;
                     applyRipple(beadPoint, 0.5);
                 } else {
-                    const latitude = bead.latitude
-                        + 0.026 * Math.cos(phase)
-                        + motion * (0.09 * Math.sin(orbit * 1.3 + bead.phase * 2.1)
-                            + 0.035 * Math.cos(orbit * 2.7 - bead.phase));
+                    const latitude = chat
+                        ? bead.latitude + 0.026 * Math.cos(phase) + motion * (0.09 * Math.sin(orbit * 1.3 + bead.phase * 2.1) + 0.035 * Math.cos(orbit * 2.7 - bead.phase))
+                        : bead.latitude + (0.026 + 0.05 * motion) * Math.cos(phase * (1 + 0.7 * motion));
                     project(direction(latitude, longitude), beadPoint);
                 }
 
@@ -319,10 +318,10 @@ customElements.define("nim-orb", class extends HTMLElement {
             if (previous !== undefined) {
                 const delta = Math.min(now - previous, 50) / 1000;
                 activity += ((isReasoning() ? 1 : 0) - activity) * (1 - Math.exp(-delta / 1.6));
-                const motionRate = 1 + (idleMotionRate - 1) * (1 - activity);
+                const motionRate = 1 + (isChat() ? idleMotionRate - 1 : 0) * (1 - activity);
                 time += delta * motionRate;
                 particleTime += delta * (motionRate + 11 * activity);
-                activeTime += delta * activity;
+                activeTime = isChat() ? activeTime + delta * activity : 0;
             }
 
             previous = now;

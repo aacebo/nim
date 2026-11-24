@@ -60,7 +60,7 @@ customElements.define("nim-chat", class extends HTMLElement {
         let activityTimer;
         let orbCenterFrame;
         const drawerPreferenceKey = "nim.chat.drawer-open";
-        const pushDrawer = matchMedia("(min-width: 961px)");
+        const pushDrawer = matchMedia("(min-width: 701px) and (min-height: 421px)");
         const orbTrigger = orbScene.querySelector("#orb-trigger");
         const orbResizeObserver = new ResizeObserver(syncOrbCenter);
         orbResizeObserver.observe(orbTrigger);
@@ -89,11 +89,6 @@ customElements.define("nim-chat", class extends HTMLElement {
         }
 
         function syncOrbScale() {
-            const viewportWidth = window.innerWidth;
-            const drawerWidth = actionView.classList.contains("drawer-open") && pushDrawer.matches
-                ? chatDrawer.getBoundingClientRect().width
-                : 0;
-            orbScene.style.setProperty("--chat-orb-scale", String(0.66125 * (viewportWidth - drawerWidth) / viewportWidth));
             syncOrbCenter();
         }
 

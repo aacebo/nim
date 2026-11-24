@@ -77,7 +77,7 @@ html.chat-route .orb-scene::before,
 }
 #orb-trigger {
     position: relative;
-    transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), width 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .orb-scene[data-reasoning="true"] #orb {
     transform: scale(1.1);
@@ -111,7 +111,8 @@ html.chat-route .orb-scene .hud-cubes,
 .orb-scene.is-chat #orb-trigger,
 html.chat-route .orb-scene #orb-trigger,
 .orb-scene:has(#chat-form:not([hidden])) #orb-trigger {
-    transform: scale(var(--chat-orb-scale, 0.66125));
+    width: 800px;
+    transform: scale(0.66125);
     pointer-events: none;
 }
 .grid-lines {
@@ -276,18 +277,29 @@ html.chat-route .orb-scene #orb-trigger,
     transform: none;
     transition-delay: 0s;
 }
-@media (min-width: 961px) {
+@media (min-width: 701px) and (min-height: 421px) {
     html.chat-route .orb-scene:has(.action-view.drawer-open) #orb-trigger {
-        transform: translateX(140px) scale(var(--chat-orb-scale, 0.66125)) !important;
+        transform: translateX(120px) scale(0.66125) !important;
     }
 }
 @media (max-width: 760px) {
-    html.chat-route .orb-scene #orb-trigger {
-        transform: scale(1.3225) !important;
-    }
     #orb-hub {
         top: max(var(--hub-top), calc(100% - 232px - env(safe-area-inset-bottom)));
         left: var(--hub-left);
+    }
+}
+@media (max-width: 700px) {
+    .orb-scene.is-chat #orb-trigger,
+    html.chat-route .orb-scene #orb-trigger,
+    .orb-scene:has(#chat-form:not([hidden])) #orb-trigger {
+        width: 500px;
+    }
+}
+@media (max-width: 420px) {
+    .orb-scene.is-chat #orb-trigger,
+    html.chat-route .orb-scene #orb-trigger,
+    .orb-scene:has(#chat-form:not([hidden])) #orb-trigger {
+        width: 360px;
     }
 }
 @media (max-height: 300px) {

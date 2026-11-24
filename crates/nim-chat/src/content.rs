@@ -1,4 +1,4 @@
-use crate::Media;
+use crate::{Media, widgets};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -12,27 +12,40 @@ pub enum ChatMessageContent {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatMessageContentPart {
-    Text {
-        text: String,
-    },
-    Json {
-        json: serde_json::Value,
-    },
-    Url {
-        url: url::Url,
-    },
+    /// plain text
+    Text { text: String },
+
+    /// structured JSON object or array
+    Json { json: serde_json::Value },
+
+    /// ex. https://google.com
+    Url { url: url::Url },
+
+    /// image data/reference
     Image {
         #[serde(flatten)]
         media: Media,
     },
+
+    /// audio data/reference
     Audio {
         #[serde(flatten)]
         media: Media,
     },
+
+    /// video data/reference
     Video {
         #[serde(flatten)]
         media: Media,
     },
+
+    /// say something using text -> speech
+    Speak { speak: String },
+
+    /// rich ui elements that get rendered for user interaction
+    Widget(widgets::Widget),
+
+    /// a reference to some shared artifact
     Artifact {
         id: String,
         name: String,

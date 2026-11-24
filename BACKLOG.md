@@ -58,3 +58,10 @@ Add platt scaling weights to models in database and read/write to them.
 
 Add a new logs view that is a live trace/log stream that can be used to
 trace actions to linked stored data.
+
+## Chat Crate
+
+Add new `nim-chat` crate with features for:
+
+- Full chat type definitions with parsing/rendering
+- UI blocks in chat messages

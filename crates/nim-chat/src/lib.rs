@@ -2,6 +2,7 @@ mod annotation;
 mod content;
 mod media;
 mod message;
+pub mod widgets;
 
 pub use annotation::*;
 pub use content::*;

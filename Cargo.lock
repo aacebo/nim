@@ -2534,6 +2534,7 @@ dependencies = [
 name = "nim-chat"
 version = "0.0.0"
 dependencies = [
+ "rand 0.10.3",
  "serde",
  "serde_json",
  "url",

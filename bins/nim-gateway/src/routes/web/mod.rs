@@ -3,6 +3,8 @@ mod get;
 mod views;
 
 use crate::Context;
+use axum::http::{HeaderValue, header};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 pub fn new() -> axum::Router<std::sync::Arc<Context>> {
     let templates = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates");
@@ -69,4 +71,8 @@ pub fn new() -> axum::Router<std::sync::Arc<Context>> {
                 )
             }),
         )
+        .layer(SetResponseHeaderLayer::overriding(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("no-store"),
+        ))
 }

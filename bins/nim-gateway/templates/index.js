@@ -131,7 +131,7 @@ socket.addEventListener("message", (event) => {
 const viewAssets = {
     artifact: { css: ["message/message.css?v=39", "artifact/artifact.css?v=14"], js: ["artifact/artifact.js?v=8"] },
     chat: {
-        css: ["chat/transcript/transcript.css?v=38", "chat/chat.css?v=44"],
+        css: ["chat/transcript/transcript.css?v=38", "chat/chat.css?v=48"],
         js: [
             "https://unpkg.com/marked@15.0.7/marked.min.js",
             "https://unpkg.com/dompurify@3.2.6/dist/purify.min.js",

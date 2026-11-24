@@ -32,4 +32,4 @@ futures-util = { workspace = true }
 reqwest = { workspace = true, features = ["default-tls", "http2"] }
 
 tower = { version = "0.5", features = ["make", "util"] }
-tower-http = { version = "0.7", features = ["fs", "normalize-path"] }
+tower-http = { version = "0.7", features = ["fs", "normalize-path", "set-header"] }

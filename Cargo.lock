@@ -2531,6 +2531,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nim-chat"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "nim-encode"
 version = "0.0.0"
 dependencies = [

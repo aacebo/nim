@@ -31,7 +31,7 @@
     bottom: 0;
     left: 0;
     display: grid;
-    width: 280px;
+    width: 240px;
     grid-template-rows: auto minmax(0, 1fr) auto;
     box-sizing: border-box;
     padding: 16px 12px;
@@ -61,7 +61,7 @@
     bottom: calc(12px + env(safe-area-inset-bottom));
     left: max(28px, env(safe-area-inset-left));
     box-sizing: border-box;
-    max-width: 1080px;
+    max-width: 640px;
     margin-inline: auto;
     transform: translateY(8px);
     isolation: isolate;
@@ -367,16 +367,16 @@
         width: 34px;
     }
 }
-@media (min-width: 961px) {
-    .action-view.drawer-open #action-panel { left: max(308px, calc(280px + env(safe-area-inset-left) + 28px)); }
-    .action-view.drawer-open #chat-transcript { margin-left: 140px; }
+@media (min-width: 701px) and (min-height: 421px) {
+    .action-view.drawer-open #action-panel { left: max(268px, calc(240px + env(safe-area-inset-left) + 28px)); }
+    .action-view.drawer-open #chat-transcript { left: 240px; }
 }
-@media (max-width: 960px) {
+@media (max-width: 700px), (max-height: 420px) {
     #chat-drawer { box-shadow: 14px 0 38px rgb(0 0 0 / 40%); }
     #chat-drawer-scrim { position: fixed; z-index: 4; inset: 0; border: 0; background: rgb(0 0 0 / 44%); opacity: 0; transition: opacity 220ms ease; }
     .action-view.drawer-open #chat-drawer-scrim { display: block; opacity: 1; }
 }
-@media (max-width: 900px), (max-height: 420px) {
+@media (max-width: 700px), (max-height: 420px) {
     .action-view {
         display: flex;
         flex-direction: column-reverse;

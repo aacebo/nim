@@ -25,6 +25,7 @@ url = { workspace = true }
 mime_guess = { workspace = true }
 
 nim-ai = { workspace = true }
+nim-chat = { workspace = true }
 nim-error = { workspace = true }
 nim-state = { workspace = true }
 nim-store = { workspace = true }

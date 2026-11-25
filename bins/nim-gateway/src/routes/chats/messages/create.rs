@@ -14,7 +14,7 @@ pub struct Body {
     pub role: nim::state::Role,
 
     #[validate]
-    pub content: nim::state::MessageContent,
+    pub content: nim::chat::ChatMessageContent,
 }
 
 pub async fn route(

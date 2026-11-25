@@ -1,16 +1,27 @@
 use crate::Context;
 
 pub trait Embed: Send + Sync {
-    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>>;
+    fn embed<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<f32>>>>;
 
-    fn embed_with(&self, ctx: &Context, input: &[&[u8]], options: &EmbedOptions) -> nim_error::Result<Vec<Vec<f32>>> {
-        options.validate()?;
+    fn embed_with<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: &'a EmbedOptions,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<f32>>>> {
+        Box::pin(async move {
+            options.validate()?;
 
-        if options != &EmbedOptions::default() {
-            return Err(nim_error::Diagnostic::message("model does not support embedding options"));
-        }
+            if options != &EmbedOptions::default() {
+                return Err(nim_error::Diagnostic::message("model does not support embedding options"));
+            }
 
-        self.embed(ctx, input)
+            self.embed(ctx, input).await
+        })
     }
 }
 

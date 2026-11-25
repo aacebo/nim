@@ -1,18 +1,30 @@
+use nim_chat::{ChatMessageContent, ChatMessageContentPart};
 use nim_store::MessageRow;
 
-use crate::{ChatId, Message, MessageContent, MessageId, MessageService, Role};
+use crate::{ArtifactId, ChatId, Message, MessageId, MessageService, Role};
 
 #[derive(Debug)]
 pub struct MessageCreate {
     pub chat_id: ChatId,
     pub reply_to_id: Option<MessageId>,
     pub role: Role,
-    pub content: MessageContent,
+    pub content: ChatMessageContent,
 }
 
 impl<'a> MessageService<'a> {
     #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: MessageCreate) -> nim_error::Result<Message> {
+        let artifact_ids = match &value.content {
+            ChatMessageContent::Parts(parts) => parts
+                .iter()
+                .filter_map(|part| match part {
+                    ChatMessageContentPart::Artifact { id, .. } => Some(id.parse::<ArtifactId>()),
+                    _ => None,
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            _ => Vec::new(),
+        };
+
         let now = chrono::Utc::now();
         let row = self
             .storage
@@ -37,7 +49,7 @@ impl<'a> MessageService<'a> {
         chat.last_message_at = Some(row.created_at);
         self.storage.chats().update(chat).await?;
 
-        for artifact_id in value.content.artifacts() {
+        for artifact_id in artifact_ids {
             self.storage
                 .message_artifacts()
                 .create(nim_store::MessageArtifactRow {

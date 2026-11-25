@@ -153,25 +153,32 @@ impl WhisperTranscriber {
 }
 
 impl Transcribe for WhisperTranscriber {
-    fn transcribe(&self, ctx: &Context, input: &[&[u8]], options: TranscribeOptions<'_>) -> nim_error::Result<Vec<TextOutput>> {
-        options.validate()?;
+    fn transcribe<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: TranscribeOptions<'a>,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<TextOutput>>> {
+        Box::pin(async move {
+            options.validate()?;
 
-        let beams = options.beams;
-        let max_len = options.max_len;
-        let language = options.language;
-        input
-            .iter()
-            .map(|bytes| {
-                self.one(
-                    ctx,
-                    bytes,
-                    language,
-                    beams.unwrap_or(1),
-                    max_len.unwrap_or(self.config.max_len),
-                )
-            })
-            .map(|result| result.map(|text| TextOutput { text, confidence: None }))
-            .collect()
+            let beams = options.beams;
+            let max_len = options.max_len;
+            let language = options.language;
+            input
+                .iter()
+                .map(|bytes| {
+                    self.one(
+                        ctx,
+                        bytes,
+                        language,
+                        beams.unwrap_or(1),
+                        max_len.unwrap_or(self.config.max_len),
+                    )
+                })
+                .map(|result| result.map(|text| TextOutput { text, confidence: None }))
+                .collect()
+        })
     }
 }
 

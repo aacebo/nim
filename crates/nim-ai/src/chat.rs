@@ -1,29 +1,11 @@
-mod event;
-mod io;
-mod media;
-mod message;
-mod tool;
-
-pub use event::*;
-pub use io::*;
-pub use media::*;
-pub use message::*;
-pub use tool::*;
-
 use crate::Context;
 
 pub trait Complete: Send + Sync {
-    fn complete(&self, ctx: &Context, chat: Chat) -> nim_error::Result<ChatAssistantMessage>;
-}
-
-pub trait Parse<T>: Sized {
-    fn parse(&self, p: Parser<'_>) -> nim_error::Result<T>;
-}
-
-pub trait Render<T> {
-    type Output;
-
-    fn render(&self, value: &T) -> nim_error::Result<Self::Output>;
+    fn complete<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        chat: Chat,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<nim_chat::ChatAgentMessage>>;
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -56,9 +38,9 @@ pub enum RenderMode {
 
 #[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Chat {
-    pub messages: Vec<ChatMessage>,
-    pub tools: Vec<Tool>,
-    pub documents: Vec<Document>,
+    pub messages: Vec<nim_chat::ChatMessage>,
+    pub tools: Vec<nim_chat::Tool>,
+    pub documents: Vec<nim_chat::Document>,
     pub thinking: bool,
     pub vision: bool,
     pub audio: bool,

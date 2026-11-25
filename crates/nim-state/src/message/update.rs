@@ -1,8 +1,10 @@
-use crate::{Message, MessageContent, MessageId, MessageService};
+use nim_chat::ChatMessageContent;
+
+use crate::{Message, MessageId, MessageService};
 
 #[derive(Debug, Default)]
 pub struct MessageUpdate {
-    pub content: Option<MessageContent>,
+    pub content: Option<ChatMessageContent>,
     pub summary: Option<String>,
     pub embedding: Option<Vec<f32>>,
     pub confidence: Option<f32>,

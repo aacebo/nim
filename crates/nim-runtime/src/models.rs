@@ -2,11 +2,11 @@ pub(crate) async fn assert(
     services: &nim_state::Services<'_>,
     model_ref: &nim_ai::models::ModelRef,
 ) -> nim_error::Result<nim_state::Model> {
-    let model = nim_ai::models::load(model_ref)?;
+    let model = nim_ai::models::load(model_ref).await?;
     let config = model.config().cloned();
     let source = match model_ref {
         nim_ai::models::ModelRef::Local(local @ nim_ai::models::LocalModel::Hub(id)) => {
-            let resource = local.repository()?.resolve(std::path::Path::new(""))?;
+            let resource = local.repository()?.resolve(std::path::Path::new("")).await?;
 
             nim_state::ModelSource::Local(nim_state::LocalModelSource::Hub {
                 id: id.to_string(),

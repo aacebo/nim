@@ -4,8 +4,9 @@ use std::sync::Mutex;
 use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::{quantized_qwen2, qwen2};
+use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, Parse, Parser, Render};
 
-use crate::{Chat, ChatAssistantMessage, Complete, Context, Parse, Summarize, SummarizeOptions, types::TextOutput};
+use crate::{Chat, Complete, Context, Summarize, SummarizeOptions, types::TextOutput};
 
 use super::{Config, Qwen2Template};
 
@@ -64,11 +65,11 @@ impl Qwen2Generator {
         })
     }
 
-    fn one(&self, ctx: &Context, chat: Chat) -> nim_error::Result<ChatAssistantMessage> {
+    async fn one(&self, ctx: &Context<'_>, chat: Chat) -> nim_error::Result<ChatAgentMessage> {
         let tokenizer = ctx.tokenizer()?;
         let compat = chat.compat;
         let max_len = chat.max_len;
-        let text = self.template.render_chat(&chat)?;
+        let text = self.template.render(&(), chat).await?;
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_len = crate::models::output_limit("Qwen", self.context_limit, ids.len(), max_len)?;
@@ -80,87 +81,122 @@ impl Qwen2Generator {
                     .ok_or_else(|| nim_error::Diagnostic::message(format!("Qwen tokenizer is missing {token}")))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let mut model = self
-            .model
-            .lock()
-            .map_err(|_| nim_error::Diagnostic::message("Qwen model lock poisoned"))?;
+        let result: nim_error::Result<String> = {
+            let mut model = self
+                .model
+                .lock()
+                .map_err(|_| nim_error::Diagnostic::message("Qwen model lock poisoned"))?;
 
-        model.clear_kv_cache();
+            model.clear_kv_cache();
 
-        let result = (|| {
-            let mut input = Tensor::from_slice(ids, (1, ids.len()), ctx.device())?;
-            let mut offset = 0;
-            let mut tokens = Vec::new();
-            let mut sum = 0.0;
+            let result = (|| {
+                let mut input = Tensor::from_slice(ids, (1, ids.len()), ctx.device())?;
+                let mut offset = 0;
+                let mut tokens = Vec::new();
+                let mut sum = 0.0;
 
-            for _ in 0..max_len {
-                let logits = model.forward(&input, offset)?;
-                let token = logits.argmax(0)?.to_scalar::<u32>()?;
+                for _ in 0..max_len {
+                    let logits = model.forward(&input, offset)?;
+                    let token = logits.argmax(0)?.to_scalar::<u32>()?;
 
-                if stops.contains(&token) {
-                    break;
+                    if stops.contains(&token) {
+                        break;
+                    }
+
+                    let log_probs = candle_nn::ops::log_softmax(&logits, 0)?.to_vec1::<f32>()?;
+                    sum += log_probs[token as usize] as f64;
+                    tokens.push(token);
+                    offset += input.dim(1)?;
+                    input = Tensor::from_slice(&[token], (1, 1), ctx.device())?;
                 }
 
-                let log_probs = candle_nn::ops::log_softmax(&logits, 0)?.to_vec1::<f32>()?;
-                sum += log_probs[token as usize] as f64;
-                tokens.push(token);
-                offset += input.dim(1)?;
-                input = Tensor::from_slice(&[token], (1, 1), ctx.device())?;
-            }
+                let confidence = if tokens.is_empty() || !sum.is_finite() {
+                    None
+                } else {
+                    let value = (sum / tokens.len() as f64).exp();
+                    value.is_finite().then(|| value.clamp(0.0, 1.0))
+                };
 
-            let confidence = if tokens.is_empty() || !sum.is_finite() {
-                None
-            } else {
-                let value = (sum / tokens.len() as f64).exp();
-                value.is_finite().then(|| value.clamp(0.0, 1.0))
-            };
+                let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
 
-            let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
+                let _ = confidence;
+                Ok(text)
+            })();
 
-            let _ = confidence;
-            self.template.parse(crate::Parser::new(&text, compat))
-        })();
+            model.clear_kv_cache();
+            result
+        };
 
-        model.clear_kv_cache();
-        result
+        let text = result?;
+        self.template
+            .parse(&Parser::new(&text, compat == crate::CompatMode::Ignore))
+            .await
     }
 }
 
 impl Complete for Qwen2Generator {
-    fn complete(&self, ctx: &Context, chat: Chat) -> nim_error::Result<ChatAssistantMessage> {
-        chat.validate()?;
+    fn complete<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        chat: Chat,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<ChatAgentMessage>> {
+        Box::pin(async move {
+            chat.validate()?;
 
-        if chat.beams.is_some_and(|beams| beams != 1) {
-            return Err(nim_error::Diagnostic::message("Qwen completion supports one beam"));
-        }
+            if chat.beams.is_some_and(|beams| beams != 1) {
+                return Err(nim_error::Diagnostic::message("Qwen completion supports one beam"));
+            }
 
-        self.one(ctx, chat)
+            self.one(ctx, chat).await
+        })
     }
 }
 
 impl Summarize for Qwen2Generator {
-    fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
-        options.validate()?;
+    fn summarize<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: SummarizeOptions,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<TextOutput>>> {
+        Box::pin(async move {
+            options.validate()?;
 
-        let responses = input.iter().map(|bytes| {
-            let text = std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from)?;
-            self.complete(ctx, Chat {
-                messages: vec![crate::ChatUserMessage { content: crate::ChatMessageContent::Text(format!("Summarize the text concisely and accurately, using only information present in the text. Return only the summary.\n\n{text}")) }.into()],
-            beams: options.beams,
-            max_len: options.max_len,
-                ..Default::default()
-            })
-        }).collect::<nim_error::Result<Vec<_>>>()?;
+            let mut responses = Vec::with_capacity(input.len());
 
-        Ok(responses
-            .into_iter()
-            .map(|response| TextOutput {
-                text: match response.content {
-                    Some(crate::ChatMessageContent::Text(text)) => text,
-                    _ => String::new(),
-                },
-                confidence: None,
-            })
-            .collect())
+            for bytes in input {
+                let text = std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from)?;
+                let prompt = concat!(
+                    "Summarize the text concisely and accurately, using only information present in the text. ",
+                    "Return only the summary.",
+                );
+                let chat = Chat {
+                    messages: vec![
+                        ChatUserMessage {
+                            name: None,
+                            content: ChatMessageContent::String(format!("{prompt}\n\n{text}")),
+                            extra: Default::default(),
+                        }
+                        .into(),
+                    ],
+                    beams: options.beams,
+                    max_len: options.max_len,
+                    ..Default::default()
+                };
+
+                responses.push(self.complete(ctx, chat).await?);
+            }
+
+            Ok(responses
+                .into_iter()
+                .map(|response| TextOutput {
+                    text: match response.content {
+                        Some(ChatMessageContent::String(text)) => text,
+                        _ => String::new(),
+                    },
+                    confidence: None,
+                })
+                .collect())
+        })
     }
 }

@@ -1700,7 +1700,6 @@ checksum = "aef3982638978efa195ff11b305f51f1f22f4f0a6cabee7af79b383ebee6a213"
 dependencies = [
  "dirs",
  "futures",
- "http",
  "indicatif",
  "libc",
  "log",
@@ -2484,6 +2483,7 @@ name = "nim"
 version = "0.0.0"
 dependencies = [
  "nim-ai",
+ "nim-chat",
  "nim-error",
  "nim-runtime",
  "nim-signals",
@@ -2498,10 +2498,12 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-transformers",
+ "futures-util",
  "hf-chat-template",
  "hf-hub",
  "hound",
  "image",
+ "nim-chat",
  "nim-error",
  "reqwest 0.13.5",
  "rustfft",
@@ -2509,6 +2511,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tokenizers 0.22.2",
+ "tokio",
  "tracing",
  "unicode_categories",
  "url",
@@ -2534,9 +2537,11 @@ dependencies = [
 name = "nim-chat"
 version = "0.0.0"
 dependencies = [
+ "futures-util",
  "rand 0.10.3",
  "serde",
  "serde_json",
+ "serde_valid",
  "url",
 ]
 
@@ -2612,6 +2617,7 @@ dependencies = [
  "futures-util",
  "mime_guess",
  "nim-ai",
+ "nim-chat",
  "nim-error",
  "nim-signals",
  "nim-state",
@@ -2659,6 +2665,7 @@ name = "nim-state"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "nim-chat",
  "nim-error",
  "nim-store",
  "serde",
@@ -3623,9 +3630,7 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "encoding_rs",
- "futures-channel",
  "futures-core",
- "futures-util",
  "h2",
  "http",
  "http-body",

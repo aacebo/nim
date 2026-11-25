@@ -50,7 +50,7 @@ impl<'a> ImagePipelines<'a> {
 
         let out = task_run!(self, "images_captions", &options, {
             let input = input.iter().map(|v| v.as_ref()).collect::<Vec<_>>();
-            nim_ai::pipelines::images::captions::run_with(&input, options.into())
+            nim_ai::pipelines::images::captions::run_with(&input, options.into()).await
         })?;
 
         Ok(out)

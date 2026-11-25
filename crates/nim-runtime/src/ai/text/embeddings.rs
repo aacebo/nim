@@ -44,7 +44,7 @@ impl<'a> TextPipelines<'a> {
 
         let out = task_run!(self, "text_embeddings", &options, {
             let input = input.iter().map(|v| v.as_ref().as_bytes()).collect::<Vec<_>>();
-            nim_ai::pipelines::text::embeddings::run_with(&input, options.into())
+            nim_ai::pipelines::text::embeddings::run_with(&input, options.into()).await
         })?;
 
         Ok(out)

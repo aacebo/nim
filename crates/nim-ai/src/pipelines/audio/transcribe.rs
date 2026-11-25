@@ -29,13 +29,13 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Artifact>> {
-    run_with(input, Default::default())
+pub async fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Artifact>> {
+    run_with(input, Default::default()).await
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Artifact>> {
-    let model = load(&options.model)?;
+pub async fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Artifact>> {
+    let model = load(&options.model).await?;
     let capable = model.as_transcribe().ok_or_else(|| model.cannot("transcribe"))?;
     let transcript_options = TranscribeOptions {
         beams: options.beams,
@@ -43,13 +43,14 @@ pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Arti
         language: options.language.as_deref(),
     };
 
-    let transcripts = tasks::transcribe(capable, &model.context(), input, transcript_options)?;
+    let transcripts = tasks::transcribe(capable, &model.context(), input, transcript_options).await?;
     let out = text::embeddings::run(
         &transcripts
             .iter()
             .map(|transcript| transcript.text.as_bytes())
             .collect::<Vec<_>>(),
-    )?;
+    )
+    .await?;
 
     let out = out
         .into_iter()

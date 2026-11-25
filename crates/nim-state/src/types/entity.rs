@@ -44,6 +44,18 @@ impl std::fmt::Display for EntityId {
     }
 }
 
+impl std::str::FromStr for EntityId {
+    type Err = nim_error::Diagnostic;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value
+            .strip_prefix("entity_")
+            .ok_or_else(|| nim_error::Diagnostic::message("invalid entity id"))?;
+
+        Ok(Self(uuid::Uuid::parse_str(value)?))
+    }
+}
+
 impl serde::Serialize for EntityId {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
@@ -58,13 +70,7 @@ impl<'de> serde::Deserialize<'de> for EntityId {
     where
         D: serde::Deserializer<'de>,
     {
-        let v = String::deserialize(d)?;
-        let v = v
-            .strip_prefix("entity_")
-            .ok_or_else(|| serde::de::Error::custom("invalid entity id"))?;
-
-        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
-        Ok(Self(v))
+        String::deserialize(d)?.parse().map_err(serde::de::Error::custom)
     }
 }
 

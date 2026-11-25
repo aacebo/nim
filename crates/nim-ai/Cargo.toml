@@ -22,12 +22,15 @@ vision = ["dep:image"]
 
 [dependencies]
 nim-error = { workspace = true }
+nim-chat = { workspace = true }
 
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
-reqwest = { workspace = true, features = ["blocking", "charset", "default-tls", "http2", "json", "system-proxy"] }
+reqwest = { workspace = true, features = ["charset", "default-tls", "http2", "json", "system-proxy"] }
 url = { workspace = true }
 tracing = { workspace = true }
+futures-util = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "rt"] }
 sha2 = "0.10"
 
 candle-core = { version = "0.11" }
@@ -35,7 +38,7 @@ candle-nn = { version = "0.11" }
 candle-transformers = { version = "0.11" }
 tokenizers = { version = "0.22" }
 unicode_categories = "0.1"
-hf-hub = { version = "0.5" }
+hf-hub = { version = "0.5", default-features = false, features = ["tokio", "default-tls"] }
 hf-chat-template = { version = "1" }
 
 image = { version = "0.25", default-features = false, features = ["bmp", "gif", "ico", "jpeg", "png", "tiff", "webp"], optional = true }
@@ -51,3 +54,6 @@ candle-transformers = { version = "0.11", features = ["accelerate", "metal"] }
 candle-core = { version = "0.11", features = ["mkl"] }
 candle-nn = { version = "0.11", features = ["mkl"] }
 candle-transformers = { version = "0.11", features = ["mkl"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

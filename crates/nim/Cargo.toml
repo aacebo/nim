@@ -21,6 +21,7 @@ signals = ["dep:nim-signals"]
 
 [dependencies]
 nim-ai = { workspace = true, optional = true }
+nim-chat = { workspace = true }
 nim-error = { workspace = true }
 nim-state = { workspace = true }
 nim-store = { workspace = true }

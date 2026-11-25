@@ -1,7 +1,12 @@
 use crate::{Context, types::TextOutput};
 
 pub trait Summarize: Send + Sync {
-    fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>>;
+    fn summarize<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: SummarizeOptions,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<TextOutput>>>;
 }
 
 #[derive(Debug, Default, Clone)]

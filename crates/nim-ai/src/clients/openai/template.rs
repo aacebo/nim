@@ -1,7 +1,9 @@
-use crate::{
-    Chat, ChatAssistantMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatToolMessage,
-    ChatUserMessage, CompatMode, Media, Render, Tool, ToolCall,
+use nim_chat::{
+    ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatToolMessage,
+    ChatUserMessage, Media, Tool, ToolCall,
 };
+
+use crate::{Chat, CompatMode};
 
 pub struct OpenAITemplate {
     compat: CompatMode,
@@ -13,225 +15,352 @@ impl OpenAITemplate {
     }
 }
 
-impl Render<Chat> for OpenAITemplate {
+impl nim_chat::Render<Chat> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
     type Output = Vec<serde_json::Value>;
+    type Context<'a> = ();
 
-    fn render(&self, value: &Chat) -> nim_error::Result<Self::Output> {
-        value
-            .messages
-            .iter()
-            .map(|message| self.render(message))
-            .collect::<nim_error::Result<Vec<_>>>()
-            .map(|messages| messages.into_iter().flatten().collect())
-    }
-}
+    fn render<'a>(&'a self, _: &'a (), value: Chat) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            let mut messages = Vec::new();
 
-impl Render<ChatMessage> for OpenAITemplate {
-    type Output = Option<serde_json::Value>;
-
-    fn render(&self, value: &ChatMessage) -> nim_error::Result<Self::Output> {
-        match value {
-            ChatMessage::System(value) => self.render(value),
-            ChatMessage::User(value) => self.render(value),
-            ChatMessage::Assistant(value) => self.render(value),
-            ChatMessage::Tool(value) => self.render(value),
-        }
-    }
-}
-
-impl Render<ChatSystemMessage> for OpenAITemplate {
-    type Output = Option<serde_json::Value>;
-
-    fn render(&self, value: &ChatSystemMessage) -> nim_error::Result<Self::Output> {
-        Ok(self
-            .render(&value.content)?
-            .map(|content| serde_json::json!({ "role": "system", "content": content })))
-    }
-}
-
-impl Render<ChatUserMessage> for OpenAITemplate {
-    type Output = Option<serde_json::Value>;
-
-    fn render(&self, value: &ChatUserMessage) -> nim_error::Result<Self::Output> {
-        Ok(self
-            .render(&value.content)?
-            .map(|content| serde_json::json!({ "role": "user", "content": content })))
-    }
-}
-
-impl Render<ChatAssistantMessage> for OpenAITemplate {
-    type Output = Option<serde_json::Value>;
-
-    fn render(&self, value: &ChatAssistantMessage) -> nim_error::Result<Self::Output> {
-        Ok(Some(serde_json::json!({
-            "role": "assistant",
-            "content": value.content.as_ref().map(|content| self.render(content)).transpose()?,
-            "tool_calls": value.tool_calls.iter().map(|call| self.render(call)).collect::<nim_error::Result<Vec<_>>>()?,
-        })))
-    }
-}
-
-impl Render<ChatToolMessage> for OpenAITemplate {
-    type Output = Option<serde_json::Value>;
-
-    fn render(&self, value: &ChatToolMessage) -> nim_error::Result<Self::Output> {
-        Ok(Some(serde_json::json!({
-            "role": "tool",
-            "tool_call_id": value.tool_call_id,
-            "content": value.content.as_ref().map(|content| self.render(content)).transpose()?,
-        })))
-    }
-}
-
-impl Render<ChatMessageContent> for OpenAITemplate {
-    type Output = Option<serde_json::Value>;
-
-    fn render(&self, value: &ChatMessageContent) -> nim_error::Result<Self::Output> {
-        match value {
-            ChatMessageContent::Text(text) => Ok(Some(serde_json::Value::String(text.clone()))),
-            ChatMessageContent::Parts(parts) => {
-                let parts = parts
-                    .iter()
-                    .map(|part| self.render(part))
-                    .collect::<nim_error::Result<Vec<_>>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<_>>();
-                if parts.is_empty() && self.compat == CompatMode::Ignore {
-                    Ok(None)
-                } else if parts.is_empty() {
-                    Err(nim_error::Diagnostic::message("message has no supported content"))
-                } else {
-                    Ok(Some(serde_json::Value::Array(parts)))
+            for message in value.messages {
+                if let Some(message) = self.render(&(), message).await? {
+                    messages.push(message);
                 }
             }
-        }
+
+            Ok(messages)
+        })
     }
 }
 
-impl Render<ChatMessageContentPart> for OpenAITemplate {
+impl nim_chat::Render<ChatMessage> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
     type Output = Option<serde_json::Value>;
+    type Context<'a> = ();
 
-    fn render(&self, value: &ChatMessageContentPart) -> nim_error::Result<Self::Output> {
-        let text = |text: String| Ok(Some(serde_json::json!({ "type": "text", "text": text })));
-        match value {
-            ChatMessageContentPart::Text { text: value } => text(value.clone()),
-            ChatMessageContentPart::Json { json } => text(serde_json::to_string(json)?),
-            ChatMessageContentPart::Url { url } => text(url.to_string()),
-            ChatMessageContentPart::Image(Media::Url {
-                name,
-                url,
-                size,
-                mime_type,
-                summary,
-            }) => Ok(Some(serde_json::json!({
-                "type": "image",
-                "name": name,
-                "size": size,
-                "mime_type": mime_type,
-                "image": url,
-                "summary": summary,
-            }))),
-            ChatMessageContentPart::Image(Media::Path {
-                name,
-                path,
-                size,
-                mime_type,
-                summary,
-            }) => Ok(Some(serde_json::json!({
-                "type": "image",
-                "name": name,
-                "size": size,
-                "mime_type": mime_type,
-                "image": path,
-                "summary": summary,
-            }))),
-            ChatMessageContentPart::Video(Media::Url {
-                name,
-                url,
-                size,
-                mime_type,
-                summary,
-            }) => Ok(Some(serde_json::json!({
-                "type": "video",
-                "name": name,
-                "size": size,
-                "mime_type": mime_type,
-                "video": url,
-                "summary": summary,
-            }))),
-            ChatMessageContentPart::Video(Media::Path {
-                name,
-                path,
-                size,
-                mime_type,
-                summary,
-            }) => Ok(Some(serde_json::json!({
-                "type": "video",
-                "name": name,
-                "size": size,
-                "mime_type": mime_type,
-                "video": path,
-                "summary": summary,
-            }))),
-            ChatMessageContentPart::Audio(Media::Url {
-                name,
-                url,
-                size,
-                mime_type,
-                summary,
-            }) => Ok(Some(serde_json::json!({
-                "type": "audio",
-                "name": name,
-                "size": size,
-                "mime_type": mime_type,
-                "audio": url,
-                "summary": summary,
-            }))),
-            ChatMessageContentPart::Audio(Media::Path {
-                name,
-                path,
-                size,
-                mime_type,
-                summary,
-            }) => Ok(Some(serde_json::json!({
-                "type": "audio",
-                "name": name,
-                "size": size,
-                "mime_type": mime_type,
-                "audio": path,
-                "summary": summary,
-            }))),
-        }
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ChatMessage,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            match value {
+                ChatMessage::System(value) => self.render(&(), value).await,
+                ChatMessage::User(value) => self.render(&(), value).await,
+                ChatMessage::Agent(value) => self.render(&(), value).await,
+                ChatMessage::Tool(value) => self.render(&(), value).await,
+                _ => Err(nim_error::Diagnostic::message("unsupported message role")),
+            }
+        })
     }
 }
 
-impl Render<Tool> for OpenAITemplate {
-    type Output = serde_json::Value;
+impl nim_chat::Render<ChatSystemMessage> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = Option<serde_json::Value>;
+    type Context<'a> = ();
 
-    fn render(&self, value: &Tool) -> nim_error::Result<Self::Output> {
-        Ok(serde_json::json!({
-            "type": "function",
-            "function": {
-                "name": value.name,
-                "description": value.description,
-                "parameters": value.params,
-            },
-        }))
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ChatSystemMessage,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            Ok(self
+                .render(&(), value.content)
+                .await?
+                .map(|content| serde_json::json!({ "role": "system", "content": content })))
+        })
     }
 }
 
-impl Render<ToolCall> for OpenAITemplate {
-    type Output = serde_json::Value;
+impl nim_chat::Render<ChatUserMessage> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = Option<serde_json::Value>;
+    type Context<'a> = ();
 
-    fn render(&self, value: &ToolCall) -> nim_error::Result<Self::Output> {
-        Ok(serde_json::json!({
-            "id": value.id,
-            "type": "function",
-            "function": {
-                "name": value.name,
-                "arguments": serde_json::to_string(&value.args)?,
-            },
-        }))
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ChatUserMessage,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            Ok(self
+                .render(&(), value.content)
+                .await?
+                .map(|content| serde_json::json!({ "role": "user", "content": content })))
+        })
+    }
+}
+
+impl nim_chat::Render<ChatAgentMessage> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = Option<serde_json::Value>;
+    type Context<'a> = ();
+
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ChatAgentMessage,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            let content = match value.content {
+                Some(content) => Some(self.render(&(), content).await?),
+                None => None,
+            };
+
+            let mut tool_calls = Vec::new();
+
+            for call in value.tool_calls {
+                tool_calls.push(self.render(&(), call).await?);
+            }
+
+            let mut message = serde_json::json!({
+                "role": "assistant",
+                "content": content,
+                "tool_calls": tool_calls,
+            });
+
+            if let Some(reasoning) = &value.reasoning {
+                message["reasoning_content"] = serde_json::Value::String(reasoning.clone());
+            }
+
+            Ok(Some(message))
+        })
+    }
+}
+
+impl nim_chat::Render<ChatToolMessage> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = Option<serde_json::Value>;
+    type Context<'a> = ();
+
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ChatToolMessage,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            let content = match value.content {
+                Some(content) => Some(self.render(&(), content).await?),
+                None => None,
+            };
+
+            Ok(Some(serde_json::json!({
+                "role": "tool",
+                "tool_call_id": value.tool_call_id,
+                "content": content,
+            })))
+        })
+    }
+}
+
+impl nim_chat::Render<ChatMessageContent> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = Option<serde_json::Value>;
+    type Context<'a> = ();
+
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ChatMessageContent,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            match value {
+                ChatMessageContent::String(text) => Ok(Some(serde_json::Value::String(text))),
+                ChatMessageContent::Parts(parts) => {
+                    let mut rendered = Vec::new();
+
+                    for part in parts {
+                        if let Some(part) = self.render(&(), part).await? {
+                            rendered.push(part);
+                        }
+                    }
+
+                    if rendered.is_empty() && self.compat == CompatMode::Ignore {
+                        Ok(None)
+                    } else if rendered.is_empty() {
+                        Err(nim_error::Diagnostic::message("message has no supported content"))
+                    } else {
+                        Ok(Some(serde_json::Value::Array(rendered)))
+                    }
+                }
+                _ => Err(nim_error::Diagnostic::message("unsupported message content")),
+            }
+        })
+    }
+}
+
+impl nim_chat::Render<ChatMessageContentPart> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = Option<serde_json::Value>;
+    type Context<'a> = ();
+
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ChatMessageContentPart,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            let text = |text: String| Ok(Some(serde_json::json!({ "type": "text", "text": text })));
+
+            match value {
+                ChatMessageContentPart::Text { text: value } => text(value),
+                ChatMessageContentPart::Json { json } => text(serde_json::to_string(&json)?),
+                ChatMessageContentPart::Url { url } => text(url.to_string()),
+                ChatMessageContentPart::Image {
+                    media:
+                        Media::Url {
+                            name,
+                            url,
+                            size,
+                            mime_type,
+                            summary,
+                        },
+                } => Ok(Some(serde_json::json!({
+                    "type": "image",
+                    "name": name,
+                    "size": size,
+                    "mime_type": mime_type,
+                    "image": url,
+                    "summary": summary,
+                }))),
+                ChatMessageContentPart::Image {
+                    media:
+                        Media::Path {
+                            name,
+                            path,
+                            size,
+                            mime_type,
+                            summary,
+                        },
+                } => Ok(Some(serde_json::json!({
+                    "type": "image",
+                    "name": name,
+                    "size": size,
+                    "mime_type": mime_type,
+                    "image": path,
+                    "summary": summary,
+                }))),
+                ChatMessageContentPart::Video {
+                    media:
+                        Media::Url {
+                            name,
+                            url,
+                            size,
+                            mime_type,
+                            summary,
+                        },
+                } => Ok(Some(serde_json::json!({
+                    "type": "video",
+                    "name": name,
+                    "size": size,
+                    "mime_type": mime_type,
+                    "video": url,
+                    "summary": summary,
+                }))),
+                ChatMessageContentPart::Video {
+                    media:
+                        Media::Path {
+                            name,
+                            path,
+                            size,
+                            mime_type,
+                            summary,
+                        },
+                } => Ok(Some(serde_json::json!({
+                    "type": "video",
+                    "name": name,
+                    "size": size,
+                    "mime_type": mime_type,
+                    "video": path,
+                    "summary": summary,
+                }))),
+                ChatMessageContentPart::Audio {
+                    media:
+                        Media::Url {
+                            name,
+                            url,
+                            size,
+                            mime_type,
+                            summary,
+                        },
+                } => Ok(Some(serde_json::json!({
+                    "type": "audio",
+                    "name": name,
+                    "size": size,
+                    "mime_type": mime_type,
+                    "audio": url,
+                    "summary": summary,
+                }))),
+                ChatMessageContentPart::Audio {
+                    media:
+                        Media::Path {
+                            name,
+                            path,
+                            size,
+                            mime_type,
+                            summary,
+                        },
+                } => Ok(Some(serde_json::json!({
+                    "type": "audio",
+                    "name": name,
+                    "size": size,
+                    "mime_type": mime_type,
+                    "audio": path,
+                    "summary": summary,
+                }))),
+                _ if self.compat == CompatMode::Ignore => Ok(None),
+                _ => Err(nim_error::Diagnostic::message("unsupported message content part")),
+            }
+        })
+    }
+}
+
+impl nim_chat::Render<Tool> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = serde_json::Value;
+    type Context<'a> = ();
+
+    fn render<'a>(&'a self, _: &'a (), value: Tool) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            let value = &value;
+
+            Ok(serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": value.name,
+                    "description": value.description,
+                    "parameters": value.params,
+                },
+            }))
+        })
+    }
+}
+
+impl nim_chat::Render<ToolCall> for OpenAITemplate {
+    type Error = nim_error::Diagnostic;
+    type Output = serde_json::Value;
+    type Context<'a> = ();
+
+    fn render<'a>(
+        &'a self,
+        _: &'a (),
+        value: ToolCall,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
+        Box::pin(async move {
+            let value = &value;
+
+            Ok(serde_json::json!({
+                "id": value.id,
+                "type": "function",
+                "function": {
+                    "name": value.name,
+                    "arguments": serde_json::to_string(&value.args)?,
+                },
+            }))
+        })
     }
 }

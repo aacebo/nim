@@ -76,6 +76,18 @@ impl std::fmt::Display for ModelId {
     }
 }
 
+impl std::str::FromStr for ModelId {
+    type Err = nim_error::Diagnostic;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value
+            .strip_prefix("model_")
+            .ok_or_else(|| nim_error::Diagnostic::message("invalid model id"))?;
+
+        Ok(Self(uuid::Uuid::parse_str(value)?))
+    }
+}
+
 impl serde::Serialize for ModelId {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
@@ -90,13 +102,7 @@ impl<'de> serde::Deserialize<'de> for ModelId {
     where
         D: serde::Deserializer<'de>,
     {
-        let v = String::deserialize(d)?;
-        let v = v
-            .strip_prefix("model_")
-            .ok_or_else(|| serde::de::Error::custom("invalid model id"))?;
-
-        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
-        Ok(Self(v))
+        String::deserialize(d)?.parse().map_err(serde::de::Error::custom)
     }
 }
 
@@ -172,6 +178,18 @@ impl std::fmt::Display for ModelWeightId {
     }
 }
 
+impl std::str::FromStr for ModelWeightId {
+    type Err = nim_error::Diagnostic;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value
+            .strip_prefix("model_weight_")
+            .ok_or_else(|| nim_error::Diagnostic::message("invalid model weight id"))?;
+
+        Ok(Self(uuid::Uuid::parse_str(value)?))
+    }
+}
+
 impl serde::Serialize for ModelWeightId {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
@@ -186,13 +204,7 @@ impl<'de> serde::Deserialize<'de> for ModelWeightId {
     where
         D: serde::Deserializer<'de>,
     {
-        let v = String::deserialize(d)?;
-        let v = v
-            .strip_prefix("model_weight_")
-            .ok_or_else(|| serde::de::Error::custom("invalid model weight id"))?;
-
-        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
-        Ok(Self(v))
+        String::deserialize(d)?.parse().map_err(serde::de::Error::custom)
     }
 }
 

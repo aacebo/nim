@@ -1,4 +1,3 @@
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -19,70 +18,69 @@ impl HttpRepository {
 }
 
 impl Repository for HttpRepository {
-    fn exists(&self, path: &Path) -> bool {
-        self.resolve(path).is_ok()
+    fn exists<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, bool> {
+        Box::pin(async move { self.resolve(path).await.is_ok() })
     }
 
-    fn get(&self, path: &Path) -> nim_error::Result<Asset> {
-        Ok(Asset::file(self.resolve(path)?.local_path()?))
+    fn get<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<Asset>> {
+        Box::pin(async move { Ok(Asset::file(self.resolve(path).await?.local_path()?)) })
     }
 
-    fn read(&self, path: &Path) -> nim_error::Result<AssetData> {
-        let path = self.resolve(path)?;
-        Ok(AssetData::File(std::fs::read(path.local_path()?)?))
+    fn read<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<AssetData>> {
+        Box::pin(async move {
+            let path = self.resolve(path).await?;
+            Ok(AssetData::File(tokio::fs::read(path.local_path()?).await?))
+        })
     }
 
-    fn resolve(&self, path: &Path) -> nim_error::Result<Resource> {
-        let filename = path
-            .to_str()
-            .ok_or_else(|| nim_error::Diagnostic::message(format!("{path:?} is not utf-8")))?;
-        let uri = self.base.join(filename)?;
-        let key = format!("{:x}", Sha256::digest(uri.to_string().as_bytes()));
-        let cached = cache::dir().unwrap_or_else(std::env::temp_dir).join("urls").join(key);
-        let mut progress = Download::new(&self.base.to_string(), filename);
+    fn resolve<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<Resource>> {
+        Box::pin(async move {
+            let filename = path
+                .to_str()
+                .ok_or_else(|| nim_error::Diagnostic::message(format!("{path:?} is not utf-8")))?;
+            let uri = self.base.join(filename)?;
+            let key = format!("{:x}", Sha256::digest(uri.to_string().as_bytes()));
+            let cached = cache::dir().unwrap_or_else(std::env::temp_dir).join("urls").join(key);
+            let mut progress = Download::new(&self.base.to_string(), filename);
 
-        if cached.exists() {
-            progress.cached();
-            return Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()));
-        }
+            if tokio::fs::try_exists(&cached).await? {
+                progress.cached();
+                return Ok(Resource::new(uri).resolved(cached.clone(), tokio::fs::metadata(cached).await?.len()));
+            }
 
-        progress.start();
+            progress.start();
 
-        let result = (|| -> nim_error::Result<PathBuf> {
-            let url = uri.to_string();
-            let mut response = reqwest::blocking::get(&url)?.error_for_status()?;
-            progress.reset(response.content_length());
-            let mut bytes = Vec::new();
-            let mut buffer = [0u8; 65536];
+            let result: nim_error::Result<PathBuf> = async {
+                let url = uri.to_string();
+                let mut response = reqwest::get(&url).await?.error_for_status()?;
+                progress.reset(response.content_length());
 
-            loop {
-                let read = response.read(&mut buffer)?;
-
-                if read == 0 {
-                    break;
+                if let Some(dir) = cached.parent() {
+                    tokio::fs::create_dir_all(dir).await?;
                 }
 
-                bytes.extend_from_slice(&buffer[..read]);
-                progress.update(read);
-            }
+                let mut bytes = Vec::new();
 
-            if let Some(dir) = cached.parent() {
-                std::fs::create_dir_all(dir)?;
-            }
+                while let Some(chunk) = response.chunk().await? {
+                    progress.update(chunk.len());
+                    bytes.extend_from_slice(&chunk);
+                }
 
-            std::fs::write(&cached, &bytes)?;
-            Ok(cached)
-        })();
+                tokio::fs::write(&cached, bytes).await?;
+                Ok(cached)
+            }
+            .await;
 
-        match result {
-            Ok(cached) => {
-                progress.complete();
-                Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()))
+            match result {
+                Ok(cached) => {
+                    progress.complete();
+                    Ok(Resource::new(uri).resolved(cached.clone(), tokio::fs::metadata(cached).await?.len()))
+                }
+                Err(error) => {
+                    progress.failed();
+                    Err(error)
+                }
             }
-            Err(error) => {
-                progress.failed();
-                Err(error)
-            }
-        }
+        })
     }
 }

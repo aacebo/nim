@@ -48,16 +48,23 @@ impl Forward for BertEmbedder {
 }
 
 impl Embed for BertEmbedder {
-    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
-        let text = input
-            .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
-            .collect::<Result<Vec<_>, _>>()?;
-        if text.is_empty() {
-            return Ok(Vec::new());
-        }
+    fn embed<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<f32>>>> {
+        Box::pin(async move {
+            let text = input
+                .iter()
+                .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
+                .collect::<Result<Vec<_>, _>>()?;
 
-        let batch = ctx.encode(&text)?;
-        Ok(self.forward(&batch.ids, &batch.mask)?.to_vec2::<f32>()?)
+            if text.is_empty() {
+                return Ok(Vec::new());
+            }
+
+            let batch = ctx.encode(&text)?;
+            Ok(self.forward(&batch.ids, &batch.mask)?.to_vec2::<f32>()?)
+        })
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{Annotation, ChatMessageContent};
+use crate::{Annotation, ChatMessageContent, ToolCall};
 
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -100,8 +100,13 @@ pub struct ChatAgentMessage {
     pub name: Option<String>,
     pub content: Option<ChatMessageContent>,
 
-    #[serde(default)]
+    pub reasoning: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub annotations: Vec<Annotation>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<ToolCall>,
 
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,

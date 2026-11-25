@@ -50,7 +50,7 @@ impl<'a> AudioPipelines<'a> {
 
         let out = task_run!(self, "audio_captions", &options, {
             let input = input.iter().map(|v| v.as_ref()).collect::<Vec<_>>();
-            nim_ai::pipelines::audio::captions::run_with(&input, options.into())
+            nim_ai::pipelines::audio::captions::run_with(&input, options.into()).await
         })?;
 
         Ok(out)

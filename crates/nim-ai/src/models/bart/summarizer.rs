@@ -38,29 +38,36 @@ impl BartSummarizer {
 }
 
 impl Summarize for BartSummarizer {
-    fn summarize(&self, ctx: &Context, input: &[&[u8]], options: SummarizeOptions) -> nim_error::Result<Vec<TextOutput>> {
-        options.validate()?;
+    fn summarize<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: SummarizeOptions,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<TextOutput>>> {
+        Box::pin(async move {
+            options.validate()?;
 
-        let text = input
-            .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
-            .collect::<Result<Vec<_>, _>>()?;
-        let mut decoding = self.decoding;
+            let text = input
+                .iter()
+                .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut decoding = self.decoding;
 
-        if let Some(beams) = options.beams {
-            decoding = decoding.beams(beams);
-        }
+            if let Some(beams) = options.beams {
+                decoding = decoding.beams(beams);
+            }
 
-        let max_len = options.max_len.unwrap_or(self.max_position_embeddings);
+            let max_len = options.max_len.unwrap_or(self.max_position_embeddings);
 
-        if max_len > self.max_position_embeddings {
-            return Err(nim_error::Diagnostic::message(
-                "summary length exceeds model position embeddings",
-            ));
-        }
+            if max_len > self.max_position_embeddings {
+                return Err(nim_error::Diagnostic::message(
+                    "summary length exceeds model position embeddings",
+                ));
+            }
 
-        decoding = decoding.max_length(max_len);
-        text.iter().map(|text| self.one(ctx, text, &decoding)).collect()
+            decoding = decoding.max_length(max_len);
+            text.iter().map(|text| self.one(ctx, text, &decoding)).collect()
+        })
     }
 }
 

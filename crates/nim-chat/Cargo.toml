@@ -15,4 +15,6 @@ workspace = true
 url.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_valid.workspace = true
 rand = "0.10"
+futures-util.workspace = true

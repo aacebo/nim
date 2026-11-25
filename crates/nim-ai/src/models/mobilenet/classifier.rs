@@ -39,46 +39,48 @@ impl Forward for MobileNetClassifier {
 }
 
 impl Classify for MobileNetClassifier {
-    fn classify(
-        &self,
-        ctx: &Context,
-        input: &[&[u8]],
-        options: ClassifyOptions<'_>,
-    ) -> nim_error::Result<Vec<Vec<Classification>>> {
-        options.validate()?;
+    fn classify<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: ClassifyOptions<'a>,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<Classification>>>> {
+        Box::pin(async move {
+            options.validate()?;
 
-        if options.mode != ClassifyMode::Whole
-            || options.labels.is_some()
-            || options.multi_label
-            || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
-        {
-            return Err(nim_error::Diagnostic::message(
-                "this classifier only supports whole-input classification with fixed labels",
-            ));
-        }
+            if options.mode != ClassifyMode::Whole
+                || options.labels.is_some()
+                || options.multi_label
+                || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
+            {
+                return Err(nim_error::Diagnostic::message(
+                    "this classifier only supports whole-input classification with fixed labels",
+                ));
+            }
 
-        input
-            .iter()
-            .map(|input| {
-                if options.limit == Some(0) {
-                    return Ok(Vec::new());
-                }
+            input
+                .iter()
+                .map(|input| {
+                    if options.limit == Some(0) {
+                        return Ok(Vec::new());
+                    }
 
-                let (input, bounds) = self.processor.tensor(input, ctx.device())?;
-                let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
-                let mut labels: Vec<Classification> = probabilities[0]
-                    .iter()
-                    .enumerate()
-                    .map(|(index, score)| Classification {
-                        name: String::from("classification"),
-                        spans: vec![Span::Space(bounds)],
-                        label: self.labels[index].clone(),
-                        score: *score as f64,
-                    })
-                    .collect();
-                labels.sort_by(|left, right| right.score.total_cmp(&left.score));
-                options.apply(labels)
-            })
-            .collect()
+                    let (input, bounds) = self.processor.tensor(input, ctx.device())?;
+                    let probabilities = ops::softmax(&Forward::forward(self, input)?, 1)?.to_vec2::<f32>()?;
+                    let mut labels: Vec<Classification> = probabilities[0]
+                        .iter()
+                        .enumerate()
+                        .map(|(index, score)| Classification {
+                            name: String::from("classification"),
+                            spans: vec![Span::Space(bounds)],
+                            label: self.labels[index].clone(),
+                            score: *score as f64,
+                        })
+                        .collect();
+                    labels.sort_by(|left, right| right.score.total_cmp(&left.score));
+                    options.apply(labels)
+                })
+                .collect()
+        })
     }
 }

@@ -1,20 +1,22 @@
-use super::CompatMode;
-
 pub struct Parser<'a> {
     remaining: &'a str,
-    compat: CompatMode,
+    ignore_unsupported: bool,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(text: &'a str, compat: CompatMode) -> Self {
+    pub fn new(text: &'a str, ignore_unsupported: bool) -> Self {
         Self {
             remaining: text.trim(),
-            compat,
+            ignore_unsupported,
         }
     }
 
-    pub fn compat(&self) -> CompatMode {
-        self.compat
+    pub fn ignore_unsupported(&self) -> bool {
+        self.ignore_unsupported
+    }
+
+    pub fn remaining(&self) -> &'a str {
+        self.remaining
     }
 
     pub fn take_prefix(&mut self, prefix: &str) -> bool {
@@ -31,7 +33,6 @@ impl<'a> Parser<'a> {
         let index = self.remaining.find(delimiter)?;
         let value = &self.remaining[..index];
         self.remaining = &self.remaining[index + delimiter.len()..];
-
         Some(value)
     }
 

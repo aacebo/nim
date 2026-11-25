@@ -4,12 +4,12 @@ use crate::{
 };
 
 pub trait Classify: Send + Sync {
-    fn classify(
-        &self,
-        ctx: &Context,
-        input: &[&[u8]],
-        options: ClassifyOptions<'_>,
-    ) -> nim_error::Result<Vec<Vec<Classification>>>;
+    fn classify<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: ClassifyOptions<'a>,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<Classification>>>>;
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]

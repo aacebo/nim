@@ -22,9 +22,9 @@ pub struct Qwen3Embedder {
 }
 
 impl Qwen3Embedder {
-    pub fn new(loader: &Loader) -> nim_error::Result<Self> {
-        let config: Config = loader.config()?;
-        let vars = loader.vars()?;
+    pub async fn new(loader: &Loader) -> nim_error::Result<Self> {
+        let config: Config = loader.config().await?;
+        let vars = loader.vars().await?;
         let vars = if vars.contains_tensor("embed_tokens.weight") {
             vars.rename_f(|name: &str| name.strip_prefix("model.").unwrap_or(name).to_string())
         } else {
@@ -39,71 +39,82 @@ impl Qwen3Embedder {
 }
 
 impl Embed for Qwen3Embedder {
-    fn embed(&self, ctx: &Context, input: &[&[u8]]) -> nim_error::Result<Vec<Vec<f32>>> {
-        self.embed_with(ctx, input, &EmbedOptions::default())
+    fn embed<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<f32>>>> {
+        Box::pin(async move { self.embed_with(ctx, input, &EmbedOptions::default()).await })
     }
 
-    fn embed_with(&self, ctx: &Context, input: &[&[u8]], options: &EmbedOptions) -> nim_error::Result<Vec<Vec<f32>>> {
-        options.validate()?;
-        let dimensions = options.dimensions.unwrap_or(1024);
+    fn embed_with<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: &'a EmbedOptions,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<f32>>>> {
+        Box::pin(async move {
+            options.validate()?;
+            let dimensions = options.dimensions.unwrap_or(1024);
 
-        if !(32..=1024).contains(&dimensions) {
-            return Err(nim_error::Diagnostic::message("unsupported embedding dimensions"));
-        }
-
-        let text = input
-            .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
-            .collect::<Result<Vec<_>, _>>()?;
-        let mut tokenizer = ctx.tokenizer()?.clone();
-        tokenizer.with_padding(None);
-        tokenizer
-            .with_truncation(Some(tokenizers::TruncationParams {
-                max_length: self.max_position_embeddings,
-                ..Default::default()
-            }))
-            .map_err(nim_error::Diagnostic::message)?;
-        let mut output = Vec::with_capacity(text.len());
-
-        for text in text {
-            let text = match options.mode {
-                EmbedMode::Raw => text.to_string(),
-                EmbedMode::Query => format!(
-                    "Instruct: {}\nQuery: {text}",
-                    options
-                        .instruction
-                        .as_deref()
-                        .unwrap_or("Given a web search query, retrieve relevant passages that answer the query")
-                ),
-                EmbedMode::Document => text.to_string(),
-            };
-
-            let encoding = tokenizer.encode(text, true).map_err(nim_error::Diagnostic::message)?;
-            let length = encoding.get_ids().len();
-
-            if length == 0 {
-                return Err(nim_error::Diagnostic::message("embedding input has no tokens"));
+            if !(32..=1024).contains(&dimensions) {
+                return Err(nim_error::Diagnostic::message("unsupported embedding dimensions"));
             }
 
-            let ids = Tensor::new(encoding.get_ids(), ctx.device())?.unsqueeze(0)?;
-            let mut model = self.model.clone();
-            let hidden = model.forward(&ids, 0)?;
-            let vector = hidden.narrow(1, length - 1, 1)?;
-            let mut vector = vector.flatten_all()?.to_vec1::<f32>()?;
-            vector.truncate(dimensions);
-            let norm = vector.iter().map(|v| v * v).sum::<f32>().sqrt();
+            let text = input
+                .iter()
+                .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut tokenizer = ctx.tokenizer()?.clone();
+            tokenizer.with_padding(None);
+            tokenizer
+                .with_truncation(Some(tokenizers::TruncationParams {
+                    max_length: self.max_position_embeddings,
+                    ..Default::default()
+                }))
+                .map_err(nim_error::Diagnostic::message)?;
+            let mut output = Vec::with_capacity(text.len());
 
-            if !norm.is_finite() || norm == 0.0 {
-                return Err(nim_error::Diagnostic::message("invalid embedding norm"));
+            for text in text {
+                let text = match options.mode {
+                    EmbedMode::Raw => text.to_string(),
+                    EmbedMode::Query => format!(
+                        "Instruct: {}\nQuery: {text}",
+                        options
+                            .instruction
+                            .as_deref()
+                            .unwrap_or("Given a web search query, retrieve relevant passages that answer the query")
+                    ),
+                    EmbedMode::Document => text.to_string(),
+                };
+
+                let encoding = tokenizer.encode(text, true).map_err(nim_error::Diagnostic::message)?;
+                let length = encoding.get_ids().len();
+
+                if length == 0 {
+                    return Err(nim_error::Diagnostic::message("embedding input has no tokens"));
+                }
+
+                let ids = Tensor::new(encoding.get_ids(), ctx.device())?.unsqueeze(0)?;
+                let mut model = self.model.clone();
+                let hidden = model.forward(&ids, 0)?;
+                let vector = hidden.narrow(1, length - 1, 1)?;
+                let mut vector = vector.flatten_all()?.to_vec1::<f32>()?;
+                vector.truncate(dimensions);
+                let norm = vector.iter().map(|v| v * v).sum::<f32>().sqrt();
+
+                if !norm.is_finite() || norm == 0.0 {
+                    return Err(nim_error::Diagnostic::message("invalid embedding norm"));
+                }
+
+                for value in &mut vector {
+                    *value /= norm;
+                }
+
+                output.push(vector);
             }
 
-            for value in &mut vector {
-                *value /= norm;
-            }
-
-            output.push(vector);
-        }
-
-        Ok(output)
+            Ok(output)
+        })
     }
 }

@@ -1,19 +1,25 @@
 use crate::{Media, widgets};
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 #[serde(untagged)]
 pub enum ChatMessageContent {
-    String(String),
-    Parts(Vec<ChatMessageContentPart>),
+    #[validate]
+    String(#[validate(min_length = 1)] String),
+
+    #[validate(min_items = 1)]
+    Parts(#[validate] Vec<ChatMessageContentPart>),
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatMessageContentPart {
     /// plain text
-    Text { text: String },
+    Text {
+        #[validate(min_length = 1)]
+        text: String,
+    },
 
     /// structured JSON object or array
     Json { json: serde_json::Value },
@@ -48,7 +54,9 @@ pub enum ChatMessageContentPart {
     /// a reference to some shared artifact
     Artifact {
         id: String,
-        name: String,
+
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
 
         #[serde(default, skip_serializing_if = "Option::is_none")]
         size: Option<u64>,

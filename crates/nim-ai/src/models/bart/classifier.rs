@@ -108,43 +108,45 @@ impl Forward for BartClassifier {
 }
 
 impl Classify for BartClassifier {
-    fn classify(
-        &self,
-        ctx: &Context,
-        input: &[&[u8]],
-        options: ClassifyOptions<'_>,
-    ) -> nim_error::Result<Vec<Vec<Classification>>> {
-        let text = input
-            .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
-            .collect::<Result<Vec<_>, _>>()?;
-        options.validate()?;
+    fn classify<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: ClassifyOptions<'a>,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<Classification>>>> {
+        Box::pin(async move {
+            let text = input
+                .iter()
+                .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
+                .collect::<Result<Vec<_>, _>>()?;
+            options.validate()?;
 
-        if options.labels.is_some()
-            || options.multi_label
-            || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
-        {
-            return Err(nim_error::Diagnostic::message(format!(
-                "{} only supports fixed labels",
-                ctx.name()
-            )));
-        }
+            if options.labels.is_some()
+                || options.multi_label
+                || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
+            {
+                return Err(nim_error::Diagnostic::message(format!(
+                    "{} only supports fixed labels",
+                    ctx.name()
+                )));
+            }
 
-        if options.mode != self.mode {
-            return Err(nim_error::Diagnostic::message(format!(
-                "{} cannot classify in {:?} mode",
-                ctx.name(),
-                options.mode
-            )));
-        }
+            if options.mode != self.mode {
+                return Err(nim_error::Diagnostic::message(format!(
+                    "{} cannot classify in {:?} mode",
+                    ctx.name(),
+                    options.mode
+                )));
+            }
 
-        let out = match options.mode {
-            ClassifyMode::Whole => self.text(ctx, &text),
-            ClassifyMode::Regions => self.spans(ctx, &text),
-        }?;
+            let out = match options.mode {
+                ClassifyMode::Whole => self.text(ctx, &text),
+                ClassifyMode::Regions => self.spans(ctx, &text),
+            }?;
 
-        out.into_iter()
-            .map(|classifications| options.apply(classifications))
-            .collect()
+            out.into_iter()
+                .map(|classifications| options.apply(classifications))
+                .collect()
+        })
     }
 }

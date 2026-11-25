@@ -27,10 +27,10 @@ impl Resource {
         }
     }
 
-    pub(crate) fn from_path(path: PathBuf) -> nim_error::Result<Self> {
-        let metadata = std::fs::metadata(&path)?;
+    pub(crate) async fn from_path(path: PathBuf) -> nim_error::Result<Self> {
+        let metadata = tokio::fs::metadata(&path).await?;
         let size = match metadata.is_dir() {
-            true => directory_size(&path)?,
+            true => directory_size(&path).await?,
             false => metadata.len(),
         };
         let mut resource = Self::new(Uri::local(&path)).resolved(path, size);
@@ -71,26 +71,28 @@ impl std::fmt::Display for Resource {
     }
 }
 
-fn directory_size(path: &Path) -> nim_error::Result<u64> {
+async fn directory_size(path: &Path) -> nim_error::Result<u64> {
     let mut size = 0u64;
+    let mut directories = vec![path.to_path_buf()];
 
-    for entry in std::fs::read_dir(path)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        let bytes = if ty.is_dir() {
-            directory_size(&entry.path())?
-        } else {
-            let metadata = std::fs::metadata(entry.path())?;
+    while let Some(path) = directories.pop() {
+        let mut entries = tokio::fs::read_dir(path).await?;
 
-            match metadata.is_file() {
-                true => metadata.len(),
-                false => 0,
+        while let Some(entry) = entries.next_entry().await? {
+            let ty = entry.file_type().await?;
+
+            if ty.is_dir() {
+                directories.push(entry.path());
+            } else {
+                let metadata = tokio::fs::metadata(entry.path()).await?;
+
+                if metadata.is_file() {
+                    size = size
+                        .checked_add(metadata.len())
+                        .ok_or_else(|| nim_error::Diagnostic::message("directory size overflow"))?;
+                }
             }
-        };
-
-        size = size
-            .checked_add(bytes)
-            .ok_or_else(|| nim_error::Diagnostic::message("directory size overflow"))?;
+        }
     }
 
     Ok(size)

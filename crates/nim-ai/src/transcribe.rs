@@ -1,7 +1,12 @@
 use crate::{Context, types::TextOutput};
 
 pub trait Transcribe: Send + Sync {
-    fn transcribe(&self, ctx: &Context, input: &[&[u8]], options: TranscribeOptions<'_>) -> nim_error::Result<Vec<TextOutput>>;
+    fn transcribe<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: TranscribeOptions<'a>,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<TextOutput>>>;
 }
 
 #[derive(Debug, Default, Clone)]

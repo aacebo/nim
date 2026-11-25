@@ -37,12 +37,12 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()))]
-pub fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Vec<Classification>>> {
-    run_with(input, Default::default())
+pub async fn run(input: &[&[u8]]) -> nim_error::Result<Vec<Vec<Classification>>> {
+    run_with(input, Default::default()).await
 }
 
 #[tracing::instrument(skip_all, fields(batch_size = input.len()), err)]
-pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Vec<Classification>>> {
+pub async fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Vec<Classification>>> {
     let mut classify_options = ClassifyOptions {
         min_score: options.min_score,
         limit: options.limit,
@@ -58,10 +58,10 @@ pub fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Vec<Vec<
         return Ok(Vec::new());
     }
 
-    let model = load(&options.model)?;
+    let model = load(&options.model).await?;
     classify_options.mode = model.classify_mode(ClassifyMedia::Text)?;
     let capable = model.as_classify().ok_or_else(|| model.cannot("classify"))?;
-    let mut out = tasks::classify(capable, &model.context(), input, classify_options)?;
+    let mut out = tasks::classify(capable, &model.context(), input, classify_options).await?;
 
     if options.labels.is_none() {
         for classification in out

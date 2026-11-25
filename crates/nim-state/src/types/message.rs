@@ -1,4 +1,5 @@
-use crate::{AnnotationId, ArtifactId, ChatId, Embedding, Label, Span, Version};
+use crate::{AnnotationId, ChatId, Embedding, Label, Span, Version};
+use nim_chat::ChatMessageContent;
 
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
@@ -26,7 +27,7 @@ pub struct Message {
     pub reply_to_id: Option<MessageId>,
     pub version: Version,
     pub role: Role,
-    pub content: MessageContent,
+    pub content: ChatMessageContent,
     pub summary: Option<String>,
     #[serde(skip)]
     pub embedding: Option<Embedding>,
@@ -39,7 +40,7 @@ pub struct Message {
 pub struct MessagePartial {
     pub id: MessageId,
     pub role: Role,
-    pub content: MessageContent,
+    pub content: ChatMessageContent,
     pub summary: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -72,6 +73,18 @@ impl std::fmt::Display for MessageId {
     }
 }
 
+impl std::str::FromStr for MessageId {
+    type Err = nim_error::Diagnostic;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value
+            .strip_prefix("message_")
+            .ok_or_else(|| nim_error::Diagnostic::message("invalid message id"))?;
+
+        Ok(Self(uuid::Uuid::parse_str(value)?))
+    }
+}
+
 impl serde::Serialize for MessageId {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
@@ -86,13 +99,7 @@ impl<'de> serde::Deserialize<'de> for MessageId {
     where
         D: serde::Deserializer<'de>,
     {
-        let v = String::deserialize(d)?;
-        let v = v
-            .strip_prefix("message_")
-            .ok_or_else(|| serde::de::Error::custom("invalid message id"))?;
-
-        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
-        Ok(Self(v))
+        String::deserialize(d)?.parse().map_err(serde::de::Error::custom)
     }
 }
 
@@ -113,61 +120,6 @@ impl TryFrom<nim_store::MessageRow> for Message {
             created_at: value.created_at,
             updated_at: value.updated_at,
         })
-    }
-}
-
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
-#[serde(untagged)]
-pub enum MessageContent {
-    #[validate]
-    String(#[validate(min_length = 1)] String),
-
-    #[validate(min_items = 1)]
-    Parts(#[validate] Vec<MessageContentPart>),
-}
-
-impl MessageContent {
-    pub fn artifacts(&self) -> Vec<ArtifactId> {
-        match self {
-            Self::String(_) => Default::default(),
-            Self::Parts(arr) => arr.iter().flat_map(|v| v.artifacts()).collect(),
-        }
-    }
-}
-
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum MessageContentPart {
-    #[validate]
-    Text {
-        #[validate(min_length = 1)]
-        text: String,
-    },
-    Artifact {
-        id: ArtifactId,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        size: Option<u64>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        media_type: Option<String>,
-    },
-    Json {
-        json: serde_json::Value,
-    },
-    Url {
-        url: url::Url,
-    },
-}
-
-impl MessageContentPart {
-    pub fn artifacts(&self) -> Vec<ArtifactId> {
-        match self {
-            Self::Artifact { id, .. } => vec![*id],
-            _ => Default::default(),
-        }
     }
 }
 

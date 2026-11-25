@@ -50,59 +50,6 @@ pub(crate) use crate::{
 
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
 
-fn output_limit(model: &str, context: usize, prompt: usize, requested: Option<usize>) -> nim_error::Result<usize> {
-    let remaining = context
-        .checked_sub(prompt)
-        .filter(|remaining| *remaining > 0)
-        .ok_or_else(|| nim_error::Diagnostic::message(format!("{model} prompt exceeds the available context")))?;
-    let limit = requested.unwrap_or(remaining);
-
-    if limit > remaining {
-        return Err(nim_error::Diagnostic::message(format!(
-            "{model} prompt and output allowance exceed the {context}-token context limit"
-        )));
-    }
-
-    Ok(limit)
-}
-
-fn device() -> nim_error::Result<Device> {
-    #[cfg(target_os = "macos")]
-    {
-        Ok(Device::new_metal(0)?)
-    }
-    #[cfg(not(target_os = "macos"))]
-    Ok(Device::Cpu)
-}
-
-pub fn id(value: impl AsRef<str>) -> nim_error::Result<ModelId> {
-    value.as_ref().parse::<ModelId>()
-}
-
-pub fn refer(value: impl AsRef<str>) -> nim_error::Result<ModelRef> {
-    value.as_ref().parse::<ModelRef>()
-}
-
-/// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
-/// for two routines now loads its weights once.
-#[tracing::instrument]
-pub fn load(model: &ModelRef) -> nim_error::Result<std::sync::Arc<crate::models::Model>> {
-    use candle_core::DType;
-
-    MODELS.get_or_build(Key::new(model), || {
-        let device = device()?;
-
-        Ok(std::sync::Arc::new(Model::new(model, device, DType::F32)?))
-    })
-}
-
-pub trait Forward: Send + Sync {
-    type Input;
-    type Output;
-
-    fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output>;
-}
-
 /// A model with its weights loaded (or, for a remote model, its endpoint bound). The variant
 /// determines which capabilities exist: the `None` arms below are the empty cells of the matrix.
 pub enum AnyModel {
@@ -146,8 +93,15 @@ pub struct Model {
     config: Option<ModelConfig>,
 }
 
+pub trait Forward: Send + Sync {
+    type Input;
+    type Output;
+
+    fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output>;
+}
+
 impl Model {
-    pub fn new(model: &ModelRef, device: Device, dtype: DType) -> nim_error::Result<Self> {
+    pub async fn new(model: &ModelRef, device: Device, dtype: DType) -> nim_error::Result<Self> {
         let name = model.to_string();
 
         match model {
@@ -158,26 +112,26 @@ impl Model {
                 tokenizer: None,
                 config: None,
             }),
-            ModelRef::Local(local) => Self::local(local, device, dtype, name),
+            ModelRef::Local(local) => Self::local(local, device, dtype, name).await,
         }
     }
 
-    pub fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> nim_error::Result<Self> {
+    pub async fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> nim_error::Result<Self> {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
 
         if matches!(model, LocalModel::Hub(id) if id.to_string() == qwen2::QUANTIZED_MODEL) {
             let companion = LocalModel::Hub(qwen2::MODEL.parse()?);
             let companion = companion.loader(device.clone(), dtype)?;
-            let config: qwen2::Config = companion.config()?;
-            let weights = repo.resolve(std::path::Path::new(qwen2::WEIGHTS))?;
+            let config: qwen2::Config = companion.config().await?;
+            let weights = repo.resolve(std::path::Path::new(qwen2::WEIGHTS)).await?;
 
             return Ok(Self {
                 name,
                 model: AnyModel::QwenGenerator(qwen2::Qwen2Generator::quantized(&config, weights, &device)?),
                 device,
-                tokenizer: Some(companion.tokenizer()?),
-                config: Some(companion.config()?),
+                tokenizer: Some(companion.tokenizer().await?),
+                config: Some(companion.config().await?),
             });
         }
 
@@ -197,38 +151,40 @@ impl Model {
                 .parse()?,
             );
             let companion = companion.loader(device.clone(), dtype)?;
-            let config: qwen3::Config = companion.config()?;
-            let weights = repo.resolve(std::path::Path::new(if qwen3_completion {
-                qwen3::COMPLETION_WEIGHTS
-            } else {
-                qwen3::WEIGHTS
-            }))?;
+            let config: qwen3::Config = companion.config().await?;
+            let weights = repo
+                .resolve(std::path::Path::new(if qwen3_completion {
+                    qwen3::COMPLETION_WEIGHTS
+                } else {
+                    qwen3::WEIGHTS
+                }))
+                .await?;
 
             return Ok(Self {
                 name,
                 model: AnyModel::Qwen3Generator(qwen3::Qwen3Generator::quantized(&config, weights, &device)?),
                 device,
-                tokenizer: Some(companion.tokenizer()?),
-                config: Some(companion.config()?),
+                tokenizer: Some(companion.tokenizer().await?),
+                config: Some(companion.config().await?),
             });
         }
 
-        let model_config: ModelConfig = repo.config()?;
+        let model_config: ModelConfig = repo.config().await?;
         let model = match model_config.model_type {
             ModelType::Qwen2 => {
-                let config: qwen2::Config = repo.config()?;
-                AnyModel::QwenGenerator(qwen2::Qwen2Generator::new(&config, repo.vars()?)?)
+                let config: qwen2::Config = repo.config().await?;
+                AnyModel::QwenGenerator(qwen2::Qwen2Generator::new(&config, repo.vars().await?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn8rnn_audio_classification() => {
-                let config: cnn8rnn::Cnn8RnnConfig = repo.config()?;
-                let labels = repo.string("classes.txt")?.lines().map(str::to_string).collect();
-                AnyModel::AudioClassifier(cnn8rnn::Cnn8RnnClassifier::new(config, labels, repo.vars()?)?)
+                let config: cnn8rnn::Cnn8RnnConfig = repo.config().await?;
+                let labels = repo.string("classes.txt").await?.lines().map(str::to_string).collect();
+                AnyModel::AudioClassifier(cnn8rnn::Cnn8RnnClassifier::new(config, labels, repo.vars().await?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn14_audio_captioning() => {
-                let config: audiocap::AudioCapConfig = repo.config()?;
-                AnyModel::AudioCaptioner(audiocap::AudioCapCaptioner::new(config, repo.vars()?)?)
+                let config: audiocap::AudioCapConfig = repo.config().await?;
+                AnyModel::AudioCaptioner(audiocap::AudioCapCaptioner::new(config, repo.vars().await?)?)
             }
             #[cfg(not(feature = "audio"))]
             _ if model_config.architectures.iter().any(|architecture| {
@@ -256,23 +212,23 @@ impl Model {
                     .iter()
                     .any(|architecture| matches!(architecture, Architecture::Qwen3ForCausalLM))
                 {
-                    let config: qwen3::Config = repo.config()?;
-                    AnyModel::Qwen3Generator(qwen3::Qwen3Generator::new(&config, repo.vars()?)?)
+                    let config: qwen3::Config = repo.config().await?;
+                    AnyModel::Qwen3Generator(qwen3::Qwen3Generator::new(&config, repo.vars().await?)?)
                 } else if model_config
                     .architectures
                     .iter()
                     .any(|architecture| matches!(architecture, Architecture::Qwen3Model))
                 {
-                    AnyModel::QwenEmbedder(qwen3::Qwen3Embedder::new(&repo)?)
+                    AnyModel::QwenEmbedder(qwen3::Qwen3Embedder::new(&repo).await?)
                 } else {
                     return Err(nim_error::Diagnostic::message(format!(
                         "{name} has an unsupported Qwen3 architecture"
                     )));
                 }
             }
-            ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder::new(&repo)?),
+            ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder::new(&repo).await?),
             ModelType::Bart => {
-                let config: bart::BartConfig = repo.config()?;
+                let config: bart::BartConfig = repo.config().await?;
 
                 match (
                     model_config.is_sequence_classification(),
@@ -280,19 +236,23 @@ impl Model {
                     config.id2label.is_empty(),
                 ) {
                     (true, _, false) if bart::BartZeroShotClassifier::supports(&config) => {
-                        AnyModel::BartZeroShotClassifier(bart::BartZeroShotClassifier::new(&config, repo.vars()?)?)
+                        AnyModel::BartZeroShotClassifier(bart::BartZeroShotClassifier::new(&config, repo.vars().await?)?)
                     }
-                    (true, _, false) => {
-                        AnyModel::BartSequenceClassifier(bart::BartClassifier::new(&config, repo.vars()?, ClassifyMode::Whole)?)
-                    }
-                    (_, true, false) => {
-                        AnyModel::BartEntityClassifier(bart::BartClassifier::new(&config, repo.vars()?, ClassifyMode::Regions)?)
-                    }
-                    _ => AnyModel::Summarizer(bart::BartSummarizer::new(&config, repo.vars()?)?),
+                    (true, _, false) => AnyModel::BartSequenceClassifier(bart::BartClassifier::new(
+                        &config,
+                        repo.vars().await?,
+                        ClassifyMode::Whole,
+                    )?),
+                    (_, true, false) => AnyModel::BartEntityClassifier(bart::BartClassifier::new(
+                        &config,
+                        repo.vars().await?,
+                        ClassifyMode::Regions,
+                    )?),
+                    _ => AnyModel::Summarizer(bart::BartSummarizer::new(&config, repo.vars().await?)?),
                 }
             }
             ModelType::DistilBert => {
-                let config: distilbert::DistilBertConfig = repo.config()?;
+                let config: distilbert::DistilBertConfig = repo.config().await?;
 
                 match (
                     model_config.is_sequence_classification(),
@@ -300,12 +260,12 @@ impl Model {
                     !config.id2label.is_empty(),
                 ) {
                     (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::DistilBertClassifier::new(
-                        repo.vars()?,
+                        repo.vars().await?,
                         &config,
                         ClassifyMode::Whole,
                     )?),
                     (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::DistilBertClassifier::new(
-                        repo.vars()?,
+                        repo.vars().await?,
                         &config,
                         ClassifyMode::Regions,
                     )?),
@@ -318,49 +278,53 @@ impl Model {
             }
             #[cfg(feature = "vision")]
             ModelType::MobileNetV2 => {
-                let config: mobilenet::MobileNetConfig = repo.config()?;
-                let processor: mobilenet::MobileNetProcessor = repo.json("preprocessor_config.json")?;
-                AnyModel::VisionClassifier(mobilenet::MobileNetClassifier::new(repo.vars()?, config, processor)?)
+                let config: mobilenet::MobileNetConfig = repo.config().await?;
+                let processor: mobilenet::MobileNetProcessor = repo.json("preprocessor_config.json").await?;
+                AnyModel::VisionClassifier(mobilenet::MobileNetClassifier::new(repo.vars().await?, config, processor)?)
             }
             #[cfg(feature = "vision")]
             ModelType::Detr => {
-                let config: detr::DetrConfig = repo.config()?;
+                let config: detr::DetrConfig = repo.config().await?;
                 config.validate()?;
-                let processor: detr::DetrProcessor = repo.json("preprocessor_config.json")?;
-                AnyModel::ObjectDetector(detr::DetrDetector::new(repo.vars()?, config, processor)?)
+                let processor: detr::DetrProcessor = repo.json("preprocessor_config.json").await?;
+                AnyModel::ObjectDetector(detr::DetrDetector::new(repo.vars().await?, config, processor)?)
             }
             #[cfg(feature = "vision")]
             ModelType::Git => {
-                let config: git::GitConfig = repo.config()?;
-                let processor: git::GitProcessor = repo.json("preprocessor_config.json")?;
-                AnyModel::ImageCaptioner(git::GitCaptioner::new(config, processor, repo.vars()?)?)
+                let config: git::GitConfig = repo.config().await?;
+                let processor: git::GitProcessor = repo.json("preprocessor_config.json").await?;
+                AnyModel::ImageCaptioner(git::GitCaptioner::new(config, processor, repo.vars().await?)?)
             }
             #[cfg(feature = "audio")]
             ModelType::Whisper => {
-                let config: whisper::WhisperConfig = repo.config()?;
-                let processor: whisper::WhisperProcessor = repo.json("preprocessor_config.json")?;
+                let config: whisper::WhisperConfig = repo.config().await?;
+                let processor: whisper::WhisperProcessor = repo.json("preprocessor_config.json").await?;
 
                 if model_config.is_audio_captioning() {
-                    AnyModel::WhisperCaptioner(whisper::WhisperCaptioner::new(config, processor, repo.vars()?)?)
+                    AnyModel::WhisperCaptioner(whisper::WhisperCaptioner::new(config, processor, repo.vars().await?)?)
                 } else {
-                    AnyModel::Transcriber(whisper::WhisperTranscriber::new(config, processor, repo.vars()?)?)
+                    AnyModel::Transcriber(whisper::WhisperTranscriber::new(config, processor, repo.vars().await?)?)
                 }
             }
             ModelType::Bert | ModelType::Unknown => {
-                let config: bert::BertConfig = repo.config()?;
+                let config: bert::BertConfig = repo.config().await?;
 
                 match (
                     model_config.is_sequence_classification(),
                     model_config.is_token_classification(),
                     !config.id2label.is_empty(),
                 ) {
-                    (true, _, true) => {
-                        AnyModel::BertSequenceClassifier(bert::BertClassifier::new(repo.vars()?, &config, ClassifyMode::Whole)?)
-                    }
-                    (_, true, true) => {
-                        AnyModel::BertEntityClassifier(bert::BertClassifier::new(repo.vars()?, &config, ClassifyMode::Regions)?)
-                    }
-                    _ => AnyModel::Embedder(keybert::KeyBert::new(bert::BertEmbedder::new(repo.vars()?, &config)?)),
+                    (true, _, true) => AnyModel::BertSequenceClassifier(bert::BertClassifier::new(
+                        repo.vars().await?,
+                        &config,
+                        ClassifyMode::Whole,
+                    )?),
+                    (_, true, true) => AnyModel::BertEntityClassifier(bert::BertClassifier::new(
+                        repo.vars().await?,
+                        &config,
+                        ClassifyMode::Regions,
+                    )?),
+                    _ => AnyModel::Embedder(keybert::KeyBert::new(bert::BertEmbedder::new(repo.vars().await?, &config)?)),
                 }
             }
             other => {
@@ -373,10 +337,10 @@ impl Model {
             #[cfg(feature = "audio")]
             AnyModel::AudioClassifier(_) => None,
             #[cfg(feature = "audio")]
-            AnyModel::AudioCaptioner(_) => Some(audiocap::tokenizer()?),
+            AnyModel::AudioCaptioner(_) => Some(audiocap::tokenizer().await?),
             #[cfg(feature = "vision")]
             AnyModel::VisionClassifier(_) | AnyModel::ObjectDetector(_) => None,
-            _ => Some(repo.tokenizer()?),
+            _ => Some(repo.tokenizer().await?),
         };
 
         Ok(Self {
@@ -496,6 +460,54 @@ impl Model {
             ))),
         }
     }
+}
+
+pub fn id(value: impl AsRef<str>) -> nim_error::Result<ModelId> {
+    value.as_ref().parse::<ModelId>()
+}
+
+pub fn refer(value: impl AsRef<str>) -> nim_error::Result<ModelRef> {
+    value.as_ref().parse::<ModelRef>()
+}
+
+/// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
+/// for two routines now loads its weights once.
+#[tracing::instrument]
+pub async fn load(model: &ModelRef) -> nim_error::Result<std::sync::Arc<crate::models::Model>> {
+    use candle_core::DType;
+
+    MODELS
+        .get_or_build(Key::new(model), async {
+            let device = device()?;
+
+            Ok(std::sync::Arc::new(Model::new(model, device, DType::F32).await?))
+        })
+        .await
+}
+
+fn output_limit(model: &str, context: usize, prompt: usize, requested: Option<usize>) -> nim_error::Result<usize> {
+    let remaining = context
+        .checked_sub(prompt)
+        .filter(|remaining| *remaining > 0)
+        .ok_or_else(|| nim_error::Diagnostic::message(format!("{model} prompt exceeds the available context")))?;
+    let limit = requested.unwrap_or(remaining);
+
+    if limit > remaining {
+        return Err(nim_error::Diagnostic::message(format!(
+            "{model} prompt and output allowance exceed the {context}-token context limit"
+        )));
+    }
+
+    Ok(limit)
+}
+
+fn device() -> nim_error::Result<Device> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(Device::new_metal(0)?)
+    }
+    #[cfg(not(target_os = "macos"))]
+    Ok(Device::Cpu)
 }
 
 #[cfg(test)]

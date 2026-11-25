@@ -1,7 +1,12 @@
 use crate::{Context, types::TextOutput};
 
 pub trait Caption: Send + Sync {
-    fn caption(&self, ctx: &Context, input: &[&[u8]], options: CaptionOptions) -> nim_error::Result<Vec<TextOutput>>;
+    fn caption<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: CaptionOptions,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<TextOutput>>>;
 }
 
 #[derive(Debug, Default, Clone)]

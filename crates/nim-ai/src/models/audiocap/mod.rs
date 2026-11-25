@@ -6,7 +6,7 @@ mod processor;
 pub use captioner::AudioCapCaptioner;
 pub use config::AudioCapConfig;
 
-pub fn tokenizer() -> nim_error::Result<tokenizers::Tokenizer> {
+pub async fn tokenizer() -> nim_error::Result<tokenizers::Tokenizer> {
     use std::path::Path;
 
     use crate::clients::hf::HuggingFace;
@@ -16,5 +16,5 @@ pub fn tokenizer() -> nim_error::Result<tokenizers::Tokenizer> {
 
     let id = "wsntxxn/audiocaps-simple-tokenizer".parse::<ModelId>()?;
     let repo = HuggingFace.load(&id)?;
-    tokenizer::from_file(repo.resolve(Path::new("tokenizer.json"))?.local_path()?)
+    tokenizer::from_file(repo.resolve(Path::new("tokenizer.json")).await?.local_path()?)
 }

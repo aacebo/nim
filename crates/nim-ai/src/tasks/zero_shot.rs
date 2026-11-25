@@ -25,9 +25,9 @@ pub fn select(labels: Vec<Classification>, multi_label: bool) -> Vec<Classificat
         .collect()
 }
 
-pub fn entities<C: Classify + ?Sized>(
+pub async fn entities<C: Classify + ?Sized>(
     model: &C,
-    ctx: &Context,
+    ctx: &Context<'_>,
     input: &[&[u8]],
     options: ClassifyOptions<'_>,
 ) -> nim_error::Result<Vec<Vec<Classification>>> {
@@ -43,35 +43,37 @@ pub fn entities<C: Classify + ?Sized>(
         .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
         .collect::<Result<Vec<_>, _>>()?;
 
-    text.iter()
-        .map(|text| {
-            let candidates = spans(text);
-            let mut entities = Vec::new();
+    let mut output = Vec::with_capacity(text.len());
 
-            for chunk in candidates.chunks(32) {
-                let input: Vec<&[u8]> = chunk.iter().map(|(start, end)| &text.as_bytes()[*start..*end]).collect();
-                let scores = classify(model, ctx, &input, options.clone())?;
+    for text in text {
+        let candidates = spans(text);
+        let mut entities = Vec::new();
 
-                if scores.len() != chunk.len() {
-                    return Err(nim_error::Diagnostic::message("NLI output does not match candidate count"));
-                }
+        for chunk in candidates.chunks(32) {
+            let input: Vec<&[u8]> = chunk.iter().map(|(start, end)| &text.as_bytes()[*start..*end]).collect();
+            let scores = classify(model, ctx, &input, options.clone()).await?;
 
-                for ((start, end), labels) in chunk.iter().zip(scores) {
-                    for label in select(labels, options.multi_label) {
-                        entities.push(Classification {
-                            name: String::from("entity"),
-
-                            label: label.label,
-                            score: label.score,
-                            spans: vec![Span::Offset(Offset::new(char_offset(text, *start), char_offset(text, *end)))],
-                        });
-                    }
-                }
+            if scores.len() != chunk.len() {
+                return Err(nim_error::Diagnostic::message("NLI output does not match candidate count"));
             }
 
-            Ok(entities)
-        })
-        .collect()
+            for ((start, end), labels) in chunk.iter().zip(scores) {
+                for label in select(labels, options.multi_label) {
+                    entities.push(Classification {
+                        name: String::from("entity"),
+
+                        label: label.label,
+                        score: label.score,
+                        spans: vec![Span::Offset(Offset::new(char_offset(text, *start), char_offset(text, *end)))],
+                    });
+                }
+            }
+        }
+
+        output.push(entities);
+    }
+
+    Ok(output)
 }
 
 pub fn retain(

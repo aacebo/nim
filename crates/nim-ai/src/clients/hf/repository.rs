@@ -1,7 +1,6 @@
 use std::path::Path;
 
-use hf_hub::api::Progress;
-use hf_hub::api::sync::{ApiBuilder, ApiRepo};
+use hf_hub::api::tokio::{ApiBuilder, ApiRepo, Progress};
 use hf_hub::{Cache, CacheRepo, Repo};
 
 use crate::clients::download::Download;
@@ -32,65 +31,90 @@ impl HuggingFaceRepository {
 }
 
 impl Repository for HuggingFaceRepository {
-    fn exists(&self, path: &Path) -> bool {
-        self.resolve(path).is_ok()
+    fn exists<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, bool> {
+        Box::pin(async move { self.resolve(path).await.is_ok() })
     }
 
-    fn get(&self, path: &Path) -> nim_error::Result<Asset> {
-        Ok(Asset::file(self.resolve(path)?.local_path()?))
+    fn get<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<Asset>> {
+        Box::pin(async move { Ok(Asset::file(self.resolve(path).await?.local_path()?)) })
     }
 
-    fn read(&self, path: &Path) -> nim_error::Result<AssetData> {
-        let path = self.resolve(path)?;
-        Ok(AssetData::File(std::fs::read(path.local_path()?)?))
+    fn read<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<AssetData>> {
+        Box::pin(async move {
+            let path = self.resolve(path).await?;
+            Ok(AssetData::File(tokio::fs::read(path.local_path()?).await?))
+        })
     }
 
-    fn resolve(&self, path: &Path) -> nim_error::Result<Resource> {
-        if path.as_os_str().is_empty() {
-            let cached = self.cache.get("").ok_or_else(|| {
-                nim_error::Diagnostic::from(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("{} has no cached repository", self.id),
-                ))
-            })?;
+    fn resolve<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<Resource>> {
+        Box::pin(async move {
+            if path.as_os_str().is_empty() {
+                let cached = self.cache.get("").ok_or_else(|| {
+                    nim_error::Diagnostic::from(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("{} has no cached repository", self.id),
+                    ))
+                })?;
 
-            return Resource::from_path(cached);
-        }
-
-        let path = path
-            .to_str()
-            .ok_or_else(|| nim_error::Diagnostic::message(format!("{path:?} is not utf-8")))?;
-        let uri = Uri::parse(&self.repo.url(path))?;
-        let mut progress = Download::new(&self.id, path);
-
-        if let Some(cached) = self.cache.get(path) {
-            progress.cached();
-            return Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()));
-        }
-
-        progress.start();
-
-        match self.repo.download_with_progress(path, &mut progress) {
-            Ok(cached) => {
-                progress.complete();
-                Ok(Resource::new(uri).resolved(cached.clone(), std::fs::metadata(cached)?.len()))
+                return Resource::from_path(cached).await;
             }
-            Err(error) => {
-                progress.failed();
-                Err(error.into())
+
+            let path = path
+                .to_str()
+                .ok_or_else(|| nim_error::Diagnostic::message(format!("{path:?} is not utf-8")))?;
+            let uri = Uri::parse(&self.repo.url(path))?;
+            let progress = Download::new(&self.id, path);
+
+            if let Some(cached) = self.cache.get(path) {
+                progress.cached();
+                return Ok(Resource::new(uri).resolved(cached.clone(), tokio::fs::metadata(cached).await?.len()));
             }
-        }
+
+            progress.start();
+
+            let progress = DownloadProgress(std::sync::Arc::new(std::sync::Mutex::new(progress)));
+
+            match self.repo.download_with_progress(path, progress.clone()).await {
+                Ok(cached) => {
+                    if let Ok(progress) = progress.0.lock() {
+                        progress.complete();
+                    }
+
+                    Ok(Resource::new(uri).resolved(cached.clone(), tokio::fs::metadata(cached).await?.len()))
+                }
+                Err(error) => {
+                    if let Ok(progress) = progress.0.lock() {
+                        progress.failed();
+                    }
+
+                    Err(error.into())
+                }
+            }
+        })
     }
 }
 
-impl Progress for &mut Download {
-    fn init(&mut self, size: usize, _filename: &str) {
-        self.reset(Some(size as u64));
+#[derive(Clone)]
+struct DownloadProgress(std::sync::Arc<std::sync::Mutex<Download>>);
+
+impl Progress for DownloadProgress {
+    fn init(&mut self, size: usize, _filename: &str) -> impl Future<Output = ()> + Send {
+        if let Ok(mut progress) = self.0.lock() {
+            progress.reset(Some(size as u64));
+        }
+
+        std::future::ready(())
     }
 
-    fn update(&mut self, size: usize) {
-        Download::update(self, size);
+    fn update(&mut self, size: usize) -> impl Future<Output = ()> + Send {
+        if let Ok(mut progress) = self.0.lock() {
+            progress.update(size);
+        }
+
+        std::future::ready(())
     }
 
-    fn finish(&mut self) {}
+    fn finish(&mut self) -> impl Future<Output = ()> + Send {
+        std::future::ready(())
+    }
 }

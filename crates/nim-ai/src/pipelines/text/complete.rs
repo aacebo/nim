@@ -1,6 +1,8 @@
+use nim_chat::ChatAgentMessage;
+
 use crate::tasks;
 use crate::{
-    Chat, ChatAssistantMessage,
+    Chat,
     models::{ModelRef, load},
 };
 
@@ -22,8 +24,8 @@ impl Default for Options {
 }
 
 #[tracing::instrument(skip_all, err)]
-pub fn run(options: Options) -> nim_error::Result<ChatAssistantMessage> {
-    let model = load(&options.model)?;
+pub async fn run(options: Options) -> nim_error::Result<ChatAgentMessage> {
+    let model = load(&options.model).await?;
     let capable = model.as_complete().ok_or_else(|| model.cannot("complete"))?;
-    tasks::complete(capable, &model.context(), options.chat)
+    tasks::complete(capable, &model.context(), options.chat).await
 }

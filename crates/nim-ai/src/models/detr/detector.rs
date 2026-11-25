@@ -67,64 +67,66 @@ impl DetrDetector {
 }
 
 impl Classify for DetrDetector {
-    fn classify(
-        &self,
-        ctx: &Context,
-        input: &[&[u8]],
-        options: ClassifyOptions<'_>,
-    ) -> nim_error::Result<Vec<Vec<Classification>>> {
-        options.validate()?;
+    fn classify<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: ClassifyOptions<'a>,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<Classification>>>> {
+        Box::pin(async move {
+            options.validate()?;
 
-        if options.labels.is_some()
-            || options.multi_label
-            || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
-        {
-            return Err(nim_error::Diagnostic::message("DETR only supports fixed labels"));
-        }
+            if options.labels.is_some()
+                || options.multi_label
+                || options.hypothesis_template != ClassifyOptions::default().hypothesis_template
+            {
+                return Err(nim_error::Diagnostic::message("DETR only supports fixed labels"));
+            }
 
-        input
-            .iter()
-            .map(|input| {
-                if options.limit == Some(0) {
-                    return Ok(Vec::new());
-                }
-
-                let classifications = self.regions(
-                    ctx,
-                    input,
-                    if options.mode == ClassifyMode::Whole {
-                        0.5
-                    } else {
-                        options.min_score
-                    },
-                )?;
-                let classifications = if options.mode == ClassifyMode::Whole {
-                    let mut labels = BTreeMap::<String, f64>::new();
-
-                    for classification in classifications {
-                        labels
-                            .entry(classification.label)
-                            .and_modify(|score| *score = score.max(classification.score))
-                            .or_insert(classification.score);
+            input
+                .iter()
+                .map(|input| {
+                    if options.limit == Some(0) {
+                        return Ok(Vec::new());
                     }
 
-                    let mut classifications: Vec<_> = labels
-                        .into_iter()
-                        .map(|(label, score)| Classification {
-                            name: String::from("classification"),
-                            label,
-                            score,
-                            spans: Vec::new(),
-                        })
-                        .collect();
-                    classifications.sort_by(|left, right| right.score.total_cmp(&left.score));
-                    classifications
-                } else {
-                    classifications
-                };
+                    let classifications = self.regions(
+                        ctx,
+                        input,
+                        if options.mode == ClassifyMode::Whole {
+                            0.5
+                        } else {
+                            options.min_score
+                        },
+                    )?;
+                    let classifications = if options.mode == ClassifyMode::Whole {
+                        let mut labels = BTreeMap::<String, f64>::new();
 
-                options.apply(classifications)
-            })
-            .collect()
+                        for classification in classifications {
+                            labels
+                                .entry(classification.label)
+                                .and_modify(|score| *score = score.max(classification.score))
+                                .or_insert(classification.score);
+                        }
+
+                        let mut classifications: Vec<_> = labels
+                            .into_iter()
+                            .map(|(label, score)| Classification {
+                                name: String::from("classification"),
+                                label,
+                                score,
+                                spans: Vec::new(),
+                            })
+                            .collect();
+                        classifications.sort_by(|left, right| right.score.total_cmp(&left.score));
+                        classifications
+                    } else {
+                        classifications
+                    };
+
+                    options.apply(classifications)
+                })
+                .collect()
+        })
     }
 }

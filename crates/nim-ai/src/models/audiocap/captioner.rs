@@ -102,17 +102,24 @@ impl AudioCapCaptioner {
 }
 
 impl Caption for AudioCapCaptioner {
-    fn caption(&self, ctx: &Context, input: &[&[u8]], options: CaptionOptions) -> nim_error::Result<Vec<TextOutput>> {
-        options.validate()?;
+    fn caption<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: CaptionOptions,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<TextOutput>>> {
+        Box::pin(async move {
+            options.validate()?;
 
-        let beams = options.beams;
-        let max_len = options.max_len;
-        let beams = beams.unwrap_or(3).max(1);
-        let max_len = max_len.unwrap_or(usize::MAX);
-        input
-            .iter()
-            .map(|bytes| self.one(ctx, bytes, beams, max_len))
-            .map(|result| result.map(|text| TextOutput { text, confidence: None }))
-            .collect()
+            let beams = options.beams;
+            let max_len = options.max_len;
+            let beams = beams.unwrap_or(3).max(1);
+            let max_len = max_len.unwrap_or(usize::MAX);
+            input
+                .iter()
+                .map(|bytes| self.one(ctx, bytes, beams, max_len))
+                .map(|result| result.map(|text| TextOutput { text, confidence: None }))
+                .collect()
+        })
     }
 }

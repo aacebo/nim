@@ -45,6 +45,18 @@ impl std::fmt::Display for ChatId {
     }
 }
 
+impl std::str::FromStr for ChatId {
+    type Err = nim_error::Diagnostic;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value
+            .strip_prefix("chat_")
+            .ok_or_else(|| nim_error::Diagnostic::message("invalid chat id"))?;
+
+        Ok(Self(uuid::Uuid::parse_str(value)?))
+    }
+}
+
 impl serde::Serialize for ChatId {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
@@ -59,13 +71,7 @@ impl<'de> serde::Deserialize<'de> for ChatId {
     where
         D: serde::Deserializer<'de>,
     {
-        let v = String::deserialize(d)?;
-        let v = v
-            .strip_prefix("chat_")
-            .ok_or_else(|| serde::de::Error::custom("invalid chat id"))?;
-
-        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
-        Ok(Self(v))
+        String::deserialize(d)?.parse().map_err(serde::de::Error::custom)
     }
 }
 

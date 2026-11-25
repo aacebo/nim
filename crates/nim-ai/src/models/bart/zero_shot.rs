@@ -212,36 +212,39 @@ impl Forward for BartZeroShotClassifier {
 }
 
 impl Classify for BartZeroShotClassifier {
-    fn classify(
-        &self,
-        ctx: &Context,
-        input: &[&[u8]],
-        options: ClassifyOptions<'_>,
-    ) -> nim_error::Result<Vec<Vec<Classification>>> {
-        let text = input
-            .iter()
-            .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
-            .collect::<Result<Vec<_>, _>>()?;
-        options.validate()?;
+    fn classify<'a>(
+        &'a self,
+        ctx: &'a Context<'_>,
+        input: &'a [&'a [u8]],
+        options: ClassifyOptions<'a>,
+    ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<Vec<Classification>>>> {
+        Box::pin(async move {
+            let text = input
+                .iter()
+                .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
+                .collect::<Result<Vec<_>, _>>()?;
+            options.validate()?;
 
-        let out = match (options.mode, options.labels) {
-            (ClassifyMode::Whole, Some(_)) => Ok(self
-                .custom_text(ctx, &text, options.clone())?
-                .into_iter()
-                .map(|classifications| zero_shot::select(classifications, options.multi_label))
-                .collect()),
-            (ClassifyMode::Whole, None) => self.text(ctx, &text),
-            (ClassifyMode::Regions, Some(_)) => zero_shot::entities(self, ctx, input, options.clone())?
-                .into_iter()
-                .map(|classifications| zero_shot::retain(classifications, options.clone(), options.min_score))
-                .collect(),
-            (ClassifyMode::Regions, None) => Err(nim_error::Diagnostic::message(
-                "NLI span classification requires custom labels",
-            )),
-        }?;
+            let out = match (options.mode, options.labels) {
+                (ClassifyMode::Whole, Some(_)) => Ok(self
+                    .custom_text(ctx, &text, options.clone())?
+                    .into_iter()
+                    .map(|classifications| zero_shot::select(classifications, options.multi_label))
+                    .collect()),
+                (ClassifyMode::Whole, None) => self.text(ctx, &text),
+                (ClassifyMode::Regions, Some(_)) => zero_shot::entities(self, ctx, input, options.clone())
+                    .await?
+                    .into_iter()
+                    .map(|classifications| zero_shot::retain(classifications, options.clone(), options.min_score))
+                    .collect(),
+                (ClassifyMode::Regions, None) => Err(nim_error::Diagnostic::message(
+                    "NLI span classification requires custom labels",
+                )),
+            }?;
 
-        out.into_iter()
-            .map(|classifications| options.apply(classifications))
-            .collect()
+            out.into_iter()
+                .map(|classifications| options.apply(classifications))
+                .collect()
+        })
     }
 }

@@ -6,9 +6,9 @@ use super::{candidates, scorer};
 /// KeyBERT: embed the document, embed each candidate phrase, rank candidates by cosine similarity
 /// to the document. Any embedder will do -- which is the point of taking `&dyn Embed` rather than
 /// a concrete model.
-pub fn keywords<E: Embed + ?Sized>(
+pub async fn keywords<E: Embed + ?Sized>(
     model: &E,
-    ctx: &Context,
+    ctx: &Context<'_>,
     input: &[&[u8]],
     top_n: usize,
 ) -> nim_error::Result<Vec<Vec<Keyword>>> {
@@ -16,10 +16,16 @@ pub fn keywords<E: Embed + ?Sized>(
         .iter()
         .map(|bytes| std::str::from_utf8(bytes).map_err(nim_error::Diagnostic::from))
         .collect::<Result<Vec<_>, _>>()?;
-    text.iter().map(|text| one(model, ctx, text, top_n)).collect()
+    let mut output = Vec::with_capacity(text.len());
+
+    for text in text {
+        output.push(one(model, ctx, text, top_n).await?);
+    }
+
+    Ok(output)
 }
 
-fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) -> nim_error::Result<Vec<Keyword>> {
+async fn one<E: Embed + ?Sized>(model: &E, ctx: &Context<'_>, text: &str, top_n: usize) -> nim_error::Result<Vec<Keyword>> {
     let candidates = candidates::extract(text);
 
     if candidates.is_empty() {
@@ -32,7 +38,8 @@ fn one<E: Embed + ?Sized>(model: &E, ctx: &Context, text: &str, top_n: usize) ->
     batch.push(text.as_bytes());
     batch.extend(candidates.iter().map(|candidate| candidate.text.as_bytes()));
 
-    let vectors = model.embed(ctx, &batch)?;
+    let vectors = model.embed(ctx, &batch).await?;
+
     if vectors.len() != batch.len() {
         return Err(nim_error::Diagnostic::message("keyword embeddings do not match input count"));
     }

@@ -51,16 +51,17 @@ impl<T: ?Sized> Cache<T> {
         self.len() == 0
     }
 
-    pub fn get_or_build(&self, key: Key, build: impl FnOnce() -> nim_error::Result<Arc<T>>) -> nim_error::Result<Arc<T>> {
+    pub async fn get_or_build<F>(&self, key: Key, build: F) -> nim_error::Result<Arc<T>>
+    where
+        F: Future<Output = nim_error::Result<Arc<T>>>,
+    {
         if let Ok(entries) = self.entries.read()
             && let Some(entry) = entries.get(&key)
         {
             return Ok(entry.clone());
         }
 
-        // Built outside the write lock: loading a model is slow, and a duplicate build on a race
-        // is cheaper than holding the lock across it.
-        let entry = build()?;
+        let entry = build.await?;
 
         match self.entries.write() {
             Ok(mut entries) => Ok(entries.entry(key).or_insert(entry).clone()),
@@ -88,8 +89,8 @@ mod tests {
 
     /// One cache keyed by model, not one per capability: a model asked for twice loads its weights
     /// once and both callers get the same copy. Under a per-capability cache the build ran twice.
-    #[test]
-    fn one_key_builds_once() {
+    #[tokio::test]
+    async fn one_key_builds_once() {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
         let key = Key::new(&model("sentence-transformers/all-MiniLM-L12-v2"));
@@ -98,15 +99,15 @@ mod tests {
             Ok(Arc::new(7))
         };
 
-        let first = cache.get_or_build(key.clone(), build).unwrap();
-        let second = cache.get_or_build(key, build).unwrap();
+        let first = cache.get_or_build(key.clone(), async { build() }).await.unwrap();
+        let second = cache.get_or_build(key, async { build() }).await.unwrap();
 
         assert_eq!(builds.load(Ordering::SeqCst), 1);
         assert!(Arc::ptr_eq(&first, &second), "both callers must hold one copy");
     }
 
-    #[test]
-    fn a_different_model_is_a_different_entry() {
+    #[tokio::test]
+    async fn a_different_model_is_a_different_entry() {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
         let build = || {
@@ -115,18 +116,20 @@ mod tests {
         };
 
         cache
-            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L12-v2")), build)
+            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L12-v2")), async { build() })
+            .await
             .unwrap();
         cache
-            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L6-v2")), build)
+            .get_or_build(Key::new(&model("sentence-transformers/all-MiniLM-L6-v2")), async { build() })
+            .await
             .unwrap();
 
         assert_eq!(builds.load(Ordering::SeqCst), 2);
     }
 
     /// Two callers with different credentials get separate clients, even on the same model.
-    #[test]
-    fn a_different_api_key_is_a_different_entry() {
+    #[tokio::test]
+    async fn a_different_api_key_is_a_different_entry() {
         let cache: Cache<u32> = Cache::new();
         let builds = AtomicUsize::new(0);
         let model = crate::models::RemoteModel::new(crate::models::Provider::OpenAI, "test".parse().unwrap());
@@ -136,10 +139,18 @@ mod tests {
         };
 
         cache
-            .get_or_build(Key::new(&ModelRef::Remote(model.clone().api_key(Some("one".into())))), build)
+            .get_or_build(
+                Key::new(&ModelRef::Remote(model.clone().api_key(Some("one".into())))),
+                async { build() },
+            )
+            .await
             .unwrap();
         cache
-            .get_or_build(Key::new(&ModelRef::Remote(model.clone().api_key(Some("two".into())))), build)
+            .get_or_build(
+                Key::new(&ModelRef::Remote(model.clone().api_key(Some("two".into())))),
+                async { build() },
+            )
+            .await
             .unwrap();
 
         assert_eq!(builds.load(Ordering::SeqCst), 2);

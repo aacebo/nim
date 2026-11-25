@@ -1,4 +1,4 @@
-use crate::chat::ChatMessageContent;
+use crate::ChatMessageContent;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatMessageEvent {

@@ -111,6 +111,18 @@ impl std::fmt::Display for MemoryId {
     }
 }
 
+impl std::str::FromStr for MemoryId {
+    type Err = nim_error::Diagnostic;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value
+            .strip_prefix("mem_")
+            .ok_or_else(|| nim_error::Diagnostic::message("invalid memory id"))?;
+
+        Ok(Self(uuid::Uuid::parse_str(value)?))
+    }
+}
+
 impl serde::Serialize for MemoryId {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
     where
@@ -125,13 +137,7 @@ impl<'de> serde::Deserialize<'de> for MemoryId {
     where
         D: serde::Deserializer<'de>,
     {
-        let v = String::deserialize(d)?;
-        let v = v
-            .strip_prefix("mem_")
-            .ok_or_else(|| serde::de::Error::custom("invalid memory id"))?;
-
-        let v = uuid::Uuid::parse_str(v).map_err(serde::de::Error::custom)?;
-        Ok(Self(v))
+        String::deserialize(d)?.parse().map_err(serde::de::Error::custom)
     }
 }
 

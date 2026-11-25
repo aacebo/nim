@@ -1,4 +1,5 @@
-use nim_ai::{Chat, ChatAssistantMessage, models::ModelRef};
+use nim_ai::{Chat, models::ModelRef};
+use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatSystemMessage};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
@@ -33,7 +34,7 @@ impl From<TextCompleteOptions> for nim_ai::pipelines::text::complete::Options {
 }
 
 impl<'a> TextPipelines<'a> {
-    pub async fn complete(&self, options: TextCompleteOptions) -> nim_error::Result<ChatAssistantMessage> {
+    pub async fn complete(&self, options: TextCompleteOptions) -> nim_error::Result<ChatAgentMessage> {
         let model = crate::models::assert(&self._services, &options.model).await?;
         let mut options = options;
 
@@ -43,8 +44,10 @@ impl<'a> TextPipelines<'a> {
 
         if let Some(instructions) = &options.instructions {
             let mut messages = vec![
-                nim_ai::chat::ChatSystemMessage {
-                    content: nim_ai::chat::ChatMessageContent::Text(instructions.join("\n")),
+                ChatSystemMessage {
+                    name: None,
+                    content: ChatMessageContent::String(instructions.join("\n")),
+                    extra: Default::default(),
                 }
                 .into(),
             ];
@@ -54,7 +57,7 @@ impl<'a> TextPipelines<'a> {
         }
 
         let out = task_run!(self, "text_complete", &options, {
-            nim_ai::pipelines::text::complete::run(options.into())
+            nim_ai::pipelines::text::complete::run(options.into()).await
         })?;
 
         Ok(out)

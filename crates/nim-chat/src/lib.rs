@@ -1,27 +1,39 @@
 mod annotation;
 mod content;
+mod event;
 mod media;
 mod message;
+mod parser;
+mod tool;
 pub mod widgets;
 
 pub use annotation::*;
 pub use content::*;
+pub use event::*;
 pub use media::*;
 pub use message::*;
-
-pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub use parser::*;
+pub use tool::*;
 
 pub trait Parse<T>: Sized {
     type Error;
-    type Context;
+    type Context<'a>
+    where
+        Self: 'a;
 
-    fn parse(&self, ctx: &Self::Context) -> BoxFuture<'_, Result<T, Self::Error>>;
+    fn parse<'a>(&'a self, ctx: &'a Self::Context<'a>) -> futures_util::future::BoxFuture<'a, Result<T, Self::Error>>;
 }
 
 pub trait Render<T> {
     type Error;
     type Output;
-    type Context;
+    type Context<'a>
+    where
+        Self: 'a;
 
-    fn render(&self, ctx: &Self::Context, v: T) -> BoxFuture<'_, Result<Self::Output, Self::Error>>;
+    fn render<'a>(
+        &'a self,
+        ctx: &'a Self::Context<'a>,
+        v: T,
+    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>>;
 }

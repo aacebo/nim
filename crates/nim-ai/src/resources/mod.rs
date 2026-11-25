@@ -14,10 +14,10 @@ pub use uri::Uri;
 use crate::models::ModelId;
 
 pub trait Repository: Send + Sync {
-    fn exists(&self, path: &Path) -> bool;
-    fn get(&self, path: &Path) -> nim_error::Result<Asset>;
-    fn read(&self, path: &Path) -> nim_error::Result<AssetData>;
-    fn resolve(&self, path: &Path) -> nim_error::Result<Resource>;
+    fn exists<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, bool>;
+    fn get<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<Asset>>;
+    fn read<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<AssetData>>;
+    fn resolve<'a>(&'a self, path: &'a Path) -> futures_util::future::BoxFuture<'a, nim_error::Result<Resource>>;
 }
 
 pub trait DataSource: Send + Sync {

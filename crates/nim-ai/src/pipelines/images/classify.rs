@@ -5,21 +5,13 @@ use crate::{
     models::{ModelRef, load},
 };
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Options {
     pub model: ModelRef,
     pub min_score: f64,
-
-    #[serde(default)]
     pub limit: Option<usize>,
-
-    #[serde(default)]
     pub labels: Option<Vec<String>>,
-
-    #[serde(default)]
     pub multi_label: bool,
-
-    #[serde(default)]
     pub hypothesis_template: Option<String>,
 }
 

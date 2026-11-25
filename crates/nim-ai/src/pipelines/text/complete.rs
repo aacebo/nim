@@ -6,11 +6,9 @@ use crate::{
     models::{ModelRef, load},
 };
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Options {
     pub model: ModelRef,
-
-    #[serde(flatten)]
     pub chat: Chat,
 }
 

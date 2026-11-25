@@ -1,17 +1,17 @@
 use nim_chat::{
     ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatToolMessage,
-    ChatUserMessage, Media, Tool, ToolCall,
+    ChatUserMessage, Media, ParseMode, Tool, ToolCall,
 };
 
-use crate::{Chat, CompatMode};
+use crate::Chat;
 
 pub struct OpenAITemplate {
-    compat: CompatMode,
+    parse: ParseMode,
 }
 
 impl OpenAITemplate {
-    pub fn new(compat: CompatMode) -> Self {
-        Self { compat }
+    pub fn new(parse: ParseMode) -> Self {
+        Self { parse }
     }
 }
 
@@ -179,7 +179,7 @@ impl nim_chat::Render<ChatMessageContent> for OpenAITemplate {
                         }
                     }
 
-                    if rendered.is_empty() && self.compat == CompatMode::Ignore {
+                    if rendered.is_empty() && self.parse == ParseMode::Lenient {
                         Ok(None)
                     } else if rendered.is_empty() {
                         Err(nim_error::Diagnostic::message("message has no supported content"))
@@ -312,7 +312,7 @@ impl nim_chat::Render<ChatMessageContentPart> for OpenAITemplate {
                     "audio": path,
                     "summary": summary,
                 }))),
-                _ if self.compat == CompatMode::Ignore => Ok(None),
+                _ if self.parse == ParseMode::Lenient => Ok(None),
                 _ => Err(nim_error::Diagnostic::message("unsupported message content part")),
             }
         })

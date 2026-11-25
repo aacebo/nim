@@ -1,4 +1,4 @@
-use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, Render};
+use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, ParseMode, Render};
 
 use crate::tasks::{anchor, zero_shot};
 use crate::types::TextOutput;
@@ -282,14 +282,14 @@ impl Complete for RemoteModel {
             }
 
             if !chat.documents.is_empty() || chat.thinking || chat.vision || chat.audio {
-                if chat.compat == crate::CompatMode::Error {
+                if chat.parse == ParseMode::Strict {
                     return Err(nim_error::Diagnostic::message(
                         "remote completion does not support requested render options",
                     ));
                 }
             }
 
-            let template = crate::clients::openai::OpenAITemplate::new(chat.compat);
+            let template = crate::clients::openai::OpenAITemplate::new(chat.parse);
             let mut tools = Vec::with_capacity(chat.tools.len());
 
             for tool in &chat.tools {

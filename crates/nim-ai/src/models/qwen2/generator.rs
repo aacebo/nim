@@ -67,7 +67,7 @@ impl Qwen2Generator {
 
     async fn one(&self, ctx: &Context<'_>, chat: Chat) -> nim_error::Result<ChatAgentMessage> {
         let tokenizer = ctx.tokenizer()?;
-        let compat = chat.compat;
+        let parse = chat.parse;
         let max_len = chat.max_len;
         let text = self.template.render(&(), chat).await?;
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
@@ -128,9 +128,7 @@ impl Qwen2Generator {
         };
 
         let text = result?;
-        self.template
-            .parse(&Parser::new(&text, compat == crate::CompatMode::Ignore))
-            .await
+        self.template.parse(&Parser::new(&text, parse)).await
     }
 }
 

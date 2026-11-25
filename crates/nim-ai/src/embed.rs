@@ -33,7 +33,7 @@ pub enum EmbedMode {
     Document,
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct EmbedOptions {
     pub mode: EmbedMode,
     pub instruction: Option<String>,

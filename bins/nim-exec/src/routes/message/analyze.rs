@@ -27,7 +27,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
         .complete(nim::runtime::ai::TextCompleteOptions {
             chat: nim::ai::Chat {
                 messages: history,
-                compat: nim::ai::CompatMode::Ignore,
+                parse: nim::chat::ParseMode::Lenient,
                 ..Default::default()
             },
             ..Default::default()

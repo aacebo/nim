@@ -3,17 +3,11 @@ use crate::pipelines::text;
 use crate::tasks;
 use crate::types::Artifact;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Options {
     pub model: ModelRef,
-
-    #[serde(default)]
     pub language: Option<String>,
-
-    #[serde(default)]
     pub beams: Option<usize>,
-
-    #[serde(default)]
     pub max_len: Option<usize>,
 }
 

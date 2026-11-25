@@ -1,9 +1,9 @@
 use nim_chat::{
     ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatToolMessage,
-    ChatUserMessage, Document, Media, Parser, Tool, ToolCall,
+    ChatUserMessage, Document, Media, ParseMode, Parser, Tool, ToolCall,
 };
 
-use crate::{Chat, CompatMode};
+use crate::Chat;
 
 pub struct Qwen2Template;
 
@@ -50,8 +50,8 @@ impl nim_chat::Render<Chat> for Qwen2Template {
 
     fn render<'a>(&'a self, _: &'a (), value: Chat) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
         Box::pin(async move {
-            let respond = matches!(value.mode, crate::RenderMode::Respond)
-                || matches!(value.mode, crate::RenderMode::Auto)
+            let respond = matches!(value.render, crate::RenderMode::Respond)
+                || matches!(value.render, crate::RenderMode::Auto)
                     && value
                         .messages
                         .last()
@@ -367,17 +367,11 @@ impl nim_chat::Parse<Chat> for Qwen2Template {
 
     fn parse<'a>(&'a self, parser: &'a Parser<'a>) -> futures_util::future::BoxFuture<'a, Result<Chat, Self::Error>> {
         Box::pin(async move {
-            let compat = if parser.ignore_unsupported() {
-                CompatMode::Ignore
-            } else {
-                CompatMode::Error
-            };
-
             let message: ChatMessage = self.parse(parser).await?;
 
             Ok(Chat {
                 messages: vec![message],
-                compat,
+                parse: parser.mode,
                 ..Default::default()
             })
         })
@@ -390,14 +384,14 @@ impl nim_chat::Parse<ChatAgentMessage> for Qwen2Template {
 
     fn parse<'a>(&'a self, parser: &'a Parser<'a>) -> futures_util::future::BoxFuture<'a, Result<ChatAgentMessage, Self::Error>> {
         Box::pin(async move {
-            let mut parser = Parser::new(parser.remaining(), parser.ignore_unsupported());
+            let mut parser = Parser::new(parser.src.trim(), parser.mode);
 
             let mut reasoning = None;
 
             if parser.take_prefix("<think>") {
                 match parser.take_until("</think>") {
                     Some(value) => reasoning = Some(value.trim().to_string()),
-                    None if !parser.ignore_unsupported() => {
+                    None if parser.mode == ParseMode::Strict => {
                         return Err(nim_error::Diagnostic::message("unterminated Qwen reasoning block"));
                     }
                     None => {}
@@ -411,7 +405,7 @@ impl nim_chat::Parse<ChatAgentMessage> for Qwen2Template {
                 content.push_str(value);
 
                 let Some(raw) = parser.take_until("</tool_call>") else {
-                    if !parser.ignore_unsupported() {
+                    if parser.mode == ParseMode::Strict {
                         return Err(nim_error::Diagnostic::message("unterminated Qwen tool call"));
                     }
 
@@ -420,7 +414,7 @@ impl nim_chat::Parse<ChatAgentMessage> for Qwen2Template {
                     break;
                 };
 
-                let parsed: nim_error::Result<ToolCall> = self.parse(&Parser::new(raw.trim(), parser.ignore_unsupported())).await;
+                let parsed: nim_error::Result<ToolCall> = self.parse(&Parser::new(raw.trim(), parser.mode)).await;
 
                 match parsed {
                     Ok(mut call) => {
@@ -430,7 +424,7 @@ impl nim_chat::Parse<ChatAgentMessage> for Qwen2Template {
 
                         tool_calls.push(call);
                     }
-                    Err(error) if !parser.ignore_unsupported() => return Err(error),
+                    Err(error) if parser.mode == ParseMode::Strict => return Err(error),
                     Err(_) => {
                         content.push_str("<tool_call>");
                         content.push_str(raw);
@@ -460,7 +454,7 @@ impl nim_chat::Parse<ToolCall> for Qwen2Template {
 
     fn parse<'a>(&'a self, parser: &'a Parser<'a>) -> futures_util::future::BoxFuture<'a, Result<ToolCall, Self::Error>> {
         Box::pin(async move {
-            let mut parser = Parser::new(parser.remaining(), parser.ignore_unsupported());
+            let mut parser = Parser::new(parser.src.trim(), parser.mode);
 
             let value: serde_json::Value = serde_json::from_str(parser.take_remaining())?;
             let object = value

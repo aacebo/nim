@@ -3,7 +3,7 @@ mod content;
 mod event;
 mod media;
 mod message;
-mod parser;
+mod parse;
 mod tool;
 pub mod widgets;
 
@@ -12,7 +12,7 @@ pub use content::*;
 pub use event::*;
 pub use media::*;
 pub use message::*;
-pub use parser::*;
+pub use parse::*;
 pub use tool::*;
 
 pub trait Parse<T>: Sized {

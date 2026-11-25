@@ -10,17 +10,6 @@ pub trait Complete: Send + Sync {
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CompatMode {
-    /// error when unsupported fields/messages are provided
-    #[default]
-    Error,
-
-    /// ignore unsupported fields/messages
-    Ignore,
-}
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum RenderMode {
     /// continue if the last message is from the assistant, otherwise respond
     #[default]
@@ -36,7 +25,7 @@ pub enum RenderMode {
     None,
 }
 
-#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Chat {
     pub messages: Vec<nim_chat::ChatMessage>,
     pub tools: Vec<nim_chat::Tool>,
@@ -44,8 +33,8 @@ pub struct Chat {
     pub thinking: bool,
     pub vision: bool,
     pub audio: bool,
-    pub mode: RenderMode,
-    pub compat: CompatMode,
+    pub render: RenderMode,
+    pub parse: nim_chat::ParseMode,
     pub max_len: Option<usize>,
     pub beams: Option<usize>,
 }

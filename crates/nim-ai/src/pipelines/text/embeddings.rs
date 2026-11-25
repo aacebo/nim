@@ -2,10 +2,9 @@ use crate::models::{EmbedOptions, ModelRef, load};
 use crate::tasks;
 use crate::types::{Artifact, ArtifactContent};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Options {
     pub model: ModelRef,
-    #[serde(default)]
     pub embedding: EmbedOptions,
 }
 

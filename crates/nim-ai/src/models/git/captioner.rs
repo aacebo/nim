@@ -45,6 +45,7 @@ impl GitCaptioner {
             .map_err(|_| nim_error::Diagnostic::message("image-to-text model lock poisoned"))?;
         let visual = model.vision(&image)?;
         let limit = max_len.min(self.config.max_len).max(1);
+        let beams = beams.max(1);
         let mut live = vec![(0f64, vec![self.config.bos])];
         let mut done = Vec::new();
 
@@ -63,21 +64,21 @@ impl GitCaptioner {
             candidates.sort_by(|a, b| b.0.total_cmp(&a.0));
             live.clear();
 
-            for (score, mut tokens, token) in candidates.into_iter().take(beams.max(1) * 2) {
+            for (score, mut tokens, token) in candidates.into_iter().take(if beams == 1 { 1 } else { beams * 2 }) {
                 tokens.push(token);
 
                 if token == self.config.eos {
                     done.push((score, tokens));
-                } else if live.len() < beams.max(1) {
+                } else if live.len() < beams {
                     live.push((score, tokens));
                 }
 
-                if live.len() >= beams.max(1) && done.len() >= beams.max(1) {
+                if live.len() >= beams && done.len() >= beams {
                     break;
                 }
             }
 
-            if live.is_empty() {
+            if live.is_empty() || done.iter().any(|(score, _)| live.iter().all(|(other, _)| score >= other)) {
                 break;
             }
         }

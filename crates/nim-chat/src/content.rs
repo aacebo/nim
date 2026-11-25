@@ -15,6 +15,10 @@ pub enum ChatMessageContent {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatMessageContentPart {
+    /// represents a self reflection or reasoning that
+    /// is not typically rendered as message content
+    Thinking { thinking: String },
+
     /// plain text
     Text {
         #[validate(min_length = 1)]

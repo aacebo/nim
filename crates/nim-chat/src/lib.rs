@@ -3,7 +3,7 @@ mod content;
 mod event;
 mod media;
 mod message;
-mod parse;
+pub mod parse;
 mod tool;
 pub mod widgets;
 
@@ -14,15 +14,6 @@ pub use media::*;
 pub use message::*;
 pub use parse::*;
 pub use tool::*;
-
-pub trait Parse<T>: Sized {
-    type Error;
-    type Context<'a>
-    where
-        Self: 'a;
-
-    fn parse<'a>(&'a self, ctx: &'a Self::Context<'a>) -> futures_util::future::BoxFuture<'a, Result<T, Self::Error>>;
-}
 
 pub trait Render<T> {
     type Error;

@@ -1,6 +1,6 @@
 use nim_chat::{
     ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatToolMessage,
-    ChatUserMessage, Document, Media, ParseMode, Parser, Tool, ToolCall,
+    ChatUserMessage, Document, Media, Tool, ToolCall,
 };
 
 use crate::Chat;
@@ -167,12 +167,6 @@ impl nim_chat::Render<ChatAgentMessage> for Qwen2Template {
         Box::pin(async move {
             let mut out = String::from("<|im_start|>assistant\n");
 
-            if let Some(reasoning) = &value.reasoning {
-                out.push_str("<think>\n");
-                out.push_str(reasoning);
-                out.push_str("\n</think>\n");
-            }
-
             if let Some(content) = value.content {
                 out.push_str(&self.render(&(), content).await?);
             }
@@ -251,6 +245,7 @@ impl nim_chat::Render<ChatMessageContentPart> for Qwen2Template {
         Box::pin(async move {
             match value {
                 ChatMessageContentPart::Text { text } => Ok(text),
+                ChatMessageContentPart::Thinking { thinking } => Ok(format!("<think>\n{thinking}\n</think>\n")),
                 ChatMessageContentPart::Json { json } => Ok(serde_json::to_string(&json)?),
                 ChatMessageContentPart::Url { url } => Ok(url.to_string()),
                 ChatMessageContentPart::Image { media } => Ok(format!("[image: {}]", self.render(&(), media).await?)),
@@ -345,148 +340,6 @@ impl nim_chat::Render<Document> for Qwen2Template {
             let value = &value;
 
             Ok(serde_json::to_string(value)?)
-        })
-    }
-}
-
-impl nim_chat::Parse<ChatMessage> for Qwen2Template {
-    type Error = nim_error::Diagnostic;
-    type Context<'a> = Parser<'a>;
-
-    fn parse<'a>(&'a self, parser: &'a Parser<'a>) -> futures_util::future::BoxFuture<'a, Result<ChatMessage, Self::Error>> {
-        Box::pin(async move {
-            let message: ChatAgentMessage = self.parse(parser).await?;
-            Ok(message.into())
-        })
-    }
-}
-
-impl nim_chat::Parse<Chat> for Qwen2Template {
-    type Error = nim_error::Diagnostic;
-    type Context<'a> = Parser<'a>;
-
-    fn parse<'a>(&'a self, parser: &'a Parser<'a>) -> futures_util::future::BoxFuture<'a, Result<Chat, Self::Error>> {
-        Box::pin(async move {
-            let message: ChatMessage = self.parse(parser).await?;
-
-            Ok(Chat {
-                messages: vec![message],
-                parse: parser.mode,
-                ..Default::default()
-            })
-        })
-    }
-}
-
-impl nim_chat::Parse<ChatAgentMessage> for Qwen2Template {
-    type Error = nim_error::Diagnostic;
-    type Context<'a> = Parser<'a>;
-
-    fn parse<'a>(&'a self, parser: &'a Parser<'a>) -> futures_util::future::BoxFuture<'a, Result<ChatAgentMessage, Self::Error>> {
-        Box::pin(async move {
-            let mut parser = Parser::new(parser.src.trim(), parser.mode);
-
-            let mut reasoning = None;
-
-            if parser.take_prefix("<think>") {
-                match parser.take_until("</think>") {
-                    Some(value) => reasoning = Some(value.trim().to_string()),
-                    None if parser.mode == ParseMode::Strict => {
-                        return Err(nim_error::Diagnostic::message("unterminated Qwen reasoning block"));
-                    }
-                    None => {}
-                }
-            }
-
-            let mut content = String::new();
-            let mut tool_calls = Vec::new();
-
-            while let Some(value) = parser.take_until("<tool_call>") {
-                content.push_str(value);
-
-                let Some(raw) = parser.take_until("</tool_call>") else {
-                    if parser.mode == ParseMode::Strict {
-                        return Err(nim_error::Diagnostic::message("unterminated Qwen tool call"));
-                    }
-
-                    content.push_str("<tool_call>");
-                    content.push_str(parser.take_remaining());
-                    break;
-                };
-
-                let parsed: nim_error::Result<ToolCall> = self.parse(&Parser::new(raw.trim(), parser.mode)).await;
-
-                match parsed {
-                    Ok(mut call) => {
-                        if call.id.is_empty() {
-                            call.id = format!("call_{}", tool_calls.len());
-                        }
-
-                        tool_calls.push(call);
-                    }
-                    Err(error) if parser.mode == ParseMode::Strict => return Err(error),
-                    Err(_) => {
-                        content.push_str("<tool_call>");
-                        content.push_str(raw);
-                        content.push_str("</tool_call>");
-                    }
-                }
-            }
-
-            content.push_str(parser.take_remaining());
-            let content = (!content.trim().is_empty()).then(|| ChatMessageContent::String(content.trim().to_string()));
-
-            Ok(ChatAgentMessage {
-                name: None,
-                content,
-                reasoning,
-                tool_calls,
-                annotations: Vec::new(),
-                extra: Default::default(),
-            })
-        })
-    }
-}
-
-impl nim_chat::Parse<ToolCall> for Qwen2Template {
-    type Error = nim_error::Diagnostic;
-    type Context<'a> = Parser<'a>;
-
-    fn parse<'a>(&'a self, parser: &'a Parser<'a>) -> futures_util::future::BoxFuture<'a, Result<ToolCall, Self::Error>> {
-        Box::pin(async move {
-            let mut parser = Parser::new(parser.src.trim(), parser.mode);
-
-            let value: serde_json::Value = serde_json::from_str(parser.take_remaining())?;
-            let object = value
-                .as_object()
-                .ok_or_else(|| nim_error::Diagnostic::message("Qwen tool call must be an object"))?;
-            let name = object
-                .get("name")
-                .or_else(|| object.get("function").and_then(|v| v.get("name")))
-                .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| nim_error::Diagnostic::message("Qwen tool call is missing a name"))?
-                .to_string();
-            let args = object
-                .get("arguments")
-                .or_else(|| object.get("args"))
-                .or_else(|| object.get("function").and_then(|v| v.get("arguments")))
-                .map(|value| match value {
-                    serde_json::Value::String(value) => serde_json::from_str(value),
-                    serde_json::Value::Object(value) => Ok(value.clone()),
-                    _ => Err(serde_json::Error::io(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "Qwen tool arguments must be an object",
-                    ))),
-                })
-                .transpose()?
-                .unwrap_or_default();
-            let id = object
-                .get("id")
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_string)
-                .unwrap_or_default();
-
-            Ok(ToolCall { id, name, args })
         })
     }
 }

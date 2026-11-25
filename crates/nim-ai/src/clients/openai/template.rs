@@ -106,7 +106,28 @@ impl nim_chat::Render<ChatAgentMessage> for OpenAITemplate {
         value: ChatAgentMessage,
     ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>> {
         Box::pin(async move {
+            let mut thinking = Vec::new();
             let content = match value.content {
+                Some(ChatMessageContent::Parts(parts)) => {
+                    let mut content = Vec::new();
+
+                    for part in parts {
+                        match part {
+                            ChatMessageContentPart::Thinking { thinking: value } => thinking.push(value),
+                            other => content.push(other),
+                        }
+                    }
+
+                    if content.is_empty() {
+                        None
+                    } else {
+                        Some(ChatMessageContent::Parts(content))
+                    }
+                }
+                content => content,
+            };
+
+            let content = match content {
                 Some(content) => Some(self.render(&(), content).await?),
                 None => None,
             };
@@ -123,8 +144,8 @@ impl nim_chat::Render<ChatAgentMessage> for OpenAITemplate {
                 "tool_calls": tool_calls,
             });
 
-            if let Some(reasoning) = &value.reasoning {
-                message["reasoning_content"] = serde_json::Value::String(reasoning.clone());
+            if !thinking.is_empty() {
+                message["reasoning_content"] = serde_json::Value::String(thinking.join("\n"));
             }
 
             Ok(Some(message))

@@ -14,8 +14,6 @@
     background: rgb(0 0 0 / 72%);
     color: #a6ef94;
     font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-    user-select: none;
-    -webkit-user-select: none;
     pointer-events: auto;
 }
 #dev-tools:focus {

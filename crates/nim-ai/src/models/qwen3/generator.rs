@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::{quantized_qwen3, qwen3};
-use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, Parse, Parser, Render};
+use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, Parser, Render};
 
 use crate::types::TextOutput;
 use crate::{Chat, Complete, Context, Summarize, SummarizeOptions};
@@ -129,7 +129,7 @@ impl Qwen3Generator {
         };
 
         let text = result?;
-        self.template.parse(&Parser::new(&text, parse)).await
+        nim_chat::parse::chatml::parse_agent_message(&mut Parser::from_src(&text, parse))
     }
 }
 
@@ -186,10 +186,7 @@ impl Summarize for Qwen3Generator {
                 let response = self.complete(ctx, chat).await?;
 
                 output.push(TextOutput {
-                    text: match response.content {
-                        Some(ChatMessageContent::String(text)) => text,
-                        _ => String::new(),
-                    },
+                    text: crate::tasks::response_text(response.content),
                     confidence: None,
                 });
             }

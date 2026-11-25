@@ -121,6 +121,21 @@ impl OpenAI {
             .or_else(|| message.get("reasoning"))
             .and_then(serde_json::Value::as_str)
             .map(str::to_string);
+        let content = match (reasoning, content) {
+            (Some(thinking), content) => {
+                let mut parts = vec![nim_chat::ChatMessageContentPart::Thinking { thinking }];
+
+                if let Some(nim_chat::ChatMessageContent::String(text)) = content
+                    && !text.is_empty()
+                {
+                    parts.push(nim_chat::ChatMessageContentPart::Text { text });
+                }
+
+                Some(nim_chat::ChatMessageContent::Parts(parts))
+            }
+            (None, content) => content,
+        };
+
         let tool_calls = message
             .get("tool_calls")
             .and_then(serde_json::Value::as_array)
@@ -161,7 +176,6 @@ impl OpenAI {
         Ok(nim_chat::ChatAgentMessage {
             name: None,
             content,
-            reasoning,
             tool_calls,
             annotations: Vec::new(),
             extra: Default::default(),

@@ -42,7 +42,6 @@ pub async fn render_message(services: &Services<'_>, message: &Message) -> nim_e
         Role::Agent => Ok(ChatAgentMessage {
             name: None,
             content: Some(content),
-            reasoning: None,
             annotations: Default::default(),
             tool_calls: Default::default(),
             extra: Default::default(),
@@ -59,6 +58,10 @@ pub async fn render_message_text(services: &Services<'_>, message: &Message) -> 
             let mut output = Vec::with_capacity(parts.len());
 
             for part in parts {
+                if matches!(part, ChatMessageContentPart::Thinking { .. }) {
+                    continue;
+                }
+
                 output.push(match part {
                     ChatMessageContentPart::Text { text } => text.clone(),
                     ChatMessageContentPart::Json { json } => json.to_string(),
@@ -88,7 +91,7 @@ pub async fn render_message_text(services: &Services<'_>, message: &Message) -> 
                 });
             }
 
-            Ok(output.join("\n"))
+            Ok(output.join(""))
         }
         _ => Err(nim_error::Diagnostic::message("unsupported message content")),
     }

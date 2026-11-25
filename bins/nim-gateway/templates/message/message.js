@@ -30,7 +30,7 @@ customElements.define("nim-message", class extends HTMLElement {
 
     messageText(content) {
         if (typeof content === "string") return content;
-        if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("\n");
+        if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("");
         switch (content?.type) {
             case "text": return content.text;
             case "url": return content.url;

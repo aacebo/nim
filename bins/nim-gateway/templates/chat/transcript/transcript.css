@@ -51,8 +51,6 @@ nim-chat-transcript {
     width: auto;
     box-sizing: border-box;
     pointer-events: auto;
-    -webkit-user-select: none;
-    user-select: none;
 }
 #chat-transcript:not([hidden]) {
     display: flex;
@@ -121,8 +119,6 @@ nim-chat-transcript {
     padding: 7px 12px;
     border-radius: 7px;
     box-shadow: 0 5px 14px rgb(0 0 0 / 18%), inset 0 1px rgb(255 255 255 / 4%);
-    -webkit-user-select: none;
-    user-select: none;
 }
 #chat-messages > .chat-message-agent .chat-message-bubble { background: rgb(37 42 51 / 96%); }
 #chat-messages > .chat-message-user .chat-message-bubble { background: #276ed5; }
@@ -194,7 +190,7 @@ nim-chat-transcript {
 .chat-message-metadata dt { color: #8da9ba; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
 .chat-message-metadata dd { margin: 0; color: #e1edf4; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
 .chat-activity {
-    padding: 10px 16px;
+    padding: 10px 0;
     color: #a2a6af;
     font-size: 14px;
     line-height: 1.5;
@@ -204,10 +200,12 @@ nim-chat-transcript {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: #e1e3e7;
+    color: #6d747e;
+    font-size: 12px;
     cursor: pointer;
     list-style: none;
 }
+.chat-activity.is-active summary { color: #e1e3e7; font-size: 14px; }
 .chat-activity summary::-webkit-details-marker { display: none; }
 .chat-activity summary::after {
     width: 8px;
@@ -228,6 +226,29 @@ nim-chat-transcript {
     list-style: none;
 }
 .chat-activity-updates li { padding: 0; border: 0; color: #8f949e; }
+.chat-message-loading {
+    width: min(72%, 320px);
+    margin-top: 10px;
+    background: rgb(37 42 51 / 96%);
+}
+.chat-message-loading span {
+    width: 100%;
+    height: 8px;
+    margin: 6px 0;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #6d747e 25%, #a2a6af 50%, #6d747e 75%);
+    background-size: 200% 100%;
+    animation: chat-message-loading 1.6s linear infinite;
+    animation-delay: var(--loading-elapsed);
+}
+.chat-message-loading span:last-child { width: 65%; }
+@keyframes chat-message-loading {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .chat-message-loading span { animation: none; }
+}
 .chat-message-text {
     overflow-wrap: anywhere;
     font-size: 14px;

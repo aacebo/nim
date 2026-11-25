@@ -373,10 +373,7 @@ impl Summarize for RemoteModel {
                 let response = self.complete(ctx, chat).await?;
 
                 output.push(TextOutput {
-                    text: match response.content {
-                        Some(ChatMessageContent::String(text)) => text,
-                        _ => String::new(),
-                    },
+                    text: crate::tasks::response_text(response.content),
                     confidence: None,
                 });
             }

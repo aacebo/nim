@@ -100,8 +100,6 @@ pub struct ChatAgentMessage {
     pub name: Option<String>,
     pub content: Option<ChatMessageContent>,
 
-    pub reasoning: Option<String>,
-
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub annotations: Vec<Annotation>,
 

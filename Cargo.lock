@@ -2538,6 +2538,7 @@ name = "nim-chat"
 version = "0.0.0"
 dependencies = [
  "futures-util",
+ "nim-error",
  "rand 0.10.3",
  "serde",
  "serde_json",

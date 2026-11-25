@@ -47,11 +47,12 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
 
     messageText(content) {
         if (typeof content === "string") return content;
-        if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("\n");
+        if (Array.isArray(content)) return content.map((item) => this.messageText(item)).filter(Boolean).join("");
         switch (content?.type) {
             case "text": return content.text;
             case "url": return content.url;
             case "json": return JSON.stringify(content.json);
+            case "thinking": return "";
             case "artifact": return "";
             default: return "Message content";
         }
@@ -97,6 +98,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         const label = document.createElement("span");
 
         row.className = "chat-activity";
+        row.classList.toggle("is-active", activity.active);
         details.open = activity.expanded;
         summary.addEventListener("click", () => {
             setTimeout(() => this.dispatchEvent(new CustomEvent("nim-chat-activity-toggle", {
@@ -130,6 +132,19 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         }
 
         row.append(details);
+
+        if (activity.active) {
+            const bubble = document.createElement("div");
+            const first = document.createElement("span");
+            const second = document.createElement("span");
+            bubble.className = "chat-message-bubble chat-message-loading";
+            bubble.style.setProperty("--loading-elapsed", `${activity.startedAt - Date.now()}ms`);
+            bubble.setAttribute("role", "status");
+            bubble.setAttribute("aria-label", "Generating response");
+            bubble.append(first, second);
+            row.append(bubble);
+        }
+
         return row;
     }
 

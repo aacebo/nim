@@ -196,6 +196,23 @@ pub(crate) fn char_offset(text: &str, byte_offset: usize) -> u32 {
     text.char_indices().take_while(|(index, _)| *index < byte_offset).count() as u32
 }
 
+pub(crate) fn response_text(content: Option<nim_chat::ChatMessageContent>) -> String {
+    match content {
+        Some(nim_chat::ChatMessageContent::String(text)) => text,
+        Some(nim_chat::ChatMessageContent::Parts(parts)) => parts
+            .into_iter()
+            .filter_map(|part| match part {
+                nim_chat::ChatMessageContentPart::Text { text } => Some(text),
+                nim_chat::ChatMessageContentPart::Url { url } => Some(url.to_string()),
+                nim_chat::ChatMessageContentPart::Json { json } => Some(json.to_string()),
+                nim_chat::ChatMessageContentPart::Speak { speak } => Some(speak),
+                _ => None,
+            })
+            .collect(),
+        _ => String::new(),
+    }
+}
+
 #[cfg(test)]
 mod capability_tests {
     use super::*;
@@ -213,7 +230,6 @@ mod capability_tests {
                 Ok(nim_chat::ChatAgentMessage {
                     name: None,
                     content: Some(nim_chat::ChatMessageContent::String("reply".into())),
-                    reasoning: None,
                     tool_calls: Vec::new(),
                     annotations: Vec::new(),
                     extra: Default::default(),

@@ -1,6 +1,9 @@
-use crate::models::{EmbedOptions, ModelRef, load};
 use crate::tasks;
 use crate::types::{Artifact, ArtifactContent};
+use crate::{
+    EmbedOptions,
+    models::{ModelRef, load},
+};
 
 #[derive(Debug, Clone)]
 pub struct Options {

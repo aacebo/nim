@@ -1,10 +1,10 @@
-use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::models::{Caption, CaptionOptions, Context};
+use crate::types::TextOutput;
+use crate::{Caption, CaptionOptions, Context};
 
 use super::config::WhisperConfig;
 use super::model::WhisperModel;
@@ -15,15 +15,6 @@ pub struct WhisperCaptioner {
     processor: WhisperProcessor,
     model_config: WhisperConfig,
     config: WhisperGenerationConfig,
-}
-
-#[derive(Clone)]
-struct WhisperGenerationConfig {
-    eos: u32,
-    max_positions: usize,
-    prefix: Vec<u32>,
-    suppress: Vec<u32>,
-    begin_suppress: Vec<u32>,
 }
 
 impl WhisperCaptioner {
@@ -100,6 +91,7 @@ impl WhisperCaptioner {
                 for token in &self.config.suppress {
                     probabilities[*token as usize] = f32::NEG_INFINITY;
                 }
+
                 if tokens.len() == self.config.prefix.len() {
                     for token in &self.config.begin_suppress {
                         probabilities[*token as usize] = f32::NEG_INFINITY;
@@ -149,21 +141,6 @@ impl WhisperCaptioner {
     }
 }
 
-fn repeats(tokens: &[u32], token: u32) -> bool {
-    const NGRAM: usize = 3;
-
-    if tokens.len() < NGRAM - 1 {
-        return false;
-    }
-
-    let start = tokens.len() + 1 - NGRAM;
-    let candidate = &tokens[start..];
-
-    tokens[..start]
-        .windows(NGRAM)
-        .any(|ngram| ngram[..NGRAM - 1] == candidate[..NGRAM - 1] && ngram[NGRAM - 1] == token)
-}
-
 impl Caption for WhisperCaptioner {
     fn caption<'a>(
         &'a self,
@@ -190,4 +167,28 @@ impl Caption for WhisperCaptioner {
                 .collect()
         })
     }
+}
+
+#[derive(Clone)]
+struct WhisperGenerationConfig {
+    eos: u32,
+    max_positions: usize,
+    prefix: Vec<u32>,
+    suppress: Vec<u32>,
+    begin_suppress: Vec<u32>,
+}
+
+fn repeats(tokens: &[u32], token: u32) -> bool {
+    const NGRAM: usize = 3;
+
+    if tokens.len() < NGRAM - 1 {
+        return false;
+    }
+
+    let start = tokens.len() + 1 - NGRAM;
+    let candidate = &tokens[start..];
+
+    tokens[..start]
+        .windows(NGRAM)
+        .any(|ngram| ngram[..NGRAM - 1] == candidate[..NGRAM - 1] && ngram[NGRAM - 1] == token)
 }

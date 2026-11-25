@@ -1,10 +1,10 @@
-use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::models::{Context, Transcribe, TranscribeOptions};
+use crate::types::TextOutput;
+use crate::{Context, Transcribe, TranscribeOptions};
 
 use super::config::WhisperConfig;
 use super::model::WhisperModel;

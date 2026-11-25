@@ -2,8 +2,8 @@ use std::sync::Mutex;
 
 use candle_nn::VarBuilder;
 
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{Classification, Span, TimeRange};
+use crate::{Classify, ClassifyMode, ClassifyOptions, Context};
 
 use super::config::Cnn8RnnConfig;
 use super::model::Cnn8RnnModel;

@@ -3,9 +3,9 @@ use std::sync::Mutex;
 use candle_core::{IndexOp, Tensor};
 use candle_nn::{Embedding, Linear, Module, VarBuilder, embedding, ops};
 
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::{aggregation, classification, decode_entities};
 use crate::types::Classification;
+use crate::{Classify, ClassifyMode, ClassifyOptions, Context, models::Forward};
 
 use super::config::BartConfig;
 use super::encoder::BartEncoder;

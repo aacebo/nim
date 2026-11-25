@@ -48,13 +48,16 @@ impl MobileNetProcessor {
             .crop_imm((image.width() - width) / 2, (image.height() - height) / 2, width, height)
             .to_rgb8();
         let mut values = vec![0f32; (width * height * 3) as usize];
+
         for (x, y, pixel) in image.enumerate_pixels() {
             let index = (y * width + x) as usize;
+
             for channel in 0..3 {
                 values[channel * (width * height) as usize + index] =
                     (pixel[channel] as f32 * self.rescale_factor - self.image_mean[channel]) / self.image_std[channel];
             }
         }
+
         Ok((
             Tensor::from_vec(values, (1, 3, height as usize, width as usize), device)?,
             BoundingBox {

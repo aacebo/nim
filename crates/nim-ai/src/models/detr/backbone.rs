@@ -1,90 +1,6 @@
 use candle_core::{Result, Tensor};
 use candle_nn::{Conv2d, Conv2dConfig, Module, VarBuilder, conv2d_no_bias};
 
-struct DetrFrozenBatchNorm {
-    scale: Tensor,
-    bias: Tensor,
-}
-
-impl DetrFrozenBatchNorm {
-    fn new(channels: usize, vars: VarBuilder) -> Result<Self> {
-        let weight = vars.get(channels, "weight")?;
-        let bias = vars.get(channels, "bias")?;
-        let mean = vars.get(channels, "running_mean")?;
-        let variance = vars.get(channels, "running_var")?;
-        let scale = weight.div(&(variance + 1e-5)?.sqrt()?)?;
-        let bias = (bias - (&mean * &scale)?)?;
-
-        Ok(Self {
-            scale: scale.reshape((1, channels, 1, 1))?,
-            bias: bias.reshape((1, channels, 1, 1))?,
-        })
-    }
-
-    fn forward(&self, input: &Tensor) -> Result<Tensor> {
-        input.broadcast_mul(&self.scale)?.broadcast_add(&self.bias)
-    }
-}
-
-fn convolution(input: usize, output: usize, kernel: usize, stride: usize, vars: VarBuilder) -> Result<Conv2d> {
-    conv2d_no_bias(
-        input,
-        output,
-        kernel,
-        Conv2dConfig {
-            padding: kernel / 2,
-            stride,
-            ..Default::default()
-        },
-        vars,
-    )
-}
-
-struct DetrBottleneck {
-    conv1: Conv2d,
-    conv2: Conv2d,
-    conv3: Conv2d,
-    bn1: DetrFrozenBatchNorm,
-    bn2: DetrFrozenBatchNorm,
-    bn3: DetrFrozenBatchNorm,
-    downsample: Option<(Conv2d, DetrFrozenBatchNorm)>,
-}
-
-impl DetrBottleneck {
-    fn new(input: usize, channels: usize, stride: usize, vars: VarBuilder) -> Result<Self> {
-        let output = channels * 4;
-
-        Ok(Self {
-            conv1: convolution(input, channels, 1, 1, vars.pp("conv1"))?,
-            conv2: convolution(channels, channels, 3, stride, vars.pp("conv2"))?,
-            conv3: convolution(channels, output, 1, 1, vars.pp("conv3"))?,
-            bn1: DetrFrozenBatchNorm::new(channels, vars.pp("bn1"))?,
-            bn2: DetrFrozenBatchNorm::new(channels, vars.pp("bn2"))?,
-            bn3: DetrFrozenBatchNorm::new(output, vars.pp("bn3"))?,
-            downsample: if stride != 1 || input != output {
-                Some((
-                    convolution(input, output, 1, stride, vars.pp("downsample.0"))?,
-                    DetrFrozenBatchNorm::new(output, vars.pp("downsample.1"))?,
-                ))
-            } else {
-                None
-            },
-        })
-    }
-
-    fn forward(&self, input: &Tensor) -> Result<Tensor> {
-        let output = self.bn1.forward(&self.conv1.forward(input)?)?.relu()?;
-        let output = self.bn2.forward(&self.conv2.forward(&output)?)?.relu()?;
-        let output = self.bn3.forward(&self.conv3.forward(&output)?)?;
-        let residual = match &self.downsample {
-            Some((conv, norm)) => norm.forward(&conv.forward(input)?)?,
-            None => input.clone(),
-        };
-
-        (output + residual)?.relu()
-    }
-}
-
 pub struct DetrBackbone {
     conv: Conv2d,
     norm: DetrFrozenBatchNorm,
@@ -133,4 +49,88 @@ impl DetrBackbone {
 
         Ok(output)
     }
+}
+
+struct DetrFrozenBatchNorm {
+    scale: Tensor,
+    bias: Tensor,
+}
+
+impl DetrFrozenBatchNorm {
+    fn new(channels: usize, vars: VarBuilder) -> Result<Self> {
+        let weight = vars.get(channels, "weight")?;
+        let bias = vars.get(channels, "bias")?;
+        let mean = vars.get(channels, "running_mean")?;
+        let variance = vars.get(channels, "running_var")?;
+        let scale = weight.div(&(variance + 1e-5)?.sqrt()?)?;
+        let bias = (bias - (&mean * &scale)?)?;
+
+        Ok(Self {
+            scale: scale.reshape((1, channels, 1, 1))?,
+            bias: bias.reshape((1, channels, 1, 1))?,
+        })
+    }
+
+    fn forward(&self, input: &Tensor) -> Result<Tensor> {
+        input.broadcast_mul(&self.scale)?.broadcast_add(&self.bias)
+    }
+}
+
+struct DetrBottleneck {
+    conv1: Conv2d,
+    conv2: Conv2d,
+    conv3: Conv2d,
+    bn1: DetrFrozenBatchNorm,
+    bn2: DetrFrozenBatchNorm,
+    bn3: DetrFrozenBatchNorm,
+    downsample: Option<(Conv2d, DetrFrozenBatchNorm)>,
+}
+
+impl DetrBottleneck {
+    fn new(input: usize, channels: usize, stride: usize, vars: VarBuilder) -> Result<Self> {
+        let output = channels * 4;
+
+        Ok(Self {
+            conv1: convolution(input, channels, 1, 1, vars.pp("conv1"))?,
+            conv2: convolution(channels, channels, 3, stride, vars.pp("conv2"))?,
+            conv3: convolution(channels, output, 1, 1, vars.pp("conv3"))?,
+            bn1: DetrFrozenBatchNorm::new(channels, vars.pp("bn1"))?,
+            bn2: DetrFrozenBatchNorm::new(channels, vars.pp("bn2"))?,
+            bn3: DetrFrozenBatchNorm::new(output, vars.pp("bn3"))?,
+            downsample: if stride != 1 || input != output {
+                Some((
+                    convolution(input, output, 1, stride, vars.pp("downsample.0"))?,
+                    DetrFrozenBatchNorm::new(output, vars.pp("downsample.1"))?,
+                ))
+            } else {
+                None
+            },
+        })
+    }
+
+    fn forward(&self, input: &Tensor) -> Result<Tensor> {
+        let output = self.bn1.forward(&self.conv1.forward(input)?)?.relu()?;
+        let output = self.bn2.forward(&self.conv2.forward(&output)?)?.relu()?;
+        let output = self.bn3.forward(&self.conv3.forward(&output)?)?;
+        let residual = match &self.downsample {
+            Some((conv, norm)) => norm.forward(&conv.forward(input)?)?,
+            None => input.clone(),
+        };
+
+        (output + residual)?.relu()
+    }
+}
+
+fn convolution(input: usize, output: usize, kernel: usize, stride: usize, vars: VarBuilder) -> Result<Conv2d> {
+    conv2d_no_bias(
+        input,
+        output,
+        kernel,
+        Conv2dConfig {
+            padding: kernel / 2,
+            stride,
+            ..Default::default()
+        },
+        vars,
+    )
 }

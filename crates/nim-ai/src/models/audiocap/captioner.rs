@@ -1,9 +1,9 @@
-use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_nn::VarBuilder;
 
-use crate::models::{Caption, CaptionOptions, Context};
+use crate::types::TextOutput;
+use crate::{Caption, CaptionOptions, Context};
 
 use super::config::AudioCapConfig;
 use super::model::AudioCapModel;
@@ -79,7 +79,7 @@ impl AudioCapCaptioner {
             for (score, mut tokens, token) in candidates {
                 tokens.push(token);
 
-                if token == EOS || tokens.len() - 1 >= max_tokens {
+                if token == EOS || tokens.len() > max_tokens {
                     done.push((score, tokens));
                 } else if live.len() < beams {
                     live.push((score, tokens));

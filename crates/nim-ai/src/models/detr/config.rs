@@ -27,14 +27,6 @@ pub struct DetrConfig {
     pub auxiliary_loss: bool,
 }
 
-fn default_channels() -> usize {
-    3
-}
-
-fn default_timm() -> bool {
-    true
-}
-
 impl DetrConfig {
     pub fn validate(&self) -> nim_error::Result<()> {
         if self.backbone != "resnet50"
@@ -54,6 +46,7 @@ impl DetrConfig {
                 "DETR supports the ResNet-50 backbone, sine positions, ReLU, and inference without auxiliary outputs",
             ));
         }
+
         if self.d_model == 0
             || !self.d_model.is_multiple_of(4)
             || self.encoder_attention_heads == 0
@@ -73,10 +66,19 @@ impl DetrConfig {
         {
             return Err(nim_error::Diagnostic::message("invalid DETR dimensions or label map"));
         }
+
         Ok(())
     }
 
     pub fn num_classes(&self) -> usize {
         self.id2label.last_key_value().map_or(0, |(id, _)| id + 1)
     }
+}
+
+fn default_channels() -> usize {
+    3
+}
+
+fn default_timm() -> bool {
+    true
 }

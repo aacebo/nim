@@ -1,9 +1,11 @@
 mod captions;
 mod classify;
+mod synthesize;
 mod transcribe;
 
 pub use captions::*;
 pub use classify::*;
+pub use synthesize::*;
 pub use transcribe::*;
 
 pub struct AudioPipelines<'a> {

@@ -13,36 +13,6 @@ impl Qwen3Template {
     }
 }
 
-fn media_fields(
-    name: &Option<String>,
-    size: Option<usize>,
-    mime_type: &Option<String>,
-    summary: &Option<String>,
-    source: &str,
-    value: String,
-) -> String {
-    let mut fields = vec![];
-
-    if let Some(name) = name {
-        fields.push(format!("name={name}"));
-    }
-
-    if let Some(size) = size {
-        fields.push(format!("size={size}"));
-    }
-
-    if let Some(mime_type) = mime_type {
-        fields.push(format!("mime_type={mime_type}"));
-    }
-
-    if let Some(summary) = summary {
-        fields.push(format!("summary={summary}"));
-    }
-
-    fields.push(format!("{source}={value}"));
-    fields.join(" ")
-}
-
 impl nim_chat::Render<Chat> for Qwen3Template {
     type Error = nim_error::Diagnostic;
     type Output = String;
@@ -342,4 +312,34 @@ impl nim_chat::Render<Document> for Qwen3Template {
             Ok(serde_json::to_string(value)?)
         })
     }
+}
+
+fn media_fields(
+    name: &Option<String>,
+    size: Option<usize>,
+    mime_type: &Option<String>,
+    summary: &Option<String>,
+    source: &str,
+    value: String,
+) -> String {
+    let mut fields = vec![];
+
+    if let Some(name) = name {
+        fields.push(format!("name={name}"));
+    }
+
+    if let Some(size) = size {
+        fields.push(format!("size={size}"));
+    }
+
+    if let Some(mime_type) = mime_type {
+        fields.push(format!("mime_type={mime_type}"));
+    }
+
+    if let Some(summary) = summary {
+        fields.push(format!("summary={summary}"));
+    }
+
+    fields.push(format!("{source}={value}"));
+    fields.join(" ")
 }

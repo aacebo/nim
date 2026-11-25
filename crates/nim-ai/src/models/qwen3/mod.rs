@@ -2,10 +2,10 @@ mod generator;
 mod template;
 
 use candle_core::Tensor;
+use candle_transformers::models::qwen3::Config;
 
-use crate::models::{Context, Embed, EmbedMode, EmbedOptions, Loader};
+use crate::{Context, Embed, EmbedMode, EmbedOptions, models::Loader};
 
-pub use candle_transformers::models::qwen3::Config;
 pub use generator::Qwen3Generator;
 pub use template::Qwen3Template;
 

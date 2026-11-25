@@ -1,8 +1,8 @@
 use candle_core::Tensor;
 use candle_nn::{Linear, Module, VarBuilder, linear, ops};
 
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::types::{Classification, Span};
+use crate::{Classify, ClassifyMode, ClassifyOptions, Context, models::Forward};
 
 use super::config::MobileNetConfig;
 use super::model::MobileNetV2;

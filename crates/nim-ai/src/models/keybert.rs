@@ -1,6 +1,6 @@
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Embed};
 use crate::tasks;
 use crate::types::{Classification, Span};
+use crate::{Classify, ClassifyMode, ClassifyOptions, Context, Embed};
 
 pub struct KeyBert<E: Embed> {
     embedder: E,

@@ -1,7 +1,7 @@
 use candle_core::{DType, Tensor};
 use candle_nn::VarBuilder;
 
-use crate::models::{Context, Embed, Forward};
+use crate::{Context, Embed, models::Forward};
 
 use super::config::BertConfig;
 use super::model::Bert;
@@ -22,20 +22,6 @@ impl BertEmbedder {
         let hidden = self.bert.forward(ids, mask)?;
         normalize(&pool(&hidden, mask)?)
     }
-}
-
-fn pool(hidden: &Tensor, mask: &Tensor) -> nim_error::Result<Tensor> {
-    let mask = mask.to_dtype(DType::F32).and_then(|mask| mask.unsqueeze(2))?;
-
-    let summed = hidden.broadcast_mul(&mask).and_then(|v| v.sum(1))?;
-    let counts = mask.sum(1)?;
-    Ok(summed.broadcast_div(&counts)?)
-}
-
-fn normalize(v: &Tensor) -> nim_error::Result<Tensor> {
-    let norm = v.sqr().and_then(|v| v.sum_keepdim(1)).and_then(|v| v.sqrt())?;
-
-    Ok(v.broadcast_div(&norm)?)
 }
 
 impl Forward for BertEmbedder {
@@ -67,4 +53,18 @@ impl Embed for BertEmbedder {
             Ok(self.forward(&batch.ids, &batch.mask)?.to_vec2::<f32>()?)
         })
     }
+}
+
+fn pool(hidden: &Tensor, mask: &Tensor) -> nim_error::Result<Tensor> {
+    let mask = mask.to_dtype(DType::F32).and_then(|mask| mask.unsqueeze(2))?;
+
+    let summed = hidden.broadcast_mul(&mask).and_then(|v| v.sum(1))?;
+    let counts = mask.sum(1)?;
+    Ok(summed.broadcast_div(&counts)?)
+}
+
+fn normalize(v: &Tensor) -> nim_error::Result<Tensor> {
+    let norm = v.sqr().and_then(|v| v.sum_keepdim(1)).and_then(|v| v.sqrt())?;
+
+    Ok(v.broadcast_div(&norm)?)
 }

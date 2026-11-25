@@ -16,6 +16,7 @@ This document describes common patterns in the workspace. Follow the surrounding
 - Name values for their role in the local operation: examples include `ctx`, `options`, `input`, `model`, `row`, `value`, `out`, and `id`. Use domain-specific names when they distinguish values. Short names such as `v` or `s` occur in small closures and serialization implementations.
 - Group related imports with braces when useful. Common groups are standard library, external crates, and `crate` or `super` imports, separated by blank lines; follow the file's existing order and grouping rather than imposing a new order.
 - Prefer established crate paths and local module imports. Binary crates commonly access workspace facilities through the `nim` facade; library crates use their direct dependencies.
+- Peer modules must not re-export each other's contents. A parent module may re-export its child modules' contents. Import peer items directly from their owning module or an established parent export.
 
 ## APIs and Implementations
 

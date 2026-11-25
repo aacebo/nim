@@ -1,7 +1,7 @@
 use unicode_categories::UnicodeCategories;
 
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{Classification, Offset, Span};
+use crate::{Classify, ClassifyMode, ClassifyOptions, Context};
 
 use super::{char_offset, classify};
 

@@ -1,7 +1,10 @@
-use crate::models::{ModelRef, TranscribeOptions, load};
 use crate::pipelines::text;
 use crate::tasks;
 use crate::types::Artifact;
+use crate::{
+    TranscribeOptions,
+    models::{ModelRef, load},
+};
 
 #[derive(Debug, Clone)]
 pub struct Options {

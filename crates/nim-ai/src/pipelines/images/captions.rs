@@ -1,8 +1,11 @@
-use crate::models::{CaptionOptions, ModelRef, load};
 use crate::pipelines::text;
 use crate::pipelines::text::embeddings::Options as EmbeddingOptions;
 use crate::tasks;
 use crate::types::Artifact;
+use crate::{
+    CaptionOptions,
+    models::{ModelRef, load},
+};
 
 #[derive(Debug, Clone)]
 pub struct Options {

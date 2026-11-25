@@ -176,6 +176,7 @@ impl AudioCapCnn {
 
         for (index, block) in self.blocks.iter().enumerate() {
             output = block.forward(&output)?;
+
             if index < 5 {
                 output = output.avg_pool2d((2, 2))?;
             }

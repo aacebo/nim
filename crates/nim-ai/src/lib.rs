@@ -1,15 +1,19 @@
-pub mod caption;
-pub mod chat;
-pub mod classify;
+mod caption;
+mod chat;
+mod classify;
 pub mod clients;
-pub mod context;
-pub mod embed;
+mod context;
+mod embed;
 pub mod models;
 pub mod pipelines;
 pub mod resources;
-pub mod summarize;
+mod split;
+mod summarize;
+#[cfg(feature = "audio")]
+mod synthesize;
 pub mod tasks;
-pub mod transcribe;
+#[cfg(feature = "audio")]
+mod transcribe;
 pub mod types;
 
 pub use caption::*;
@@ -17,5 +21,9 @@ pub use chat::*;
 pub use classify::*;
 pub use context::*;
 pub use embed::*;
+pub use split::*;
 pub use summarize::*;
+#[cfg(feature = "audio")]
+pub use synthesize::*;
+#[cfg(feature = "audio")]
 pub use transcribe::*;

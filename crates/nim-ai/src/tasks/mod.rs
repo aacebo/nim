@@ -8,11 +8,13 @@ mod keybert;
 mod scorer;
 mod stopwords;
 
-use crate::models::{
-    Caption, CaptionOptions, Chat, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, Summarize,
-    SummarizeOptions, Transcribe, TranscribeOptions,
-};
 use crate::types::{Classification, Keyword, Offset, Polarity, Span, TextOutput, Word};
+use crate::{
+    Caption, CaptionOptions, Chat, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, EmbedOptions, Summarize,
+    SummarizeOptions,
+};
+#[cfg(feature = "audio")]
+use crate::{Transcribe, TranscribeOptions};
 
 /// The user-facing routines, each a presentation over one model capability.
 ///
@@ -27,7 +29,7 @@ pub async fn embed_with<E: Embed + ?Sized>(
     model: &E,
     ctx: &Context<'_>,
     input: &[&[u8]],
-    options: &crate::models::EmbedOptions,
+    options: &EmbedOptions,
 ) -> nim_error::Result<Vec<Vec<f32>>> {
     options.validate()?;
     model.embed_with(ctx, input, options).await
@@ -145,6 +147,7 @@ pub async fn caption<M: Caption + ?Sized>(
     Ok(output)
 }
 
+#[cfg(feature = "audio")]
 pub async fn transcribe<M: Transcribe + ?Sized>(
     model: &M,
     ctx: &Context<'_>,

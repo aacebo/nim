@@ -2,7 +2,7 @@ mod model;
 
 use candle_core::Tensor;
 
-use crate::models::{Context, Embed, EmbedMode, EmbedOptions, Loader};
+use crate::{Context, Embed, EmbedMode, EmbedOptions, models::Loader};
 
 pub struct EmbeddingGemmaEmbedder {
     max_position_embeddings: usize,

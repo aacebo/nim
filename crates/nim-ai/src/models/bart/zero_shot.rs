@@ -4,9 +4,9 @@ use candle_core::{IndexOp, Tensor};
 use candle_nn::{Linear, VarBuilder, embedding, linear};
 use tokenizers::{TruncationParams, TruncationStrategy};
 
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context, Forward};
 use crate::tasks::zero_shot::{self, softmax};
 use crate::types::{Classification, Offset, Span};
+use crate::{Classify, ClassifyMode, ClassifyOptions, Context, models::Forward};
 
 use super::config::BartConfig;
 use super::decoder::BartDecoder;

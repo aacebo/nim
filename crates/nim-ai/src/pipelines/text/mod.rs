@@ -1,6 +1,7 @@
 pub mod classify;
 pub mod complete;
 pub mod embeddings;
+pub mod split;
 pub mod summarize;
 
 /// Default models, one per capability. A model that cannot serve the routine you called is an
@@ -30,6 +31,10 @@ pub mod defaults {
 
     pub fn summarize() -> models::ModelRef {
         models::refer(models::qwen2::QUANTIZED_MODEL).expect("built-in model ids are valid")
+    }
+
+    pub fn split() -> models::ModelRef {
+        models::refer("mirth/chonky_distilbert_base_uncased_1").expect("built-in model ids are valid")
     }
 
     pub fn complete() -> models::ModelRef {

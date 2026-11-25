@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use candle_nn::{VarBuilder, ops};
 
-use crate::models::{Classify, ClassifyMode, ClassifyOptions, Context};
 use crate::types::{BoundingBox, Classification, Span};
+use crate::{Classify, ClassifyMode, ClassifyOptions, Context};
 
 use super::{DetrConfig, DetrModel, DetrProcessor};
 

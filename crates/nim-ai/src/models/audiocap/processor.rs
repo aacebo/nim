@@ -34,7 +34,9 @@ impl AudioCapProcessor {
         for index in (1..=padding).rev() {
             padded.push(samples[index.min(samples.len() - 1)]);
         }
+
         padded.extend(samples);
+
         for index in 0..padding {
             padded.push(padded[padded.len() - 2 - index]);
         }
@@ -59,6 +61,7 @@ impl AudioCapProcessor {
                     *mel += power[bin] * weight;
                 }
             }
+
             frames.push(mel);
         }
 
@@ -103,6 +106,7 @@ fn resample((samples, source): (Vec<f32>, u32), target: usize) -> nim_error::Res
     if source == 0 {
         return Err(nim_error::Diagnostic::message("audio sample rate is zero"));
     }
+
     if source as usize == target {
         return Ok(samples);
     }

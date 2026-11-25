@@ -27,21 +27,6 @@ impl Resource {
         }
     }
 
-    pub(crate) async fn from_path(path: PathBuf) -> nim_error::Result<Self> {
-        let metadata = tokio::fs::metadata(&path).await?;
-        let size = match metadata.is_dir() {
-            true => directory_size(&path).await?,
-            false => metadata.len(),
-        };
-        let mut resource = Self::new(Uri::local(&path)).resolved(path, size);
-
-        if metadata.is_dir() {
-            resource.format = Format::Unknown;
-        }
-
-        Ok(resource)
-    }
-
     pub fn local_path(&self) -> nim_error::Result<&Path> {
         self.path
             .as_deref()
@@ -56,6 +41,21 @@ impl Resource {
         self.path = Some(path);
         self.size = size;
         self
+    }
+
+    pub(crate) async fn from_path(path: PathBuf) -> nim_error::Result<Self> {
+        let metadata = tokio::fs::metadata(&path).await?;
+        let size = match metadata.is_dir() {
+            true => directory_size(&path).await?,
+            false => metadata.len(),
+        };
+        let mut resource = Self::new(Uri::local(&path)).resolved(path, size);
+
+        if metadata.is_dir() {
+            resource.format = Format::Unknown;
+        }
+
+        Ok(resource)
     }
 }
 

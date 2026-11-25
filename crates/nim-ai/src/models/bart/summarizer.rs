@@ -1,10 +1,10 @@
-use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_core::Tensor;
 use candle_nn::VarBuilder;
 
-use crate::models::{Context, Summarize, SummarizeOptions};
+use crate::types::TextOutput;
+use crate::{Context, Summarize, SummarizeOptions};
 
 use super::config::BartConfig;
 use super::generate;

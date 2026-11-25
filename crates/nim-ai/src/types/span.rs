@@ -126,6 +126,7 @@ mod tests {
             }),
             Span::Time(TimeRange { begin: 0.0, end: 1.0 }),
         ];
+
         for span in spans {
             let json = serde_json::to_string(&span).unwrap();
             assert_eq!(serde_json::from_str::<Span>(&json).unwrap(), span);

@@ -1,11 +1,13 @@
 mod classify;
 mod complete;
 mod embeddings;
+mod split;
 mod summarize;
 
 pub use classify::*;
 pub use complete::*;
 pub use embeddings::*;
+pub use split::*;
 pub use summarize::*;
 
 pub struct TextPipelines<'a> {

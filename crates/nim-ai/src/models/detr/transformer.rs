@@ -3,52 +3,6 @@ use candle_nn::{LayerNorm, Linear, Module, VarBuilder, layer_norm, linear, ops};
 
 use super::DetrConfig;
 
-struct DetrAttention {
-    query: Linear,
-    key: Linear,
-    value: Linear,
-    output: Linear,
-    heads: usize,
-    head_dim: usize,
-}
-
-impl DetrAttention {
-    fn new(dim: usize, heads: usize, vars: VarBuilder) -> Result<Self> {
-        Ok(Self {
-            query: linear(dim, dim, vars.pp("q_proj"))?,
-            key: linear(dim, dim, vars.pp("k_proj"))?,
-            value: linear(dim, dim, vars.pp("v_proj"))?,
-            output: linear(dim, dim, vars.pp("out_proj"))?,
-            heads,
-            head_dim: dim / heads,
-        })
-    }
-
-    fn split(&self, input: &Tensor) -> Result<Tensor> {
-        let (batch, seq, _) = input.dims3()?;
-        input
-            .reshape((batch, seq, self.heads, self.head_dim))?
-            .transpose(1, 2)?
-            .contiguous()
-    }
-
-    fn forward(&self, queries: &Tensor, keys: &Tensor, values: &Tensor) -> Result<Tensor> {
-        let query = self.split(&self.query.forward(queries)?)?;
-        let query = (query * (self.head_dim as f64).powf(-0.5))?;
-        let key = self.split(&self.key.forward(keys)?)?;
-        let value = self.split(&self.value.forward(values)?)?;
-        let probabilities = ops::softmax_last_dim(&query.matmul(&key.t()?)?)?;
-        let (batch, _, seq, _) = query.dims4()?;
-        let output =
-            probabilities
-                .matmul(&value)?
-                .transpose(1, 2)?
-                .contiguous()?
-                .reshape((batch, seq, self.heads * self.head_dim))?;
-        self.output.forward(&output)
-    }
-}
-
 pub struct DetrEncoderLayer {
     attention: DetrAttention,
     attention_norm: LayerNorm,
@@ -108,5 +62,51 @@ impl DetrDecoderLayer {
         let output = self.cross_norm.forward(&(output + attended)?)?;
         let feedforward = self.fc2.forward(&self.fc1.forward(&output)?.relu()?)?;
         self.final_norm.forward(&(output + feedforward)?)
+    }
+}
+
+struct DetrAttention {
+    query: Linear,
+    key: Linear,
+    value: Linear,
+    output: Linear,
+    heads: usize,
+    head_dim: usize,
+}
+
+impl DetrAttention {
+    fn new(dim: usize, heads: usize, vars: VarBuilder) -> Result<Self> {
+        Ok(Self {
+            query: linear(dim, dim, vars.pp("q_proj"))?,
+            key: linear(dim, dim, vars.pp("k_proj"))?,
+            value: linear(dim, dim, vars.pp("v_proj"))?,
+            output: linear(dim, dim, vars.pp("out_proj"))?,
+            heads,
+            head_dim: dim / heads,
+        })
+    }
+
+    fn split(&self, input: &Tensor) -> Result<Tensor> {
+        let (batch, seq, _) = input.dims3()?;
+        input
+            .reshape((batch, seq, self.heads, self.head_dim))?
+            .transpose(1, 2)?
+            .contiguous()
+    }
+
+    fn forward(&self, queries: &Tensor, keys: &Tensor, values: &Tensor) -> Result<Tensor> {
+        let query = self.split(&self.query.forward(queries)?)?;
+        let query = (query * (self.head_dim as f64).powf(-0.5))?;
+        let key = self.split(&self.key.forward(keys)?)?;
+        let value = self.split(&self.value.forward(values)?)?;
+        let probabilities = ops::softmax_last_dim(&query.matmul(&key.t()?)?)?;
+        let (batch, _, seq, _) = query.dims4()?;
+        let output =
+            probabilities
+                .matmul(&value)?
+                .transpose(1, 2)?
+                .contiguous()?
+                .reshape((batch, seq, self.heads * self.head_dim))?;
+        self.output.forward(&output)
     }
 }

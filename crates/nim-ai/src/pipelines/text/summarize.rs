@@ -1,4 +1,4 @@
-use crate::models::SummarizeOptions;
+use crate::SummarizeOptions;
 use crate::models::{ModelRef, load};
 use crate::pipelines::text;
 use crate::pipelines::text::embeddings::Options as EmbeddingOptions;

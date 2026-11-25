@@ -35,7 +35,9 @@ impl Cnn8RnnProcessor {
         for index in (1..=padding).rev() {
             padded.push(samples[index.min(samples.len() - 1)]);
         }
+
         padded.extend(samples);
+
         for index in 0..padding {
             padded.push(padded[padded.len() - 2 - index]);
         }
@@ -60,6 +62,7 @@ impl Cnn8RnnProcessor {
                     *mel += power[bin] * weight;
                 }
             }
+
             frames.push(mel);
         }
 

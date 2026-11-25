@@ -11,6 +11,8 @@ pub mod embeddinggemma;
 #[cfg(feature = "vision")]
 pub mod git;
 pub mod keybert;
+#[cfg(feature = "audio")]
+pub mod kokoro;
 #[cfg(feature = "vision")]
 pub mod mobilenet;
 pub mod qwen2;
@@ -43,10 +45,9 @@ pub use provider::*;
 use candle_core::{DType, Device};
 
 use crate::resources::Repository;
-pub(crate) use crate::{
-    Caption, CaptionOptions, Chat, Classify, ClassifyMedia, ClassifyMode, ClassifyOptions, Complete, Context, Embed, EmbedMode,
-    EmbedOptions, Summarize, SummarizeOptions, Transcribe, TranscribeOptions,
-};
+use crate::{Caption, Classify, ClassifyMedia, ClassifyMode, Complete, Context, Embed, Split, Summarize};
+#[cfg(feature = "audio")]
+use crate::{Synthesize, Transcribe};
 
 pub(crate) const DEFAULT_MAX_TOKENS: usize = 1024;
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
@@ -62,6 +63,7 @@ pub enum AnyModel {
     BertSequenceClassifier(bert::BertClassifier),
     DistilBertEntityClassifier(distilbert::DistilBertClassifier),
     DistilBertSequenceClassifier(distilbert::DistilBertClassifier),
+    DistilBertSplitter(distilbert::DistilBertSplitter),
     Summarizer(bart::BartSummarizer),
     QwenGenerator(qwen2::Qwen2Generator),
     QwenEmbedder(qwen3::Qwen3Embedder),
@@ -124,7 +126,7 @@ impl Model {
         if matches!(model, LocalModel::Hub(id) if id.to_string() == qwen2::QUANTIZED_MODEL) {
             let companion = LocalModel::Hub(qwen2::MODEL.parse()?);
             let companion = companion.loader(device.clone(), dtype)?;
-            let config: qwen2::Config = companion.config().await?;
+            let config: candle_transformers::models::qwen2::Config = companion.config().await?;
             let weights = repo.resolve(std::path::Path::new(qwen2::WEIGHTS)).await?;
 
             return Ok(Self {
@@ -152,7 +154,7 @@ impl Model {
                 .parse()?,
             );
             let companion = companion.loader(device.clone(), dtype)?;
-            let config: qwen3::Config = companion.config().await?;
+            let config: candle_transformers::models::qwen3::Config = companion.config().await?;
             let weights = repo
                 .resolve(std::path::Path::new(if qwen3_completion {
                     qwen3::COMPLETION_WEIGHTS
@@ -173,7 +175,7 @@ impl Model {
         let model_config: ModelConfig = repo.config().await?;
         let model = match model_config.model_type {
             ModelType::Qwen2 => {
-                let config: qwen2::Config = repo.config().await?;
+                let config: candle_transformers::models::qwen2::Config = repo.config().await?;
                 AnyModel::QwenGenerator(qwen2::Qwen2Generator::new(&config, repo.vars().await?)?)
             }
             #[cfg(feature = "audio")]
@@ -213,7 +215,7 @@ impl Model {
                     .iter()
                     .any(|architecture| matches!(architecture, Architecture::Qwen3ForCausalLM))
                 {
-                    let config: qwen3::Config = repo.config().await?;
+                    let config: candle_transformers::models::qwen3::Config = repo.config().await?;
                     AnyModel::Qwen3Generator(qwen3::Qwen3Generator::new(&config, repo.vars().await?)?)
                 } else if model_config
                     .architectures
@@ -255,25 +257,33 @@ impl Model {
             ModelType::DistilBert => {
                 let config: distilbert::DistilBertConfig = repo.config().await?;
 
-                match (
-                    model_config.is_sequence_classification(),
-                    model_config.is_token_classification(),
-                    !config.id2label.is_empty(),
-                ) {
-                    (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::DistilBertClassifier::new(
-                        repo.vars().await?,
-                        &config,
-                        ClassifyMode::Whole,
-                    )?),
-                    (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::DistilBertClassifier::new(
-                        repo.vars().await?,
-                        &config,
-                        ClassifyMode::Regions,
-                    )?),
-                    _ => {
-                        return Err(nim_error::Diagnostic::message(format!(
-                            "{name} has no compatible classification head"
-                        )));
+                if model_config.is_token_classification()
+                    && config.id2label.get("0").is_some_and(|label| label == "O")
+                    && config.id2label.get("1").is_some_and(|label| label == "separator")
+                    && config.id2label.len() == 2
+                {
+                    AnyModel::DistilBertSplitter(distilbert::DistilBertSplitter::new(repo.vars().await?, &config)?)
+                } else {
+                    match (
+                        model_config.is_sequence_classification(),
+                        model_config.is_token_classification(),
+                        !config.id2label.is_empty(),
+                    ) {
+                        (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::DistilBertClassifier::new(
+                            repo.vars().await?,
+                            &config,
+                            ClassifyMode::Whole,
+                        )?),
+                        (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::DistilBertClassifier::new(
+                            repo.vars().await?,
+                            &config,
+                            ClassifyMode::Regions,
+                        )?),
+                        _ => {
+                            return Err(nim_error::Diagnostic::message(format!(
+                                "{name} has no compatible classification head"
+                            )));
+                        }
                     }
                 }
             }
@@ -398,6 +408,13 @@ impl Model {
         }
     }
 
+    pub fn as_split(&self) -> Option<&dyn Split> {
+        match &self.model {
+            AnyModel::DistilBertSplitter(model) => Some(model),
+            _ => None,
+        }
+    }
+
     pub fn as_summarize(&self) -> Option<&dyn Summarize> {
         match &self.model {
             AnyModel::Summarizer(model) => Some(model),
@@ -426,9 +443,14 @@ impl Model {
         }
     }
 
+    #[cfg(feature = "audio")]
+    pub fn as_synthesize(&self) -> Option<&dyn Synthesize> {
+        None
+    }
+
+    #[cfg(feature = "audio")]
     pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
         match &self.model {
-            #[cfg(feature = "audio")]
             AnyModel::Transcriber(model) => Some(model),
             _ => None,
         }

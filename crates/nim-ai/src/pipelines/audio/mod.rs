@@ -1,5 +1,6 @@
 pub mod captions;
 pub mod classify;
+pub mod synthesize;
 pub mod transcribe;
 
 /// Default models, one per capability. A model that cannot serve the routine you called is an
@@ -13,6 +14,10 @@ pub mod defaults {
 
     pub fn transcribe() -> models::ModelRef {
         models::refer("openai/whisper-base").expect("built-in model ids are valid")
+    }
+
+    pub fn synthesize() -> models::ModelRef {
+        models::refer(models::kokoro::MODEL).expect("built-in model ids are valid")
     }
 
     pub fn captions() -> models::ModelRef {

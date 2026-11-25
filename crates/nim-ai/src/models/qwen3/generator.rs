@@ -3,13 +3,14 @@ use std::sync::Mutex;
 
 use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
+use candle_transformers::models::qwen3::Config;
 use candle_transformers::models::{quantized_qwen3, qwen3};
 use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, Parser, Render};
 
 use crate::types::TextOutput;
 use crate::{Chat, Complete, Context, Summarize, SummarizeOptions};
 
-use super::{Config, Qwen3Template};
+use super::Qwen3Template;
 
 pub struct Qwen3Generator {
     model: Mutex<Qwen3Runtime>,

@@ -25,6 +25,87 @@ pub struct EmbeddingGemmaConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct EmbeddingGemmaModel {
+    embed_tokens: candle_nn::Embedding,
+    layers: Vec<EmbeddingGemmaDecoderLayer>,
+    norm: EmbeddingGemmaRmsNorm,
+
+    device: Device,
+    dtype: DType,
+    hidden_size: usize,
+    sliding_window: usize,
+}
+
+impl EmbeddingGemmaModel {
+    pub fn new(_use_flash_attn: bool, cfg: &EmbeddingGemmaConfig, vb: VarBuilder) -> Result<Self> {
+        let vb_m = vb.pp("model");
+        let embed_tokens = candle_nn::embedding(cfg.vocab_size, cfg.hidden_size, vb_m.pp("embed_tokens"))?;
+        let mut layers = Vec::with_capacity(cfg.num_hidden_layers);
+        let vb_l = vb_m.pp("layers");
+
+        for layer_idx in 0..cfg.num_hidden_layers {
+            let sliding_window = (layer_idx + 1) % cfg.sliding_window_pattern > 0;
+            let layer = EmbeddingGemmaDecoderLayer::new(cfg, vb_l.pp(layer_idx), sliding_window.then_some(cfg.sliding_window))?;
+            layers.push(layer)
+        }
+
+        let norm = EmbeddingGemmaRmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb_m.pp("norm"))?;
+
+        Ok(Self {
+            embed_tokens,
+            layers,
+            norm,
+
+            device: vb.device().clone(),
+            dtype: vb.dtype(),
+            hidden_size: cfg.hidden_size,
+            sliding_window: cfg.sliding_window,
+        })
+    }
+
+    pub fn forward(&mut self, input_ids: &Tensor, seqlen_offset: usize) -> Result<Tensor> {
+        let (batch, length) = input_ids.dims2()?;
+        let mut xs = (self.embed_tokens.forward(input_ids)? * (self.hidden_size as f64).sqrt())?;
+        let (full, sliding) = self.create_attention_masks(batch, length, seqlen_offset)?;
+
+        for layer in &mut self.layers {
+            let mask = if layer.sliding_window.is_some() { &sliding } else { &full };
+            xs = layer.forward(&xs, mask.as_ref(), seqlen_offset)?;
+        }
+
+        xs.apply(&self.norm)
+    }
+
+    fn create_attention_masks(
+        &self,
+        batch_size: usize,
+        seq_len: usize,
+        seqlen_offset: usize,
+    ) -> Result<(Option<Tensor>, Option<Tensor>)> {
+        if seq_len <= 1 {
+            return Ok((None, None));
+        }
+
+        let values = (0..seq_len)
+            .flat_map(|i| {
+                (0..seq_len).map(move |j| {
+                    if i.abs_diff(j) < self.sliding_window {
+                        0f32
+                    } else {
+                        f32::NEG_INFINITY
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        let mask = Tensor::from_vec(values, (1, 1, seq_len, seq_len), &self.device)?
+            .to_dtype(self.dtype)?
+            .broadcast_as((batch_size, 1, seq_len, seq_len))?;
+        let _ = seqlen_offset;
+        Ok((None, Some(mask)))
+    }
+}
+
+#[derive(Debug, Clone)]
 struct EmbeddingGemmaRmsNorm {
     weight: Tensor,
     eps: f64,
@@ -274,86 +355,5 @@ impl EmbeddingGemmaDecoderLayer {
         let xs = xs.apply(&self.mlp)?;
         let xs = xs.apply(&self.post_feedforward_layernorm)?;
         residual + xs
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EmbeddingGemmaModel {
-    embed_tokens: candle_nn::Embedding,
-    layers: Vec<EmbeddingGemmaDecoderLayer>,
-    norm: EmbeddingGemmaRmsNorm,
-
-    device: Device,
-    dtype: DType,
-    hidden_size: usize,
-    sliding_window: usize,
-}
-
-impl EmbeddingGemmaModel {
-    pub fn new(_use_flash_attn: bool, cfg: &EmbeddingGemmaConfig, vb: VarBuilder) -> Result<Self> {
-        let vb_m = vb.pp("model");
-        let embed_tokens = candle_nn::embedding(cfg.vocab_size, cfg.hidden_size, vb_m.pp("embed_tokens"))?;
-        let mut layers = Vec::with_capacity(cfg.num_hidden_layers);
-        let vb_l = vb_m.pp("layers");
-
-        for layer_idx in 0..cfg.num_hidden_layers {
-            let sliding_window = (layer_idx + 1) % cfg.sliding_window_pattern > 0;
-            let layer = EmbeddingGemmaDecoderLayer::new(cfg, vb_l.pp(layer_idx), sliding_window.then_some(cfg.sliding_window))?;
-            layers.push(layer)
-        }
-
-        let norm = EmbeddingGemmaRmsNorm::new(cfg.hidden_size, cfg.rms_norm_eps, vb_m.pp("norm"))?;
-
-        Ok(Self {
-            embed_tokens,
-            layers,
-            norm,
-
-            device: vb.device().clone(),
-            dtype: vb.dtype(),
-            hidden_size: cfg.hidden_size,
-            sliding_window: cfg.sliding_window,
-        })
-    }
-
-    fn create_attention_masks(
-        &self,
-        batch_size: usize,
-        seq_len: usize,
-        seqlen_offset: usize,
-    ) -> Result<(Option<Tensor>, Option<Tensor>)> {
-        if seq_len <= 1 {
-            return Ok((None, None));
-        }
-
-        let values = (0..seq_len)
-            .flat_map(|i| {
-                (0..seq_len).map(move |j| {
-                    if i.abs_diff(j) < self.sliding_window {
-                        0f32
-                    } else {
-                        f32::NEG_INFINITY
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
-        let mask = Tensor::from_vec(values, (1, 1, seq_len, seq_len), &self.device)?
-            .to_dtype(self.dtype)?
-            .broadcast_as((batch_size, 1, seq_len, seq_len))?;
-        let _ = seqlen_offset;
-        Ok((None, Some(mask)))
-    }
-
-    pub fn forward(&mut self, input_ids: &Tensor, seqlen_offset: usize) -> Result<Tensor> {
-        let (batch, length) = input_ids.dims2()?;
-        let mut xs = (self.embed_tokens.forward(input_ids)? * (self.hidden_size as f64).sqrt())?;
-        let (full, sliding) = self.create_attention_masks(batch, length, seqlen_offset)?;
-
-        for layer in &mut self.layers {
-            let mask = if layer.sliding_window.is_some() { &sliding } else { &full };
-            xs = layer.forward(&xs, mask.as_ref(), seqlen_offset)?;
-        }
-
-        xs.apply(&self.norm)
     }
 }

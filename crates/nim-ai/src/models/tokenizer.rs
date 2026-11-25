@@ -114,6 +114,7 @@ pub fn from_bpe(
             tokenizer.with_post_processor(Some(processor));
         }
     }
+
     tokenizer.with_pre_tokenizer(Some(ByteLevel::default()));
     tokenizer.with_decoder(Some(ByteLevel::default()));
 

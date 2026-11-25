@@ -1,5 +1,5 @@
-use crate::models::{Context, Embed};
 use crate::types::Keyword;
+use crate::{Context, Embed};
 
 use super::{candidates, scorer};
 

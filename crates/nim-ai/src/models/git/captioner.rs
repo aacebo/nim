@@ -1,9 +1,9 @@
-use crate::types::TextOutput;
 use std::sync::Mutex;
 
 use candle_nn::VarBuilder;
 
-use crate::models::{Caption, CaptionOptions, Context};
+use crate::types::TextOutput;
+use crate::{Caption, CaptionOptions, Context};
 
 use super::config::GitConfig;
 use super::model::GitModel;

@@ -14,3 +14,9 @@ pub enum ParseMode {
     /// Ignore unsupported fields and messages.
     Lenient,
 }
+
+pub trait Parse: Sized {
+    type Error;
+
+    fn parse(p: &mut Parser) -> Result<Self, Self::Error>;
+}

@@ -1,4 +1,4 @@
-use crate::{ChatMessageContent, ChatMessageContentPart, Cursor, ParseMode};
+use crate::{Cursor, ParseMode};
 
 pub const EOF: char = '\x04';
 
@@ -6,23 +6,17 @@ pub const EOF: char = '\x04';
 pub struct Parser<'a> {
     mode: ParseMode,
     cursor: Cursor<'a>,
-    content: Option<ChatMessageContent>,
 }
 
 impl<'a> Parser<'a> {
     pub fn from_cursor(cursor: Cursor<'a>, mode: ParseMode) -> Self {
-        Self {
-            mode,
-            cursor,
-            content: None,
-        }
+        Self { mode, cursor }
     }
 
     pub fn from_src(src: &'a str, mode: ParseMode) -> Self {
         Self {
             mode,
             cursor: Cursor::new(src),
-            content: None,
         }
     }
 
@@ -32,18 +26,6 @@ impl<'a> Parser<'a> {
 
     pub fn remaining(&self) -> &'a str {
         self.cursor.src()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.content.is_none()
-    }
-
-    pub fn len(&self) -> usize {
-        match &self.content {
-            None => 0,
-            Some(ChatMessageContent::String(_)) => 1,
-            Some(ChatMessageContent::Parts(parts)) => parts.len(),
-        }
     }
 
     pub fn is_eof(&self) -> bool {
@@ -84,40 +66,6 @@ impl<'a> Parser<'a> {
         nim_error::Diagnostic::message(message)
     }
 
-    pub fn push(&mut self, part: ChatMessageContentPart) {
-        match &mut self.content {
-            None => {
-                self.content = Some(ChatMessageContent::Parts(vec![part]));
-            }
-            Some(ChatMessageContent::String(v)) => {
-                self.content = Some(ChatMessageContent::Parts(vec![
-                    ChatMessageContentPart::Text { text: v.clone() },
-                    part,
-                ]));
-            }
-            Some(ChatMessageContent::Parts(parts)) => {
-                parts.push(part);
-            }
-        }
-    }
-
-    pub fn push_str(&mut self, s: &str) {
-        match &mut self.content {
-            None => {
-                self.content = Some(ChatMessageContent::String(s.to_string()));
-            }
-            Some(ChatMessageContent::String(v)) => {
-                self.content = Some(ChatMessageContent::Parts(vec![
-                    ChatMessageContentPart::Text { text: v.clone() },
-                    ChatMessageContentPart::Text { text: s.to_string() },
-                ]));
-            }
-            Some(ChatMessageContent::Parts(parts)) => {
-                parts.push(ChatMessageContentPart::Text { text: s.to_string() });
-            }
-        }
-    }
-
     pub fn advance(&mut self) -> &mut Self {
         self.cursor = self.cursor.advance();
         self
@@ -131,5 +79,83 @@ impl<'a> Parser<'a> {
     pub fn skip_while(&mut self, p: impl FnMut(char) -> bool) -> &mut Self {
         self.cursor = self.cursor.skip_while(p);
         self
+    }
+}
+
+impl<'a> Parser<'a> {
+    pub fn peek_url(&self) -> Option<(usize, url::Url)> {
+        let src = self.remaining();
+
+        if !src.starts_with("http://") && !src.starts_with("https://") {
+            return None;
+        }
+
+        let mut end = src.find(|c: char| c.is_whitespace() || c == '<').unwrap_or(src.len());
+
+        if let Some((index, _)) = src[..end].match_indices(',').find(|(index, _)| {
+            let rest = &src[index + 1..];
+            rest.starts_with("http://") || rest.starts_with("https://")
+        }) {
+            end = index;
+        }
+
+        let value = src[..end].trim_end_matches(['.', ',', ';', ':', '!', '?', ')', '}', ']']);
+        let url = url::Url::parse(value).ok()?;
+        Some((value.len(), url))
+    }
+
+    pub fn peek_json(&self) -> Option<(usize, serde_json::Value)> {
+        let src = self.remaining();
+
+        if !src.starts_with('{') && !src.starts_with('[') {
+            return None;
+        }
+
+        let mut values = serde_json::Deserializer::from_str(src).into_iter::<serde_json::Value>();
+        let value = values.next()?.ok()?;
+        Some((values.byte_offset(), value))
+    }
+
+    pub fn seek_code_end(&self, offset: usize) -> Option<usize> {
+        let base = self.cursor.offset() as usize;
+        let index = offset.checked_sub(base)?;
+        let src = self.remaining();
+        let rest = src.get(index..)?;
+        let marker = rest.chars().next()?;
+
+        if marker != '`' && marker != '~' {
+            return None;
+        }
+
+        let count = rest.chars().take_while(|c| *c == marker).count();
+        let line_start = src[..index].rfind('\n').map_or(0, |i| i + 1);
+
+        if count >= 3 && src[line_start..index].trim().is_empty() {
+            let mut offset = rest.find('\n').map_or(src.len(), |i| index + i + 1);
+
+            while offset < src.len() {
+                let end = src[offset..].find('\n').map_or(src.len(), |i| offset + i);
+                let line = src[offset..end].trim_end_matches('\r');
+                let trimmed = line.trim_start_matches([' ', '\t']);
+                let indent = line.len() - trimmed.len();
+                let closing = trimmed.chars().take_while(|c| *c == marker).count();
+
+                if indent <= 3 && closing >= count && trimmed[closing..].trim_matches([' ', '\t']).is_empty() {
+                    return Some(base + (end + 1).min(src.len()));
+                }
+
+                offset = (end + 1).min(src.len());
+            }
+
+            return Some(base + src.len());
+        }
+
+        if marker == '`' {
+            let delimiter = &rest[..count];
+            let end = rest[count..].find(delimiter).map_or(src.len(), |i| index + count + i + count);
+            return Some(base + end);
+        }
+
+        None
     }
 }

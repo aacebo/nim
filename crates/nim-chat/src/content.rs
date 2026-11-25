@@ -1,4 +1,4 @@
-use crate::{Media, widgets};
+use crate::{Media, Parse, ParseMode, Parser, widgets};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
@@ -68,4 +68,143 @@ pub enum ChatMessageContentPart {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         media_type: Option<String>,
     },
+}
+
+#[non_exhaustive]
+pub enum ChatStringOrContentPart {
+    String(String),
+    Part(ChatMessageContentPart),
+}
+
+impl<T: std::fmt::Display> From<T> for ChatStringOrContentPart {
+    fn from(value: T) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<ChatMessageContentPart> for ChatStringOrContentPart {
+    fn from(value: ChatMessageContentPart) -> Self {
+        Self::Part(value)
+    }
+}
+
+impl ChatMessageContent {
+    pub fn count(&self) -> usize {
+        match self {
+            ChatMessageContent::String(_) => 1,
+            ChatMessageContent::Parts(parts) => parts.len(),
+        }
+    }
+
+    pub fn push(&mut self, value: impl Into<ChatStringOrContentPart>) {
+        match value.into() {
+            ChatStringOrContentPart::String(text) | ChatStringOrContentPart::Part(ChatMessageContentPart::Text { text }) => {
+                match self {
+                    ChatMessageContent::String(curr) => curr.push_str(&text),
+                    ChatMessageContent::Parts(parts) => match parts.last_mut() {
+                        None => *self = ChatMessageContent::String(text),
+                        Some(ChatMessageContentPart::Text { text: curr }) => curr.push_str(&text),
+                        Some(_) => parts.push(ChatMessageContentPart::Text { text }),
+                    },
+                }
+            }
+            ChatStringOrContentPart::Part(part) => match self {
+                ChatMessageContent::String(curr) => {
+                    let text = std::mem::take(curr);
+                    *self = ChatMessageContent::Parts(vec![ChatMessageContentPart::Text { text }, part]);
+                }
+                ChatMessageContent::Parts(parts) => parts.push(part),
+            },
+        }
+    }
+}
+
+impl std::str::FromStr for ChatMessageContent {
+    type Err = nim_error::Diagnostic;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        let mut p = Parser::from_src(src, ParseMode::Lenient);
+        ChatMessageContent::parse(&mut p)
+    }
+}
+
+impl Parse for ChatMessageContent {
+    type Error = nim_error::Diagnostic;
+
+    fn parse(p: &mut Parser) -> Result<Self, Self::Error> {
+        let mut content = Self::Parts(Vec::new());
+
+        while !p.is_eof() {
+            content.push(ChatMessageContentPart::parse(p)?);
+        }
+
+        if content.count() == 0 {
+            return Err(nim_error::Diagnostic::message("message content is empty"));
+        }
+
+        Ok(content)
+    }
+}
+
+impl Parse for ChatMessageContentPart {
+    type Error = nim_error::Diagnostic;
+
+    fn parse(p: &mut Parser) -> Result<Self, Self::Error> {
+        let src = p.remaining();
+
+        if let Some(rest) = src.strip_prefix("<think>") {
+            if let Some((thinking, remaining)) = rest.split_once("</think>") {
+                p.advance_by(src.len() - remaining.len());
+                return Ok(ChatMessageContentPart::Thinking {
+                    thinking: thinking.trim().to_string(),
+                });
+            }
+
+            if *p.mode() == ParseMode::Strict {
+                return Err(nim_error::Diagnostic::message("unterminated Qwen reasoning block"));
+            }
+        }
+
+        if let Some((len, url)) = p.peek_url() {
+            p.advance_by(len);
+            return Ok(ChatMessageContentPart::Url { url });
+        }
+
+        if let Some((len, json)) = p.peek_json() {
+            p.advance_by(len);
+            return Ok(ChatMessageContentPart::Json { json });
+        }
+
+        let mut index = 0;
+        let anchor = Parser::from_src(src, *p.mode());
+        let mut scanner = anchor.clone();
+
+        while index < src.len() {
+            if let Some(end) = anchor.seek_code_end(index) {
+                scanner.advance_by(end - index);
+                index = end;
+                continue;
+            }
+
+            let previous = src[..index].chars().next_back();
+            let boundary = previous.is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_');
+
+            if index > 0
+                && (scanner.starts_with("<think>") || boundary && scanner.peek_url().is_some() || scanner.peek_json().is_some())
+            {
+                break;
+            }
+
+            index += scanner.curr().len_utf8();
+            scanner.advance();
+        }
+
+        if index == 0 {
+            return Err(nim_error::Diagnostic::message("message content is empty"));
+        }
+
+        let text = src[..index].to_string();
+        p.advance_by(index);
+        Ok(ChatMessageContentPart::Text { text })
+    }
 }

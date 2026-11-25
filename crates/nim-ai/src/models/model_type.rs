@@ -20,6 +20,8 @@ pub enum ModelType {
     Detr,
     Git,
     Whisper,
+    #[serde(rename = "parler_tts")]
+    ParlerTTS,
     #[default]
     #[serde(other)]
     Unknown,
@@ -44,6 +46,7 @@ impl ModelType {
             Self::Detr => "detr",
             Self::Git => "git",
             Self::Whisper => "whisper",
+            Self::ParlerTTS => "parler_tts",
             Self::Unknown => "??",
         }
     }
@@ -70,6 +73,7 @@ impl std::str::FromStr for ModelType {
             "detr" => Self::Detr,
             "git" => Self::Git,
             "whisper" => Self::Whisper,
+            "parler_tts" => Self::ParlerTTS,
             _ => Self::Unknown,
         })
     }

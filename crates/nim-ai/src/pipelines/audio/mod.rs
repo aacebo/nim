@@ -17,7 +17,7 @@ pub mod defaults {
     }
 
     pub fn synthesize() -> models::ModelRef {
-        models::refer(models::kokoro::MODEL).expect("built-in model ids are valid")
+        models::refer(models::parler::MODEL).expect("built-in model ids are valid")
     }
 
     pub fn captions() -> models::ModelRef {

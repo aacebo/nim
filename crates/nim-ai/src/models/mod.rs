@@ -11,10 +11,10 @@ pub mod embeddinggemma;
 #[cfg(feature = "vision")]
 pub mod git;
 pub mod keybert;
-#[cfg(feature = "audio")]
-pub mod kokoro;
 #[cfg(feature = "vision")]
 pub mod mobilenet;
+#[cfg(feature = "audio")]
+pub mod parler;
 pub mod qwen2;
 pub mod qwen3;
 #[cfg(feature = "audio")]
@@ -55,7 +55,7 @@ static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::Laz
 /// A model with its weights loaded (or, for a remote model, its endpoint bound). The variant
 /// determines which capabilities exist: the `None` arms below are the empty cells of the matrix.
 pub enum AnyModel {
-    Embedder(keybert::KeyBert<bert::BertEmbedder>),
+    BertEmbedder(keybert::KeyBert<bert::BertEmbedder>),
     BartEntityClassifier(bart::BartClassifier),
     BartSequenceClassifier(bart::BartClassifier),
     BartZeroShotClassifier(bart::BartZeroShotClassifier),
@@ -64,25 +64,27 @@ pub enum AnyModel {
     DistilBertEntityClassifier(distilbert::DistilBertClassifier),
     DistilBertSequenceClassifier(distilbert::DistilBertClassifier),
     DistilBertSplitter(distilbert::DistilBertSplitter),
-    Summarizer(bart::BartSummarizer),
-    QwenGenerator(qwen2::Qwen2Generator),
-    QwenEmbedder(qwen3::Qwen3Embedder),
+    BartSummarizer(bart::BartSummarizer),
+    Qwen2Generator(qwen2::Qwen2Generator),
+    Qwen3Embedder(qwen3::Qwen3Embedder),
     Qwen3Generator(qwen3::Qwen3Generator),
-    GemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder),
+    EmbeddingGemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder),
     #[cfg(feature = "vision")]
-    VisionClassifier(mobilenet::MobileNetClassifier),
+    MobileNetClassifier(mobilenet::MobileNetClassifier),
     #[cfg(feature = "vision")]
-    ObjectDetector(detr::DetrDetector),
+    DetrDetector(detr::DetrDetector),
     #[cfg(feature = "vision")]
-    ImageCaptioner(git::GitCaptioner),
+    GitCaptioner(git::GitCaptioner),
     #[cfg(feature = "audio")]
-    AudioClassifier(cnn8rnn::Cnn8RnnClassifier),
+    Cnn8RnnClassifier(cnn8rnn::Cnn8RnnClassifier),
     #[cfg(feature = "audio")]
-    Transcriber(whisper::WhisperTranscriber),
+    WhisperTranscriber(whisper::WhisperTranscriber),
     #[cfg(feature = "audio")]
     WhisperCaptioner(whisper::WhisperCaptioner),
     #[cfg(feature = "audio")]
-    AudioCaptioner(audiocap::AudioCapCaptioner),
+    AudioCapCaptioner(audiocap::AudioCapCaptioner),
+    #[cfg(feature = "audio")]
+    ParlerSynthesizer(parler::ParlerSynthesizer),
     Remote(RemoteModel),
 }
 
@@ -131,7 +133,7 @@ impl Model {
 
             return Ok(Self {
                 name,
-                model: AnyModel::QwenGenerator(qwen2::Qwen2Generator::quantized(&config, weights, &device)?),
+                model: AnyModel::Qwen2Generator(qwen2::Qwen2Generator::quantized(&config, weights, &device)?),
                 device,
                 tokenizer: Some(companion.tokenizer().await?),
                 config: Some(companion.config().await?),
@@ -176,18 +178,18 @@ impl Model {
         let model = match model_config.model_type {
             ModelType::Qwen2 => {
                 let config: candle_transformers::models::qwen2::Config = repo.config().await?;
-                AnyModel::QwenGenerator(qwen2::Qwen2Generator::new(&config, repo.vars().await?)?)
+                AnyModel::Qwen2Generator(qwen2::Qwen2Generator::new(&config, repo.vars().await?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn8rnn_audio_classification() => {
                 let config: cnn8rnn::Cnn8RnnConfig = repo.config().await?;
                 let labels = repo.string("classes.txt").await?.lines().map(str::to_string).collect();
-                AnyModel::AudioClassifier(cnn8rnn::Cnn8RnnClassifier::new(config, labels, repo.vars().await?)?)
+                AnyModel::Cnn8RnnClassifier(cnn8rnn::Cnn8RnnClassifier::new(config, labels, repo.vars().await?)?)
             }
             #[cfg(feature = "audio")]
             _ if model_config.is_cnn14_audio_captioning() => {
                 let config: audiocap::AudioCapConfig = repo.config().await?;
-                AnyModel::AudioCaptioner(audiocap::AudioCapCaptioner::new(config, repo.vars().await?)?)
+                AnyModel::AudioCapCaptioner(audiocap::AudioCapCaptioner::new(config, repo.vars().await?)?)
             }
             #[cfg(not(feature = "audio"))]
             _ if model_config.architectures.iter().any(|architecture| {
@@ -206,8 +208,14 @@ impl Model {
                 )));
             }
             #[cfg(not(feature = "audio"))]
-            ModelType::Whisper => {
+            ModelType::Whisper | ModelType::ParlerTTS => {
                 return Err(nim_error::Diagnostic::message(format!("{name} requires the `audio` feature")));
+            }
+            #[cfg(feature = "audio")]
+            ModelType::ParlerTTS => {
+                let config = parler::ParlerConfig::new(&repo).await?;
+                let processor = parler::ParlerProcessor::new(&repo, &config, dtype).await?;
+                AnyModel::ParlerSynthesizer(parler::ParlerSynthesizer::new(config, processor, repo.vars().await?)?)
             }
             ModelType::Qwen3 => {
                 if model_config
@@ -222,14 +230,14 @@ impl Model {
                     .iter()
                     .any(|architecture| matches!(architecture, Architecture::Qwen3Model))
                 {
-                    AnyModel::QwenEmbedder(qwen3::Qwen3Embedder::new(&repo).await?)
+                    AnyModel::Qwen3Embedder(qwen3::Qwen3Embedder::new(&repo).await?)
                 } else {
                     return Err(nim_error::Diagnostic::message(format!(
                         "{name} has an unsupported Qwen3 architecture"
                     )));
                 }
             }
-            ModelType::Gemma3Text => AnyModel::GemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder::new(&repo).await?),
+            ModelType::Gemma3Text => AnyModel::EmbeddingGemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder::new(&repo).await?),
             ModelType::Bart => {
                 let config: bart::BartConfig = repo.config().await?;
 
@@ -251,7 +259,7 @@ impl Model {
                         repo.vars().await?,
                         ClassifyMode::Regions,
                     )?),
-                    _ => AnyModel::Summarizer(bart::BartSummarizer::new(&config, repo.vars().await?)?),
+                    _ => AnyModel::BartSummarizer(bart::BartSummarizer::new(&config, repo.vars().await?)?),
                 }
             }
             ModelType::DistilBert => {
@@ -291,20 +299,20 @@ impl Model {
             ModelType::MobileNetV2 => {
                 let config: mobilenet::MobileNetConfig = repo.config().await?;
                 let processor: mobilenet::MobileNetProcessor = repo.json("preprocessor_config.json").await?;
-                AnyModel::VisionClassifier(mobilenet::MobileNetClassifier::new(repo.vars().await?, config, processor)?)
+                AnyModel::MobileNetClassifier(mobilenet::MobileNetClassifier::new(repo.vars().await?, config, processor)?)
             }
             #[cfg(feature = "vision")]
             ModelType::Detr => {
                 let config: detr::DetrConfig = repo.config().await?;
                 config.validate()?;
                 let processor: detr::DetrProcessor = repo.json("preprocessor_config.json").await?;
-                AnyModel::ObjectDetector(detr::DetrDetector::new(repo.vars().await?, config, processor)?)
+                AnyModel::DetrDetector(detr::DetrDetector::new(repo.vars().await?, config, processor)?)
             }
             #[cfg(feature = "vision")]
             ModelType::Git => {
                 let config: git::GitConfig = repo.config().await?;
                 let processor: git::GitProcessor = repo.json("preprocessor_config.json").await?;
-                AnyModel::ImageCaptioner(git::GitCaptioner::new(config, processor, repo.vars().await?)?)
+                AnyModel::GitCaptioner(git::GitCaptioner::new(config, processor, repo.vars().await?)?)
             }
             #[cfg(feature = "audio")]
             ModelType::Whisper => {
@@ -314,7 +322,7 @@ impl Model {
                 if model_config.is_audio_captioning() {
                     AnyModel::WhisperCaptioner(whisper::WhisperCaptioner::new(config, processor, repo.vars().await?)?)
                 } else {
-                    AnyModel::Transcriber(whisper::WhisperTranscriber::new(config, processor, repo.vars().await?)?)
+                    AnyModel::WhisperTranscriber(whisper::WhisperTranscriber::new(config, processor, repo.vars().await?)?)
                 }
             }
             ModelType::Bert | ModelType::Unknown => {
@@ -335,7 +343,7 @@ impl Model {
                         &config,
                         ClassifyMode::Regions,
                     )?),
-                    _ => AnyModel::Embedder(keybert::KeyBert::new(bert::BertEmbedder::new(repo.vars().await?, &config)?)),
+                    _ => AnyModel::BertEmbedder(keybert::KeyBert::new(bert::BertEmbedder::new(repo.vars().await?, &config)?)),
                 }
             }
             other => {
@@ -346,11 +354,11 @@ impl Model {
         };
         let tokenizer = match &model {
             #[cfg(feature = "audio")]
-            AnyModel::AudioClassifier(_) => None,
+            AnyModel::Cnn8RnnClassifier(_) => None,
             #[cfg(feature = "audio")]
-            AnyModel::AudioCaptioner(_) => Some(audiocap::tokenizer().await?),
+            AnyModel::AudioCapCaptioner(_) => Some(audiocap::tokenizer().await?),
             #[cfg(feature = "vision")]
-            AnyModel::VisionClassifier(_) | AnyModel::ObjectDetector(_) => None,
+            AnyModel::MobileNetClassifier(_) | AnyModel::DetrDetector(_) => None,
             _ => Some(repo.tokenizer().await?),
         };
 
@@ -373,9 +381,9 @@ impl Model {
 
     pub fn as_embed(&self) -> Option<&dyn Embed> {
         match &self.model {
-            AnyModel::QwenEmbedder(model) => Some(model),
-            AnyModel::GemmaEmbedder(model) => Some(model),
-            AnyModel::Embedder(model) => Some(model),
+            AnyModel::Qwen3Embedder(model) => Some(model),
+            AnyModel::EmbeddingGemmaEmbedder(model) => Some(model),
+            AnyModel::BertEmbedder(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
         }
@@ -383,17 +391,17 @@ impl Model {
 
     pub fn as_classify(&self) -> Option<&dyn Classify> {
         match &self.model {
-            AnyModel::Embedder(model) => Some(model),
+            AnyModel::BertEmbedder(model) => Some(model),
             AnyModel::BartSequenceClassifier(model) | AnyModel::BartEntityClassifier(model) => Some(model),
             AnyModel::BartZeroShotClassifier(model) => Some(model),
             AnyModel::BertSequenceClassifier(model) | AnyModel::BertEntityClassifier(model) => Some(model),
             AnyModel::DistilBertSequenceClassifier(model) | AnyModel::DistilBertEntityClassifier(model) => Some(model),
             #[cfg(feature = "vision")]
-            AnyModel::VisionClassifier(model) => Some(model),
+            AnyModel::MobileNetClassifier(model) => Some(model),
             #[cfg(feature = "vision")]
-            AnyModel::ObjectDetector(model) => Some(model),
+            AnyModel::DetrDetector(model) => Some(model),
             #[cfg(feature = "audio")]
-            AnyModel::AudioClassifier(model) => Some(model),
+            AnyModel::Cnn8RnnClassifier(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
         }
@@ -401,7 +409,7 @@ impl Model {
 
     pub fn as_complete(&self) -> Option<&dyn Complete> {
         match &self.model {
-            AnyModel::QwenGenerator(model) => Some(model),
+            AnyModel::Qwen2Generator(model) => Some(model),
             AnyModel::Qwen3Generator(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
@@ -417,8 +425,8 @@ impl Model {
 
     pub fn as_summarize(&self) -> Option<&dyn Summarize> {
         match &self.model {
-            AnyModel::Summarizer(model) => Some(model),
-            AnyModel::QwenGenerator(model) => Some(model),
+            AnyModel::BartSummarizer(model) => Some(model),
+            AnyModel::Qwen2Generator(model) => Some(model),
             AnyModel::Qwen3Generator(model) => Some(model),
             AnyModel::Remote(model) => Some(model),
             _ => None,
@@ -428,7 +436,7 @@ impl Model {
     pub fn as_image_caption(&self) -> Option<&dyn Caption> {
         match &self.model {
             #[cfg(feature = "vision")]
-            AnyModel::ImageCaptioner(model) => Some(model),
+            AnyModel::GitCaptioner(model) => Some(model),
             _ => None,
         }
     }
@@ -438,20 +446,23 @@ impl Model {
             #[cfg(feature = "audio")]
             AnyModel::WhisperCaptioner(model) => Some(model),
             #[cfg(feature = "audio")]
-            AnyModel::AudioCaptioner(model) => Some(model),
+            AnyModel::AudioCapCaptioner(model) => Some(model),
             _ => None,
         }
     }
 
     #[cfg(feature = "audio")]
     pub fn as_synthesize(&self) -> Option<&dyn Synthesize> {
-        None
+        match &self.model {
+            AnyModel::ParlerSynthesizer(model) => Some(model),
+            _ => None,
+        }
     }
 
     #[cfg(feature = "audio")]
     pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
         match &self.model {
-            AnyModel::Transcriber(model) => Some(model),
+            AnyModel::WhisperTranscriber(model) => Some(model),
             _ => None,
         }
     }
@@ -465,18 +476,18 @@ impl Model {
             (ClassifyMedia::Text, AnyModel::BartSequenceClassifier(_))
             | (ClassifyMedia::Text, AnyModel::BertSequenceClassifier(_))
             | (ClassifyMedia::Text, AnyModel::DistilBertSequenceClassifier(_)) => Ok(ClassifyMode::Whole),
-            (ClassifyMedia::Text, AnyModel::Embedder(_))
+            (ClassifyMedia::Text, AnyModel::BertEmbedder(_))
             | (ClassifyMedia::Text, AnyModel::BartEntityClassifier(_))
             | (ClassifyMedia::Text, AnyModel::BertEntityClassifier(_))
             | (ClassifyMedia::Text, AnyModel::DistilBertEntityClassifier(_))
             | (ClassifyMedia::Text, AnyModel::BartZeroShotClassifier(_))
             | (ClassifyMedia::Text, AnyModel::Remote(_)) => Ok(ClassifyMode::Regions),
             #[cfg(feature = "vision")]
-            (ClassifyMedia::Image, AnyModel::VisionClassifier(_)) => Ok(ClassifyMode::Whole),
+            (ClassifyMedia::Image, AnyModel::MobileNetClassifier(_)) => Ok(ClassifyMode::Whole),
             #[cfg(feature = "vision")]
-            (ClassifyMedia::Image, AnyModel::ObjectDetector(_)) => Ok(ClassifyMode::Regions),
+            (ClassifyMedia::Image, AnyModel::DetrDetector(_)) => Ok(ClassifyMode::Regions),
             #[cfg(feature = "audio")]
-            (ClassifyMedia::Audio, AnyModel::AudioClassifier(_)) => Ok(ClassifyMode::Whole),
+            (ClassifyMedia::Audio, AnyModel::Cnn8RnnClassifier(_)) => Ok(ClassifyMode::Whole),
             _ => Err(nim_error::Diagnostic::message(format!(
                 "{} cannot classify {media:?} input",
                 self.name

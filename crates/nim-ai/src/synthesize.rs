@@ -9,17 +9,29 @@ pub trait Synthesize: Send + Sync {
     ) -> futures_util::future::BoxFuture<'a, nim_error::Result<Vec<u8>>>;
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum SpeechRate {
+    Slow,
+    #[default]
+    Normal,
+    Fast,
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct SynthesizeOptions {
-    pub speed: Option<f32>,
+    pub speed: Option<SpeechRate>,
     pub voice: Option<String>,
     pub language: Option<String>,
 }
 
 impl SynthesizeOptions {
     pub fn validate(&self) -> nim_error::Result<()> {
-        if self.speed.is_some_and(|speed| !speed.is_finite() || speed <= 0.0) {
-            return Err(nim_error::Diagnostic::message("speed must be finite and greater than zero"));
+        if self.voice.as_ref().is_some_and(|voice| voice.trim().is_empty()) {
+            return Err(nim_error::Diagnostic::message("voice must not be empty"));
+        }
+
+        if self.language.as_ref().is_some_and(|language| language.trim().is_empty()) {
+            return Err(nim_error::Diagnostic::message("language must not be empty"));
         }
 
         Ok(())

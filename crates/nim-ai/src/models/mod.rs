@@ -10,7 +10,6 @@ pub mod distilbert;
 pub mod embeddinggemma;
 #[cfg(feature = "vision")]
 pub mod git;
-pub mod keybert;
 #[cfg(feature = "vision")]
 pub mod mobilenet;
 #[cfg(feature = "audio")]
@@ -21,8 +20,18 @@ pub mod qwen3;
 pub mod whisper;
 
 mod architecture;
+#[cfg(feature = "audio")]
+mod audio_captioner;
+#[cfg(feature = "audio")]
+mod audio_classifier;
+#[cfg(feature = "audio")]
+mod audio_transcriber;
 mod batch;
 mod cache;
+#[cfg(feature = "vision")]
+mod image_captioner;
+#[cfg(feature = "vision")]
+mod image_classifier;
 mod loader;
 mod model_config;
 mod model_id;
@@ -30,17 +39,43 @@ mod model_ref;
 mod model_type;
 mod provider;
 mod remote;
+#[cfg(feature = "audio")]
+mod speech_synthesizer;
+mod text_classifier;
+mod text_completer;
+mod text_embedder;
+mod text_splitter;
+mod text_summarizer;
 mod tokenizer;
 
 pub use architecture::*;
+#[cfg(feature = "audio")]
+pub use audio_captioner::AudioCaptioner;
+#[cfg(feature = "audio")]
+pub use audio_classifier::AudioClassifier;
+#[cfg(feature = "audio")]
+pub use audio_transcriber::AudioTranscriber;
 pub use batch::Batch;
 use cache::*;
+#[cfg(feature = "vision")]
+pub use image_captioner::ImageCaptioner;
+#[cfg(feature = "vision")]
+pub use image_classifier::ImageClassifier;
 pub use loader::*;
 pub use model_config::*;
 pub use model_id::*;
 pub use model_ref::*;
 pub use model_type::*;
 pub use provider::*;
+#[cfg(feature = "audio")]
+pub use speech_synthesizer::SpeechSynthesizer;
+pub use text_classifier::TextClassifier;
+pub use text_completer::TextCompleter;
+pub use text_embedder::TextEmbedder;
+pub use text_splitter::TextSplitter;
+pub use text_summarizer::TextSummarizer;
+
+use std::sync::Arc;
 
 use candle_core::{DType, Device};
 
@@ -52,39 +87,61 @@ use crate::{Synthesize, Transcribe};
 pub(crate) const DEFAULT_MAX_TOKENS: usize = 1024;
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
 
-/// A model with its weights loaded (or, for a remote model, its endpoint bound). The variant
-/// determines which capabilities exist: the `None` arms below are the empty cells of the matrix.
+pub trait Forward: Send + Sync {
+    type Input;
+    type Output;
+
+    fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output>;
+}
+
+pub fn id(value: impl AsRef<str>) -> nim_error::Result<ModelId> {
+    value.as_ref().parse::<ModelId>()
+}
+
+pub fn refer(value: impl AsRef<str>) -> nim_error::Result<ModelRef> {
+    value.as_ref().parse::<ModelRef>()
+}
+
+pub fn device() -> nim_error::Result<Device> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(Device::new_metal(0)?)
+    }
+    #[cfg(not(target_os = "macos"))]
+    Ok(Device::Cpu)
+}
+
+/// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
+/// for two routines now loads its weights once.
+#[tracing::instrument]
+pub async fn load(model: &ModelRef) -> nim_error::Result<Arc<crate::models::Model>> {
+    MODELS
+        .get_or_build(Key::new(model), async {
+            let device = device()?;
+
+            Ok(Arc::new(Model::new(model, device, DType::F32).await?))
+        })
+        .await
+}
+
 pub enum AnyModel {
-    BertEmbedder(keybert::KeyBert<bert::BertEmbedder>),
-    BartEntityClassifier(bart::BartClassifier),
-    BartSequenceClassifier(bart::BartClassifier),
-    BartZeroShotClassifier(bart::BartZeroShotClassifier),
-    BertEntityClassifier(bert::BertClassifier),
-    BertSequenceClassifier(bert::BertClassifier),
-    DistilBertEntityClassifier(distilbert::DistilBertClassifier),
-    DistilBertSequenceClassifier(distilbert::DistilBertClassifier),
-    DistilBertSplitter(distilbert::DistilBertSplitter),
-    BartSummarizer(bart::BartSummarizer),
-    Qwen2Generator(qwen2::Qwen2Generator),
-    Qwen3Embedder(qwen3::Qwen3Embedder),
-    Qwen3Generator(qwen3::Qwen3Generator),
-    EmbeddingGemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder),
+    TextEmbedder(TextEmbedder),
+    TextClassifier(TextClassifier),
+    TextCompleter(TextCompleter),
+    TextSummarizer(TextSummarizer),
+    TextSplitter(TextSplitter),
     #[cfg(feature = "vision")]
-    MobileNetClassifier(mobilenet::MobileNetClassifier),
+    ImageClassifier(ImageClassifier),
     #[cfg(feature = "vision")]
-    DetrDetector(detr::DetrDetector),
-    #[cfg(feature = "vision")]
-    GitCaptioner(git::GitCaptioner),
+    ImageCaptioner(ImageCaptioner),
     #[cfg(feature = "audio")]
-    Cnn8RnnClassifier(cnn8rnn::Cnn8RnnClassifier),
+    AudioClassifier(AudioClassifier),
     #[cfg(feature = "audio")]
-    WhisperTranscriber(whisper::WhisperTranscriber),
+    AudioCaptioner(AudioCaptioner),
     #[cfg(feature = "audio")]
-    WhisperCaptioner(whisper::WhisperCaptioner),
+    AudioTranscriber(AudioTranscriber),
     #[cfg(feature = "audio")]
-    AudioCapCaptioner(audiocap::AudioCapCaptioner),
-    #[cfg(feature = "audio")]
-    ParlerSynthesizer(parler::ParlerSynthesizer),
+    SpeechSynthesizer(SpeechSynthesizer),
     Remote(RemoteModel),
 }
 
@@ -93,16 +150,11 @@ pub enum AnyModel {
 pub struct Model {
     name: String,
     model: AnyModel,
+    classifier: Option<TextClassifier>,
+    summarizer: Option<TextSummarizer>,
     device: Device,
     tokenizer: Option<tokenizers::Tokenizer>,
     config: Option<ModelConfig>,
-}
-
-pub trait Forward: Send + Sync {
-    type Input;
-    type Output;
-
-    fn forward(&self, input: Self::Input) -> nim_error::Result<Self::Output>;
 }
 
 impl Model {
@@ -113,31 +165,138 @@ impl Model {
             ModelRef::Remote(remote) => Ok(Self {
                 name,
                 model: AnyModel::Remote(remote.clone()),
+                classifier: None,
+                summarizer: None,
                 device,
                 tokenizer: None,
                 config: None,
             }),
-            ModelRef::Local(local) => Self::local(local, device, dtype, name).await,
+            ModelRef::Local(local) => Self::load(local, device, dtype, name).await,
         }
     }
 
-    pub async fn local(model: &LocalModel, device: Device, dtype: DType, name: String) -> nim_error::Result<Self> {
+    pub fn context(&self) -> Context<'_> {
+        Context::new(self.tokenizer.as_ref(), &self.device, &self.name)
+    }
+
+    pub fn config(&self) -> Option<&ModelConfig> {
+        self.config.as_ref()
+    }
+
+    pub fn as_embed(&self) -> Option<&dyn Embed> {
+        match &self.model {
+            AnyModel::TextEmbedder(model) => Some(model),
+            AnyModel::Remote(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_classify(&self) -> Option<&dyn Classify> {
+        match (&self.model, &self.classifier) {
+            (_, Some(model)) | (AnyModel::TextClassifier(model), _) => Some(model),
+            #[cfg(feature = "vision")]
+            (AnyModel::ImageClassifier(model), _) => Some(model),
+            #[cfg(feature = "audio")]
+            (AnyModel::AudioClassifier(model), _) => Some(model),
+            (AnyModel::Remote(model), _) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_complete(&self) -> Option<&dyn Complete> {
+        match &self.model {
+            AnyModel::TextCompleter(model) => Some(model),
+            AnyModel::Remote(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_split(&self) -> Option<&dyn Split> {
+        match &self.model {
+            AnyModel::TextSplitter(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_summarize(&self) -> Option<&dyn Summarize> {
+        match (&self.model, &self.summarizer) {
+            (_, Some(model)) | (AnyModel::TextSummarizer(model), _) => Some(model),
+            (AnyModel::Remote(model), _) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_image_caption(&self) -> Option<&dyn Caption> {
+        match &self.model {
+            #[cfg(feature = "vision")]
+            AnyModel::ImageCaptioner(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn as_audio_caption(&self) -> Option<&dyn Caption> {
+        match &self.model {
+            #[cfg(feature = "audio")]
+            AnyModel::AudioCaptioner(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "audio")]
+    pub fn as_synthesize(&self) -> Option<&dyn Synthesize> {
+        match &self.model {
+            AnyModel::SpeechSynthesizer(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "audio")]
+    pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
+        match &self.model {
+            AnyModel::AudioTranscriber(model) => Some(model),
+            _ => None,
+        }
+    }
+
+    pub fn cannot(&self, capability: &str) -> nim_error::Diagnostic {
+        nim_error::Diagnostic::message(format!("{} cannot {capability}", self.name))
+    }
+
+    pub fn classify_mode(&self, media: ClassifyMedia) -> nim_error::Result<ClassifyMode> {
+        if let (ClassifyMedia::Text, Some(model)) = (media, &self.classifier) {
+            return Ok(model.mode());
+        }
+
+        match (media, &self.model) {
+            (ClassifyMedia::Text, AnyModel::TextClassifier(model)) => Ok(model.mode()),
+            (ClassifyMedia::Text, AnyModel::Remote(_)) => Ok(ClassifyMode::Regions),
+            #[cfg(feature = "vision")]
+            (ClassifyMedia::Image, AnyModel::ImageClassifier(model)) => Ok(model.mode()),
+            #[cfg(feature = "audio")]
+            (ClassifyMedia::Audio, AnyModel::AudioClassifier(model)) => Ok(model.mode()),
+            _ => Err(nim_error::Diagnostic::message(format!(
+                "{} cannot classify {media:?} input",
+                self.name
+            ))),
+        }
+    }
+
+    pub async fn load(model: &LocalModel, device: Device, dtype: DType, name: String) -> nim_error::Result<Self> {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
 
         if matches!(model, LocalModel::Hub(id) if id.to_string() == qwen2::QUANTIZED_MODEL) {
             let companion = LocalModel::Hub(qwen2::MODEL.parse()?);
             let companion = companion.loader(device.clone(), dtype)?;
-            let config: candle_transformers::models::qwen2::Config = companion.config().await?;
-            let weights = repo.resolve(std::path::Path::new(qwen2::WEIGHTS)).await?;
+            let model = TextCompleter::quantized(&repo, &companion, ModelType::Qwen2, qwen2::WEIGHTS).await?;
 
-            return Ok(Self {
+            return Ok(Self::loaded(
                 name,
-                model: AnyModel::Qwen2Generator(qwen2::Qwen2Generator::quantized(&config, weights, &device)?),
+                model.into(),
                 device,
-                tokenizer: Some(companion.tokenizer().await?),
-                config: Some(companion.config().await?),
-            });
+                Some(companion.tokenizer().await?),
+                Some(companion.config().await?),
+            ));
         }
 
         let qwen3_completion = matches!(model, LocalModel::Hub(id) if id.to_string() == qwen3::COMPLETION_QUANTIZED_MODEL);
@@ -156,110 +315,63 @@ impl Model {
                 .parse()?,
             );
             let companion = companion.loader(device.clone(), dtype)?;
-            let config: candle_transformers::models::qwen3::Config = companion.config().await?;
-            let weights = repo
-                .resolve(std::path::Path::new(if qwen3_completion {
-                    qwen3::COMPLETION_WEIGHTS
-                } else {
-                    qwen3::WEIGHTS
-                }))
-                .await?;
 
-            return Ok(Self {
+            let weights = if qwen3_completion {
+                qwen3::COMPLETION_WEIGHTS
+            } else {
+                qwen3::WEIGHTS
+            };
+
+            let model = TextCompleter::quantized(&repo, &companion, ModelType::Qwen3, weights).await?;
+
+            return Ok(Self::loaded(
                 name,
-                model: AnyModel::Qwen3Generator(qwen3::Qwen3Generator::quantized(&config, weights, &device)?),
+                model.into(),
                 device,
-                tokenizer: Some(companion.tokenizer().await?),
-                config: Some(companion.config().await?),
-            });
+                Some(companion.tokenizer().await?),
+                Some(companion.config().await?),
+            ));
         }
 
         let model_config: ModelConfig = repo.config().await?;
+
         let model = match model_config.model_type {
-            ModelType::Qwen2 => {
-                let config: candle_transformers::models::qwen2::Config = repo.config().await?;
-                AnyModel::Qwen2Generator(qwen2::Qwen2Generator::new(&config, repo.vars().await?)?)
-            }
+            ModelType::Qwen2 => TextCompleter::load(&repo, ModelType::Qwen2).await?.into(),
             #[cfg(feature = "audio")]
-            _ if model_config.is_cnn8rnn_audio_classification() => {
-                let config: cnn8rnn::Cnn8RnnConfig = repo.config().await?;
-                let labels = repo.string("classes.txt").await?.lines().map(str::to_string).collect();
-                AnyModel::Cnn8RnnClassifier(cnn8rnn::Cnn8RnnClassifier::new(config, labels, repo.vars().await?)?)
-            }
+            _ if model_config.is_cnn8rnn_audio_classification() => AudioClassifier::load(&repo).await?.into(),
             #[cfg(feature = "audio")]
-            _ if model_config.is_cnn14_audio_captioning() => {
-                let config: audiocap::AudioCapConfig = repo.config().await?;
-                AnyModel::AudioCapCaptioner(audiocap::AudioCapCaptioner::new(config, repo.vars().await?)?)
-            }
-            #[cfg(not(feature = "audio"))]
-            _ if model_config.architectures.iter().any(|architecture| {
-                matches!(
-                    architecture,
-                    Architecture::Cnn8RnnSoundEventDetection | Architecture::Cnn14RnnTempAttnGruModel
-                )
-            }) =>
-            {
-                return Err(nim_error::Diagnostic::message(format!("{name} requires the `audio` feature")));
-            }
-            #[cfg(not(feature = "vision"))]
-            ModelType::MobileNetV2 | ModelType::Git | ModelType::Detr => {
-                return Err(nim_error::Diagnostic::message(format!(
-                    "{name} requires the `vision` feature"
-                )));
-            }
-            #[cfg(not(feature = "audio"))]
-            ModelType::Whisper | ModelType::ParlerTTS => {
-                return Err(nim_error::Diagnostic::message(format!("{name} requires the `audio` feature")));
-            }
+            _ if model_config.is_cnn14_audio_captioning() => AudioCaptioner::load(&repo, &model_config).await?.into(),
             #[cfg(feature = "audio")]
-            ModelType::ParlerTTS => {
-                let config = parler::ParlerConfig::new(&repo).await?;
-                let processor = parler::ParlerProcessor::new(&repo, &config, dtype).await?;
-                AnyModel::ParlerSynthesizer(parler::ParlerSynthesizer::new(config, processor, repo.vars().await?)?)
-            }
+            ModelType::ParlerTTS => SpeechSynthesizer::load(&repo, dtype).await?.into(),
             ModelType::Qwen3 => {
                 if model_config
                     .architectures
                     .iter()
                     .any(|architecture| matches!(architecture, Architecture::Qwen3ForCausalLM))
                 {
-                    let config: candle_transformers::models::qwen3::Config = repo.config().await?;
-                    AnyModel::Qwen3Generator(qwen3::Qwen3Generator::new(&config, repo.vars().await?)?)
+                    TextCompleter::load(&repo, ModelType::Qwen3).await?.into()
                 } else if model_config
                     .architectures
                     .iter()
                     .any(|architecture| matches!(architecture, Architecture::Qwen3Model))
                 {
-                    AnyModel::Qwen3Embedder(qwen3::Qwen3Embedder::new(&repo).await?)
+                    TextEmbedder::load(&repo, ModelType::Qwen3).await?.into()
                 } else {
                     return Err(nim_error::Diagnostic::message(format!(
                         "{name} has an unsupported Qwen3 architecture"
                     )));
                 }
             }
-            ModelType::Gemma3Text => AnyModel::EmbeddingGemmaEmbedder(embeddinggemma::EmbeddingGemmaEmbedder::new(&repo).await?),
+            ModelType::Gemma3Text => TextEmbedder::load(&repo, ModelType::Gemma3Text).await?.into(),
             ModelType::Bart => {
                 let config: bart::BartConfig = repo.config().await?;
 
-                match (
-                    model_config.is_sequence_classification(),
-                    model_config.is_token_classification(),
-                    config.id2label.is_empty(),
-                ) {
-                    (true, _, false) if bart::BartZeroShotClassifier::supports(&config) => {
-                        AnyModel::BartZeroShotClassifier(bart::BartZeroShotClassifier::new(&config, repo.vars().await?)?)
-                    }
-                    (true, _, false) => AnyModel::BartSequenceClassifier(bart::BartClassifier::new(
-                        &config,
-                        repo.vars().await?,
-                        ClassifyMode::Whole,
-                    )?),
-                    (_, true, false) => AnyModel::BartEntityClassifier(bart::BartClassifier::new(
-                        &config,
-                        repo.vars().await?,
-                        ClassifyMode::Regions,
-                    )?),
-                    _ => AnyModel::BartSummarizer(bart::BartSummarizer::new(&config, repo.vars().await?)?),
+                if !config.id2label.is_empty()
+                    && (model_config.is_sequence_classification() || model_config.is_token_classification())
+                {
+                    TextClassifier::load(&repo, &model_config, &name).await?.into()
+                } else {
+                    TextSummarizer::load(&repo).await?.into()
                 }
             }
             ModelType::DistilBert => {
@@ -270,80 +382,47 @@ impl Model {
                     && config.id2label.get("1").is_some_and(|label| label == "separator")
                     && config.id2label.len() == 2
                 {
-                    AnyModel::DistilBertSplitter(distilbert::DistilBertSplitter::new(repo.vars().await?, &config)?)
+                    TextSplitter::load(&repo).await?.into()
                 } else {
-                    match (
-                        model_config.is_sequence_classification(),
-                        model_config.is_token_classification(),
-                        !config.id2label.is_empty(),
-                    ) {
-                        (true, _, true) => AnyModel::DistilBertSequenceClassifier(distilbert::DistilBertClassifier::new(
-                            repo.vars().await?,
-                            &config,
-                            ClassifyMode::Whole,
-                        )?),
-                        (_, true, true) => AnyModel::DistilBertEntityClassifier(distilbert::DistilBertClassifier::new(
-                            repo.vars().await?,
-                            &config,
-                            ClassifyMode::Regions,
-                        )?),
-                        _ => {
-                            return Err(nim_error::Diagnostic::message(format!(
-                                "{name} has no compatible classification head"
-                            )));
-                        }
-                    }
+                    TextClassifier::load(&repo, &model_config, &name).await?.into()
                 }
             }
             #[cfg(feature = "vision")]
-            ModelType::MobileNetV2 => {
-                let config: mobilenet::MobileNetConfig = repo.config().await?;
-                let processor: mobilenet::MobileNetProcessor = repo.json("preprocessor_config.json").await?;
-                AnyModel::MobileNetClassifier(mobilenet::MobileNetClassifier::new(repo.vars().await?, config, processor)?)
-            }
+            ModelType::MobileNetV2 | ModelType::Detr => ImageClassifier::load(&repo, model_config.model_type).await?.into(),
             #[cfg(feature = "vision")]
-            ModelType::Detr => {
-                let config: detr::DetrConfig = repo.config().await?;
-                config.validate()?;
-                let processor: detr::DetrProcessor = repo.json("preprocessor_config.json").await?;
-                AnyModel::DetrDetector(detr::DetrDetector::new(repo.vars().await?, config, processor)?)
-            }
-            #[cfg(feature = "vision")]
-            ModelType::Git => {
-                let config: git::GitConfig = repo.config().await?;
-                let processor: git::GitProcessor = repo.json("preprocessor_config.json").await?;
-                AnyModel::GitCaptioner(git::GitCaptioner::new(config, processor, repo.vars().await?)?)
-            }
+            ModelType::Git => ImageCaptioner::load(&repo).await?.into(),
             #[cfg(feature = "audio")]
             ModelType::Whisper => {
-                let config: whisper::WhisperConfig = repo.config().await?;
-                let processor: whisper::WhisperProcessor = repo.json("preprocessor_config.json").await?;
-
                 if model_config.is_audio_captioning() {
-                    AnyModel::WhisperCaptioner(whisper::WhisperCaptioner::new(config, processor, repo.vars().await?)?)
+                    AudioCaptioner::load(&repo, &model_config).await?.into()
                 } else {
-                    AnyModel::WhisperTranscriber(whisper::WhisperTranscriber::new(config, processor, repo.vars().await?)?)
+                    AudioTranscriber::load(&repo).await?.into()
                 }
+            }
+            ModelType::Unknown
+                if model_config.architectures.iter().any(|architecture| {
+                    !matches!(
+                        architecture,
+                        Architecture::BertModel
+                            | Architecture::BertForTokenClassification
+                            | Architecture::BertForSequenceClassification
+                            | Architecture::Other(_)
+                    )
+                }) =>
+            {
+                return Err(nim_error::Diagnostic::message(format!(
+                    "{name} has an unsupported architecture"
+                )));
             }
             ModelType::Bert | ModelType::Unknown => {
                 let config: bert::BertConfig = repo.config().await?;
 
-                match (
-                    model_config.is_sequence_classification(),
-                    model_config.is_token_classification(),
-                    !config.id2label.is_empty(),
-                ) {
-                    (true, _, true) => AnyModel::BertSequenceClassifier(bert::BertClassifier::new(
-                        repo.vars().await?,
-                        &config,
-                        ClassifyMode::Whole,
-                    )?),
-                    (_, true, true) => AnyModel::BertEntityClassifier(bert::BertClassifier::new(
-                        repo.vars().await?,
-                        &config,
-                        ClassifyMode::Regions,
-                    )?),
-                    _ => AnyModel::BertEmbedder(keybert::KeyBert::new(bert::BertEmbedder::new(repo.vars().await?, &config)?)),
+                if !config.id2label.is_empty()
+                    && (model_config.is_sequence_classification() || model_config.is_token_classification())
+                {
+                    TextClassifier::load(&repo, &model_config, &name).await?.into()
+                } else {
+                    TextEmbedder::load(&repo, model_config.model_type).await?.into()
                 }
             }
             other => {
@@ -352,171 +431,52 @@ impl Model {
                 )));
             }
         };
+
         let tokenizer = match &model {
             #[cfg(feature = "audio")]
-            AnyModel::Cnn8RnnClassifier(_) => None,
+            AnyModel::AudioClassifier(AudioClassifier::Cnn8RnnClassifier(_)) => None,
             #[cfg(feature = "audio")]
-            AnyModel::AudioCapCaptioner(_) => Some(audiocap::tokenizer().await?),
+            AnyModel::AudioCaptioner(AudioCaptioner::AudioCapCaptioner(_)) => Some(audiocap::tokenizer().await?),
             #[cfg(feature = "vision")]
-            AnyModel::MobileNetClassifier(_) | AnyModel::DetrDetector(_) => None,
+            AnyModel::ImageClassifier(ImageClassifier::MobileNetClassifier(_) | ImageClassifier::DetrDetector(_)) => None,
             _ => Some(repo.tokenizer().await?),
         };
 
-        Ok(Self {
-            model,
-            tokenizer,
-            device,
+        Ok(Self::loaded(name, model, device, tokenizer, Some(model_config)))
+    }
+
+    fn loaded(
+        name: String,
+        model: AnyModel,
+        device: Device,
+        tokenizer: Option<tokenizers::Tokenizer>,
+        config: Option<ModelConfig>,
+    ) -> Self {
+        let classifier = match &model {
+            AnyModel::TextEmbedder(TextEmbedder::BertEmbedder(model)) => Some(TextClassifier::BertEmbedder(Arc::clone(model))),
+            _ => None,
+        };
+
+        let summarizer = match &model {
+            AnyModel::TextCompleter(TextCompleter::Qwen2Generator(model)) => {
+                Some(TextSummarizer::Qwen2Generator(Arc::clone(model)))
+            }
+            AnyModel::TextCompleter(TextCompleter::Qwen3Generator(model)) => {
+                Some(TextSummarizer::Qwen3Generator(Arc::clone(model)))
+            }
+            _ => None,
+        };
+
+        Self {
             name,
-            config: Some(model_config),
-        })
-    }
-
-    pub fn context(&self) -> Context<'_> {
-        Context::new(self.tokenizer.as_ref(), &self.device, &self.name)
-    }
-
-    pub fn config(&self) -> Option<&ModelConfig> {
-        self.config.as_ref()
-    }
-
-    pub fn as_embed(&self) -> Option<&dyn Embed> {
-        match &self.model {
-            AnyModel::Qwen3Embedder(model) => Some(model),
-            AnyModel::EmbeddingGemmaEmbedder(model) => Some(model),
-            AnyModel::BertEmbedder(model) => Some(model),
-            AnyModel::Remote(model) => Some(model),
-            _ => None,
+            model,
+            classifier,
+            summarizer,
+            device,
+            tokenizer,
+            config,
         }
     }
-
-    pub fn as_classify(&self) -> Option<&dyn Classify> {
-        match &self.model {
-            AnyModel::BertEmbedder(model) => Some(model),
-            AnyModel::BartSequenceClassifier(model) | AnyModel::BartEntityClassifier(model) => Some(model),
-            AnyModel::BartZeroShotClassifier(model) => Some(model),
-            AnyModel::BertSequenceClassifier(model) | AnyModel::BertEntityClassifier(model) => Some(model),
-            AnyModel::DistilBertSequenceClassifier(model) | AnyModel::DistilBertEntityClassifier(model) => Some(model),
-            #[cfg(feature = "vision")]
-            AnyModel::MobileNetClassifier(model) => Some(model),
-            #[cfg(feature = "vision")]
-            AnyModel::DetrDetector(model) => Some(model),
-            #[cfg(feature = "audio")]
-            AnyModel::Cnn8RnnClassifier(model) => Some(model),
-            AnyModel::Remote(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    pub fn as_complete(&self) -> Option<&dyn Complete> {
-        match &self.model {
-            AnyModel::Qwen2Generator(model) => Some(model),
-            AnyModel::Qwen3Generator(model) => Some(model),
-            AnyModel::Remote(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    pub fn as_split(&self) -> Option<&dyn Split> {
-        match &self.model {
-            AnyModel::DistilBertSplitter(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    pub fn as_summarize(&self) -> Option<&dyn Summarize> {
-        match &self.model {
-            AnyModel::BartSummarizer(model) => Some(model),
-            AnyModel::Qwen2Generator(model) => Some(model),
-            AnyModel::Qwen3Generator(model) => Some(model),
-            AnyModel::Remote(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    pub fn as_image_caption(&self) -> Option<&dyn Caption> {
-        match &self.model {
-            #[cfg(feature = "vision")]
-            AnyModel::GitCaptioner(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    pub fn as_audio_caption(&self) -> Option<&dyn Caption> {
-        match &self.model {
-            #[cfg(feature = "audio")]
-            AnyModel::WhisperCaptioner(model) => Some(model),
-            #[cfg(feature = "audio")]
-            AnyModel::AudioCapCaptioner(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "audio")]
-    pub fn as_synthesize(&self) -> Option<&dyn Synthesize> {
-        match &self.model {
-            AnyModel::ParlerSynthesizer(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "audio")]
-    pub fn as_transcribe(&self) -> Option<&dyn Transcribe> {
-        match &self.model {
-            AnyModel::WhisperTranscriber(model) => Some(model),
-            _ => None,
-        }
-    }
-
-    pub fn cannot(&self, capability: &str) -> nim_error::Diagnostic {
-        nim_error::Diagnostic::message(format!("{} cannot {capability}", self.name))
-    }
-
-    pub(crate) fn classify_mode(&self, media: ClassifyMedia) -> nim_error::Result<ClassifyMode> {
-        match (media, &self.model) {
-            (ClassifyMedia::Text, AnyModel::BartSequenceClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::BertSequenceClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::DistilBertSequenceClassifier(_)) => Ok(ClassifyMode::Whole),
-            (ClassifyMedia::Text, AnyModel::BertEmbedder(_))
-            | (ClassifyMedia::Text, AnyModel::BartEntityClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::BertEntityClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::DistilBertEntityClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::BartZeroShotClassifier(_))
-            | (ClassifyMedia::Text, AnyModel::Remote(_)) => Ok(ClassifyMode::Regions),
-            #[cfg(feature = "vision")]
-            (ClassifyMedia::Image, AnyModel::MobileNetClassifier(_)) => Ok(ClassifyMode::Whole),
-            #[cfg(feature = "vision")]
-            (ClassifyMedia::Image, AnyModel::DetrDetector(_)) => Ok(ClassifyMode::Regions),
-            #[cfg(feature = "audio")]
-            (ClassifyMedia::Audio, AnyModel::Cnn8RnnClassifier(_)) => Ok(ClassifyMode::Whole),
-            _ => Err(nim_error::Diagnostic::message(format!(
-                "{} cannot classify {media:?} input",
-                self.name
-            ))),
-        }
-    }
-}
-
-pub fn id(value: impl AsRef<str>) -> nim_error::Result<ModelId> {
-    value.as_ref().parse::<ModelId>()
-}
-
-pub fn refer(value: impl AsRef<str>) -> nim_error::Result<ModelRef> {
-    value.as_ref().parse::<ModelRef>()
-}
-
-/// One cache of loaded models, keyed by `(model, api_key)` -- not one per capability. A model used
-/// for two routines now loads its weights once.
-#[tracing::instrument]
-pub async fn load(model: &ModelRef) -> nim_error::Result<std::sync::Arc<crate::models::Model>> {
-    use candle_core::DType;
-
-    MODELS
-        .get_or_build(Key::new(model), async {
-            let device = device()?;
-
-            Ok(std::sync::Arc::new(Model::new(model, device, DType::F32).await?))
-        })
-        .await
 }
 
 fn output_limit(model: &str, context: usize, prompt: usize, requested: Option<usize>) -> nim_error::Result<usize> {
@@ -525,15 +485,6 @@ fn output_limit(model: &str, context: usize, prompt: usize, requested: Option<us
         .filter(|remaining| *remaining > 0)
         .ok_or_else(|| nim_error::Diagnostic::message(format!("{model} prompt exceeds the available context")))?;
     Ok(requested.unwrap_or(DEFAULT_MAX_TOKENS).min(remaining))
-}
-
-fn device() -> nim_error::Result<Device> {
-    #[cfg(target_os = "macos")]
-    {
-        Ok(Device::new_metal(0)?)
-    }
-    #[cfg(not(target_os = "macos"))]
-    Ok(Device::Cpu)
 }
 
 #[cfg(test)]

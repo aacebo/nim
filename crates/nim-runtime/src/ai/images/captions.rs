@@ -7,7 +7,7 @@ pub struct ImageCaptionsOptions {
     pub model: ModelRef,
     pub embedding: nim_ai::pipelines::text::embeddings::Options,
     pub beams: Option<usize>,
-    pub max_len: Option<usize>,
+    pub max_tokens: Option<usize>,
     pub task: TaskOptions,
 }
 
@@ -19,7 +19,7 @@ impl Default for ImageCaptionsOptions {
             model: options.model,
             embedding: options.embedding,
             beams: options.beams,
-            max_len: options.max_len,
+            max_tokens: options.max_tokens,
             task: Default::default(),
         }
     }
@@ -31,7 +31,7 @@ impl From<ImageCaptionsOptions> for nim_ai::pipelines::images::captions::Options
             model: options.model,
             embedding: options.embedding,
             beams: options.beams,
-            max_len: options.max_len,
+            max_tokens: options.max_tokens,
         }
     }
 }

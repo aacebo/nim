@@ -9,7 +9,7 @@ pub struct Options {
     pub model: ModelRef,
     pub embedding: EmbeddingOptions,
     pub beams: Option<usize>,
-    pub max_len: Option<usize>,
+    pub max_tokens: Option<usize>,
 }
 
 impl Default for Options {
@@ -18,7 +18,7 @@ impl Default for Options {
             model: super::defaults::captions(),
             embedding: Default::default(),
             beams: None,
-            max_len: None,
+            max_tokens: None,
         }
     }
 }
@@ -34,7 +34,7 @@ pub async fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Ve
     let capable = model.as_audio_caption().ok_or_else(|| model.cannot("caption"))?;
     let caption_options = CaptionOptions {
         beams: options.beams,
-        max_len: options.max_len,
+        max_tokens: options.max_tokens,
     };
 
     let captions = tasks::caption(capable, &model.context(), input, caption_options).await?;

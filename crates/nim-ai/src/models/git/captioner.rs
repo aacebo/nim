@@ -19,7 +19,7 @@ pub struct GitCaptioner {
 struct GitGenerationConfig {
     bos: u32,
     eos: u32,
-    max_len: usize,
+    max_positions: usize,
 }
 
 impl GitCaptioner {
@@ -27,7 +27,7 @@ impl GitCaptioner {
         let decoding = GitGenerationConfig {
             bos: config.bos_token_id,
             eos: config.eos_token_id,
-            max_len: config.max_position_embeddings,
+            max_positions: config.max_position_embeddings,
         };
 
         Ok(Self {
@@ -37,14 +37,14 @@ impl GitCaptioner {
         })
     }
 
-    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> nim_error::Result<String> {
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_tokens: usize) -> nim_error::Result<String> {
         let image = self.processor.tensor(bytes, ctx.device())?;
         let mut model = self
             .model
             .lock()
             .map_err(|_| nim_error::Diagnostic::message("image-to-text model lock poisoned"))?;
         let visual = model.vision(&image)?;
-        let limit = max_len.min(self.config.max_len).max(1);
+        let limit = crate::models::output_limit("GIT", self.config.max_positions, 1, Some(max_tokens))?;
         let beams = beams.max(1);
         let mut live = vec![(0f64, vec![self.config.bos])];
         let mut done = Vec::new();
@@ -105,10 +105,17 @@ impl Caption for GitCaptioner {
             options.validate()?;
 
             let beams = options.beams;
-            let max_len = options.max_len;
+            let max_tokens = options.max_tokens;
             input
                 .iter()
-                .map(|image| self.one(ctx, image, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
+                .map(|image| {
+                    self.one(
+                        ctx,
+                        image,
+                        beams.unwrap_or(1),
+                        max_tokens.unwrap_or(crate::models::DEFAULT_MAX_TOKENS),
+                    )
+                })
                 .map(|result| result.map(|text| TextOutput { text, confidence: None }))
                 .collect()
         })

@@ -8,7 +8,7 @@ pub struct Options {
     pub model: ModelRef,
     pub language: Option<String>,
     pub beams: Option<usize>,
-    pub max_len: Option<usize>,
+    pub max_tokens: Option<usize>,
 }
 
 impl Default for Options {
@@ -17,7 +17,7 @@ impl Default for Options {
             model: super::defaults::transcribe(),
             language: None,
             beams: None,
-            max_len: None,
+            max_tokens: None,
         }
     }
 }
@@ -33,7 +33,7 @@ pub async fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Ve
     let capable = model.as_transcribe().ok_or_else(|| model.cannot("transcribe"))?;
     let transcript_options = TranscribeOptions {
         beams: options.beams,
-        max_len: options.max_len,
+        max_tokens: options.max_tokens,
         language: options.language.as_deref(),
     };
 

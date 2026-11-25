@@ -24,7 +24,7 @@ pub struct WhisperTranscriber {
 struct WhisperGenerationConfig {
     start: u32,
     eos: u32,
-    max_len: usize,
+    max_positions: usize,
     suppress: Vec<u32>,
     begin_suppress: Vec<u32>,
 }
@@ -34,7 +34,7 @@ impl WhisperTranscriber {
         let decoding = WhisperGenerationConfig {
             start: config.decoder_start_token_id,
             eos: config.eos_token_id,
-            max_len: config.model().max_target_positions,
+            max_positions: config.model().max_target_positions,
             suppress: config.model().suppress_tokens.clone(),
             begin_suppress: config.begin_suppress_tokens.clone(),
         };
@@ -53,7 +53,7 @@ impl WhisperTranscriber {
         bytes: &[u8],
         language: Option<&str>,
         beams: usize,
-        max_len: usize,
+        max_tokens: usize,
     ) -> nim_error::Result<String> {
         let chunks = self.processor.tensors(bytes, &self.model_config, ctx.device())?;
         let mut model = self
@@ -65,11 +65,19 @@ impl WhisperTranscriber {
             Some(language) => language_token(ctx, language)?,
             None => self.detect_language(&mut model, &first)?,
         };
-        let mut transcripts = vec![self.decode(ctx, &mut model, &first, language, beams, max_len)?];
+        let (transcript, used) = self.decode(ctx, &mut model, &first, language, beams, max_tokens)?;
+        let mut remaining = max_tokens - used;
+        let mut transcripts = vec![transcript];
 
         for chunk in chunks.iter().skip(1) {
+            if remaining == 0 {
+                break;
+            }
+
             let audio = model.encode(chunk)?;
-            transcripts.push(self.decode(ctx, &mut model, &audio, language, beams, max_len)?);
+            let (transcript, used) = self.decode(ctx, &mut model, &audio, language, beams, remaining)?;
+            remaining -= used;
+            transcripts.push(transcript);
         }
 
         transcripts.retain(|transcript| !transcript.is_empty());
@@ -91,11 +99,11 @@ impl WhisperTranscriber {
         audio: &Tensor,
         language: u32,
         beams: usize,
-        max_len: usize,
-    ) -> nim_error::Result<String> {
+        max_tokens: usize,
+    ) -> nim_error::Result<(String, usize)> {
         let transcribe = token(ctx, "<|transcribe|>")?;
         let no_timestamps = token(ctx, "<|notimestamps|>")?;
-        let limit = max_len.min(self.config.max_len).max(4);
+        let limit = 4 + crate::models::output_limit("Whisper", self.config.max_positions, 4, Some(max_tokens))?;
         let mut live = vec![(0f64, vec![self.config.start, language, transcribe, no_timestamps])];
         let mut done = Vec::new();
 
@@ -144,11 +152,13 @@ impl WhisperTranscriber {
         done.extend(live);
         done.sort_by(|left, right| right.0.total_cmp(&left.0));
         let tokens = done.into_iter().next().map(|(_, tokens)| tokens).unwrap_or_default();
-
-        ctx.tokenizer()?
+        let used = tokens.len().saturating_sub(4);
+        let text = ctx
+            .tokenizer()?
             .decode(&tokens, true)
-            .map(|text| text.trim().to_string())
-            .map_err(nim_error::Diagnostic::message)
+            .map_err(nim_error::Diagnostic::message)?;
+
+        Ok((text.trim().to_string(), used))
     }
 }
 
@@ -163,7 +173,7 @@ impl Transcribe for WhisperTranscriber {
             options.validate()?;
 
             let beams = options.beams;
-            let max_len = options.max_len;
+            let max_tokens = options.max_tokens;
             let language = options.language;
             input
                 .iter()
@@ -173,7 +183,7 @@ impl Transcribe for WhisperTranscriber {
                         bytes,
                         language,
                         beams.unwrap_or(1),
-                        max_len.unwrap_or(self.config.max_len),
+                        max_tokens.unwrap_or(crate::models::DEFAULT_MAX_TOKENS),
                     )
                 })
                 .map(|result| result.map(|text| TextOutput { text, confidence: None }))

@@ -296,9 +296,9 @@ impl Complete for RemoteModel {
                 tools.push(template.render(&(), tool.clone()).await?);
             }
 
-            let max_len = chat.max_len;
+            let max_tokens = chat.max_tokens;
             let messages = template.render(&(), chat).await?;
-            self.client().complete(messages, tools, max_len).await
+            self.client().complete(messages, tools, max_tokens).await
         })
     }
 }
@@ -366,7 +366,7 @@ impl Summarize for RemoteModel {
                         .into(),
                     ],
                     beams: options.beams,
-                    max_len: options.max_len,
+                    max_tokens: options.max_tokens,
                     ..Default::default()
                 };
 

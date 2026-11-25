@@ -57,15 +57,9 @@ impl Summarize for BartSummarizer {
                 decoding = decoding.beams(beams);
             }
 
-            let max_len = options.max_len.unwrap_or(self.max_position_embeddings);
+            let max_tokens = crate::models::output_limit("BART", self.max_position_embeddings, 1, options.max_tokens)?;
 
-            if max_len > self.max_position_embeddings {
-                return Err(nim_error::Diagnostic::message(
-                    "summary length exceeds model position embeddings",
-                ));
-            }
-
-            decoding = decoding.max_length(max_len);
+            decoding = decoding.max_length(max_tokens);
             text.iter().map(|text| self.one(ctx, text, &decoding)).collect()
         })
     }

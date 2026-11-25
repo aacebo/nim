@@ -10,7 +10,7 @@ pub struct Options {
     pub model: ModelRef,
     pub embedding: EmbeddingOptions,
     pub beams: Option<usize>,
-    pub max_len: Option<usize>,
+    pub max_tokens: Option<usize>,
 }
 
 impl Default for Options {
@@ -19,7 +19,7 @@ impl Default for Options {
             model: super::defaults::summarize(),
             embedding: Default::default(),
             beams: None,
-            max_len: None,
+            max_tokens: None,
         }
     }
 }
@@ -35,7 +35,7 @@ pub async fn run_with(input: &[&[u8]], options: Options) -> nim_error::Result<Ve
     let capable = model.as_summarize().ok_or_else(|| model.cannot("summarize"))?;
     let summary_options = SummarizeOptions {
         beams: options.beams,
-        max_len: options.max_len,
+        max_tokens: options.max_tokens,
     };
 
     let summaries = tasks::summarize(capable, &model.context(), input, summary_options).await?;

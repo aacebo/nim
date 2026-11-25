@@ -20,7 +20,7 @@ pub struct WhisperCaptioner {
 #[derive(Clone)]
 struct WhisperGenerationConfig {
     eos: u32,
-    max_len: usize,
+    max_positions: usize,
     prefix: Vec<u32>,
     suppress: Vec<u32>,
     begin_suppress: Vec<u32>,
@@ -35,7 +35,7 @@ impl WhisperCaptioner {
             .collect();
         let decoding = WhisperGenerationConfig {
             eos: config.eos_token_id,
-            max_len: config.model().max_target_positions,
+            max_positions: config.model().max_target_positions,
             prefix,
             suppress: config.model().suppress_tokens.clone(),
             begin_suppress: config.begin_suppress_tokens.clone(),
@@ -49,17 +49,24 @@ impl WhisperCaptioner {
         })
     }
 
-    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> nim_error::Result<String> {
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_tokens: usize) -> nim_error::Result<String> {
         let chunks = self.processor.tensors(bytes, &self.model_config, ctx.device())?;
         let mut model = self
             .model
             .lock()
             .map_err(|_| nim_error::Diagnostic::message("audio-to-text model lock poisoned"))?;
         let mut captions = Vec::with_capacity(chunks.len());
+        let mut remaining = max_tokens;
 
         for chunk in chunks {
+            if remaining == 0 {
+                break;
+            }
+
             let audio = model.encode(&chunk)?;
-            captions.push(self.decode(ctx, &mut model, &audio, beams, max_len)?);
+            let (caption, used) = self.decode(ctx, &mut model, &audio, beams, remaining)?;
+            remaining -= used;
+            captions.push(caption);
         }
 
         captions.retain(|caption| !caption.is_empty());
@@ -72,9 +79,15 @@ impl WhisperCaptioner {
         model: &mut WhisperModel,
         audio: &Tensor,
         beams: usize,
-        max_len: usize,
-    ) -> nim_error::Result<String> {
-        let limit = max_len.min(self.config.max_len).max(self.config.prefix.len());
+        max_tokens: usize,
+    ) -> nim_error::Result<(String, usize)> {
+        let limit = self.config.prefix.len()
+            + crate::models::output_limit(
+                "Whisper",
+                self.config.max_positions,
+                self.config.prefix.len(),
+                Some(max_tokens),
+            )?;
         let mut live = vec![(0f64, self.config.prefix.clone())];
         let mut done = Vec::new();
 
@@ -126,11 +139,13 @@ impl WhisperCaptioner {
         done.extend(live);
         done.sort_by(|left, right| right.0.total_cmp(&left.0));
         let tokens = done.into_iter().next().map(|(_, tokens)| tokens).unwrap_or_default();
-
-        ctx.tokenizer()?
+        let used = tokens.len().saturating_sub(self.config.prefix.len());
+        let text = ctx
+            .tokenizer()?
             .decode(&tokens, true)
-            .map(|text| text.trim().to_string())
-            .map_err(nim_error::Diagnostic::message)
+            .map_err(nim_error::Diagnostic::message)?;
+
+        Ok((text.trim().to_string(), used))
     }
 }
 
@@ -160,10 +175,17 @@ impl Caption for WhisperCaptioner {
             options.validate()?;
 
             let beams = options.beams;
-            let max_len = options.max_len;
+            let max_tokens = options.max_tokens;
             input
                 .iter()
-                .map(|bytes| self.one(ctx, bytes, beams.unwrap_or(1), max_len.unwrap_or(self.config.max_len)))
+                .map(|bytes| {
+                    self.one(
+                        ctx,
+                        bytes,
+                        beams.unwrap_or(1),
+                        max_tokens.unwrap_or(crate::models::DEFAULT_MAX_TOKENS),
+                    )
+                })
                 .map(|result| result.map(|text| TextOutput { text, confidence: None }))
                 .collect()
         })

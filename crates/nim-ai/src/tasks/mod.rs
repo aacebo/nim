@@ -261,7 +261,7 @@ mod capability_tests {
                 &TestModel,
                 &ctx,
                 Chat {
-                    max_len: Some(0),
+                    max_tokens: Some(0),
                     ..Default::default()
                 }
             )

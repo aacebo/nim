@@ -48,6 +48,7 @@ pub(crate) use crate::{
     EmbedOptions, Summarize, SummarizeOptions, Transcribe, TranscribeOptions,
 };
 
+pub(crate) const DEFAULT_MAX_TOKENS: usize = 1024;
 static MODELS: std::sync::LazyLock<Cache<crate::models::Model>> = std::sync::LazyLock::new(Cache::new);
 
 /// A model with its weights loaded (or, for a remote model, its endpoint bound). The variant
@@ -490,15 +491,7 @@ fn output_limit(model: &str, context: usize, prompt: usize, requested: Option<us
         .checked_sub(prompt)
         .filter(|remaining| *remaining > 0)
         .ok_or_else(|| nim_error::Diagnostic::message(format!("{model} prompt exceeds the available context")))?;
-    let limit = requested.unwrap_or(remaining);
-
-    if limit > remaining {
-        return Err(nim_error::Diagnostic::message(format!(
-            "{model} prompt and output allowance exceed the {context}-token context limit"
-        )));
-    }
-
-    Ok(limit)
+    Ok(requested.unwrap_or(DEFAULT_MAX_TOKENS).min(remaining))
 }
 
 fn device() -> nim_error::Result<Device> {
@@ -514,10 +507,12 @@ fn device() -> nim_error::Result<Device> {
 mod tests {
     #[test]
     fn output_limit_uses_remaining_context() {
-        assert_eq!(super::output_limit("model", 32768, 100, None).unwrap(), 32668);
+        assert_eq!(super::output_limit("model", 32768, 100, None).unwrap(), 1024);
         assert_eq!(super::output_limit("model", 32768, 100, Some(512)).unwrap(), 512);
+        assert_eq!(super::output_limit("model", 100, 4, Some(1)).unwrap(), 1);
+        assert_eq!(super::output_limit("model", 100, 4, None).unwrap(), 96);
         assert!(super::output_limit("model", 32768, 32768, None).is_err());
-        assert!(super::output_limit("model", 32768, 100, Some(32669)).is_err());
+        assert_eq!(super::output_limit("model", 32768, 100, Some(32669)).unwrap(), 32668);
     }
 
     use super::*;

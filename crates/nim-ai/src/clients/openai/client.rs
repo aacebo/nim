@@ -58,7 +58,11 @@ impl OpenAI {
 
     /// A plain prompt completion. Generation returns prose, so unlike `json` it is not constrained
     /// to a schema -- wrapping a summary in a JSON envelope only to unwrap it buys nothing.
-    pub async fn prompt(&self, prompt: Option<&str>, input: &str, max_len: Option<usize>) -> nim_error::Result<String> {
+    pub async fn prompt(&self, prompt: Option<&str>, input: &str, max_tokens: Option<usize>) -> nim_error::Result<String> {
+        if max_tokens == Some(0) {
+            return Err(nim_error::Diagnostic::message("max_tokens must be greater than zero"));
+        }
+
         let mut messages = Vec::new();
 
         if let Some(prompt) = prompt {
@@ -72,9 +76,8 @@ impl OpenAI {
             "messages": messages,
         });
 
-        if let Some(max_len) = max_len {
-            body["max_completion_tokens"] = serde_json::json!(max_len);
-        }
+        let max_tokens = max_tokens.unwrap_or(crate::models::DEFAULT_MAX_TOKENS);
+        body["max_completion_tokens"] = serde_json::json!(max_tokens);
 
         let response: ChatResponse = self.post("chat/completions", &body).await?;
 
@@ -90,8 +93,12 @@ impl OpenAI {
         &self,
         messages: Vec<serde_json::Value>,
         tools: Vec<serde_json::Value>,
-        max_len: Option<usize>,
+        max_tokens: Option<usize>,
     ) -> nim_error::Result<nim_chat::ChatAgentMessage> {
+        if max_tokens == Some(0) {
+            return Err(nim_error::Diagnostic::message("max_tokens must be greater than zero"));
+        }
+
         let mut body = serde_json::json!({
             "model": self.model.to_string(),
             "messages": messages,
@@ -101,9 +108,8 @@ impl OpenAI {
             body["tools"] = serde_json::Value::Array(tools);
         }
 
-        if let Some(max_len) = max_len {
-            body["max_completion_tokens"] = serde_json::json!(max_len);
-        }
+        let max_tokens = max_tokens.unwrap_or(crate::models::DEFAULT_MAX_TOKENS);
+        body["max_completion_tokens"] = serde_json::json!(max_tokens);
 
         let response: serde_json::Value = self.post("chat/completions", &body).await?;
         let message = response

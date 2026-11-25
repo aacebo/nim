@@ -69,11 +69,11 @@ impl Qwen3Generator {
     async fn one(&self, ctx: &Context<'_>, chat: Chat) -> nim_error::Result<ChatAgentMessage> {
         let tokenizer = ctx.tokenizer()?;
         let parse = chat.parse;
-        let max_len = chat.max_len;
+        let max_tokens = chat.max_tokens;
         let text = self.template.render(&(), chat).await?;
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
-        let max_len = crate::models::output_limit("Qwen3", self.context_limit, ids.len(), max_len)?;
+        let max_tokens = crate::models::output_limit("Qwen3", self.context_limit, ids.len(), max_tokens)?;
         let stops = ["<|im_end|>", "<|endoftext|>"]
             .iter()
             .map(|token| {
@@ -96,7 +96,7 @@ impl Qwen3Generator {
                 let mut tokens = Vec::new();
                 let mut sum = 0.0;
 
-                for _ in 0..max_len {
+                for _ in 0..max_tokens {
                     let logits = model.forward(&input, offset)?;
                     let token = logits.argmax(0)?.to_scalar::<u32>()?;
 
@@ -179,7 +179,7 @@ impl Summarize for Qwen3Generator {
                         .into(),
                     ],
                     beams: options.beams,
-                    max_len: options.max_len,
+                    max_tokens: options.max_tokens,
                     ..Default::default()
                 };
 

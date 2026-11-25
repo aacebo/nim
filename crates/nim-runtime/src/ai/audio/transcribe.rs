@@ -7,7 +7,7 @@ pub struct AudioTranscribeOptions {
     pub model: ModelRef,
     pub language: Option<String>,
     pub beams: Option<usize>,
-    pub max_len: Option<usize>,
+    pub max_tokens: Option<usize>,
     pub task: TaskOptions,
 }
 
@@ -19,7 +19,7 @@ impl Default for AudioTranscribeOptions {
             model: options.model,
             language: options.language,
             beams: options.beams,
-            max_len: options.max_len,
+            max_tokens: options.max_tokens,
             task: Default::default(),
         }
     }
@@ -31,7 +31,7 @@ impl From<AudioTranscribeOptions> for nim_ai::pipelines::audio::transcribe::Opti
             model: options.model,
             language: options.language,
             beams: options.beams,
-            max_len: options.max_len,
+            max_tokens: options.max_tokens,
         }
     }
 }

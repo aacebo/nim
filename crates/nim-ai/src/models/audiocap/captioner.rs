@@ -24,17 +24,24 @@ impl AudioCapCaptioner {
         })
     }
 
-    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_len: usize) -> nim_error::Result<String> {
+    fn one(&self, ctx: &Context, bytes: &[u8], beams: usize, max_tokens: usize) -> nim_error::Result<String> {
         let model = self
             .model
             .lock()
             .map_err(|_| nim_error::Diagnostic::message("audio-to-text model lock poisoned"))?;
         let chunks = model.chunks(bytes, &self.config)?;
         let mut captions = Vec::with_capacity(chunks.len());
+        let mut remaining = max_tokens;
 
         for chunk in chunks {
+            if remaining == 0 {
+                break;
+            }
+
             let audio = model.encode(chunk, ctx.device())?;
-            captions.push(self.decode(ctx, &model, &audio, beams, max_len)?);
+            let (caption, used) = self.decode(ctx, &model, &audio, beams, remaining)?;
+            remaining -= used;
+            captions.push(caption);
         }
 
         captions.retain(|caption| !caption.is_empty());
@@ -47,12 +54,12 @@ impl AudioCapCaptioner {
         model: &AudioCapModel,
         audio: &candle_core::Tensor,
         beams: usize,
-        max_len: usize,
-    ) -> nim_error::Result<String> {
+        max_tokens: usize,
+    ) -> nim_error::Result<(String, usize)> {
         let mut live = vec![(0f64, vec![BOS])];
         let mut done = Vec::new();
 
-        while live.iter().any(|(_, tokens)| tokens.len() < max_len) {
+        while live.iter().any(|(_, tokens)| tokens.len() - 1 < max_tokens) {
             let mut candidates = Vec::new();
 
             for (score, tokens) in &live {
@@ -72,7 +79,7 @@ impl AudioCapCaptioner {
             for (score, mut tokens, token) in candidates {
                 tokens.push(token);
 
-                if token == EOS || tokens.len() >= max_len {
+                if token == EOS || tokens.len() - 1 >= max_tokens {
                     done.push((score, tokens));
                 } else if live.len() < beams {
                     live.push((score, tokens));
@@ -93,11 +100,13 @@ impl AudioCapCaptioner {
         done.extend(live);
         done.sort_by(|left, right| right.0.total_cmp(&left.0));
         let tokens = done.into_iter().next().map(|(_, tokens)| tokens).unwrap_or_default();
-
-        ctx.tokenizer()?
+        let used = tokens.len().saturating_sub(1);
+        let caption = ctx
+            .tokenizer()?
             .decode(&tokens, true)
-            .map(|caption| caption.trim().to_string())
-            .map_err(nim_error::Diagnostic::message)
+            .map_err(nim_error::Diagnostic::message)?;
+
+        Ok((caption.trim().to_string(), used))
     }
 }
 
@@ -112,12 +121,12 @@ impl Caption for AudioCapCaptioner {
             options.validate()?;
 
             let beams = options.beams;
-            let max_len = options.max_len;
+            let max_tokens = options.max_tokens;
             let beams = beams.unwrap_or(3).max(1);
-            let max_len = max_len.unwrap_or(usize::MAX);
+            let max_tokens = max_tokens.unwrap_or(crate::models::DEFAULT_MAX_TOKENS);
             input
                 .iter()
-                .map(|bytes| self.one(ctx, bytes, beams, max_len))
+                .map(|bytes| self.one(ctx, bytes, beams, max_tokens))
                 .map(|result| result.map(|text| TextOutput { text, confidence: None }))
                 .collect()
         })

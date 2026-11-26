@@ -121,6 +121,25 @@ impl<'a> Parser<'a> {
         self
     }
 
+    pub fn take_while(&mut self, p: impl FnMut(char) -> bool) -> &'a str {
+        let start = self.cursor;
+        self.skip_while(p);
+        self.source.slice(start.span_to(&self.cursor))
+    }
+
+    pub fn take_until(&mut self, delim: char) -> Option<&'a str> {
+        let start = self.cursor;
+        let end = self.cursor.skip_while(|curr| curr != delim);
+
+        if end.is_empty() {
+            self.cursor = start;
+            None
+        } else {
+            self.cursor = end;
+            Some(self.source.slice(start.span_to(&end)))
+        }
+    }
+
     pub fn parse_open(&mut self, tag: Tag) -> Result<&mut Self, nim_error::Diagnostic> {
         if self.remaining().starts_with(tag.open()) {
             self.advance_by(tag.open().len());

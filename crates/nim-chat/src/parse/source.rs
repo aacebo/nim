@@ -69,7 +69,7 @@ impl<'a> Source<'a> {
     }
 
     /// Gets a sub span of source text from the file.
-    pub fn slice(&self, span: Span) -> &str {
+    pub fn slice(&self, span: Span) -> &'a str {
         &self.text[self.range(span)]
     }
 

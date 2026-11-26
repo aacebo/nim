@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
-use crate::Source;
+use crate::{IntoDiagnostic, Source};
 
 pub struct Diagnostic {
     _span: tracing::Span,
     _source: Source,
     _location: &'static std::panic::Location<'static>,
     _backtrace: std::backtrace::Backtrace,
-    _children: Vec<Arc<dyn Send + Sync + std::error::Error>>,
+    _fields: serde_json::Map<String, serde_json::Value>,
+    _children: Vec<Self>,
 }
 
 impl Diagnostic {
@@ -18,6 +19,7 @@ impl Diagnostic {
             _source: Source::None,
             _location: std::panic::Location::caller(),
             _backtrace: std::backtrace::Backtrace::capture(),
+            _fields: Default::default(),
             _children: Vec::new(),
         }
     }
@@ -29,6 +31,7 @@ impl Diagnostic {
             _source: Source::Message(message.to_string()),
             _location: std::panic::Location::caller(),
             _backtrace: std::backtrace::Backtrace::capture(),
+            _fields: Default::default(),
             _children: Vec::new(),
         }
     }
@@ -40,23 +43,32 @@ impl Diagnostic {
             _source: Source::Error(Arc::new(error)),
             _location: std::panic::Location::caller(),
             _backtrace: std::backtrace::Backtrace::capture(),
+            _fields: Default::default(),
             _children: Vec::new(),
         }
     }
 
-    pub fn child<T: Send + Sync + std::error::Error + 'static>(mut self, error: T) -> Self {
-        self._children.push(Arc::new(error));
+    pub fn child<T: IntoDiagnostic>(mut self, error: T) -> Self {
+        self._children.push(error.into_diagnostic());
         self
     }
 
-    pub fn append<T: Send + Sync + std::error::Error + 'static>(mut self, errors: impl IntoIterator<Item = T>) -> Self {
-        self._children.extend(
-            errors
-                .into_iter()
-                .map(|v| Arc::new(v) as Arc<dyn std::error::Error + Send + Sync>),
-        );
-
+    pub fn append<T: IntoDiagnostic>(mut self, errors: impl IntoIterator<Item = T>) -> Self {
+        self._children.extend(errors.into_iter().map(|v| v.into_diagnostic()));
         self
+    }
+
+    pub fn field<K: ToString, V: serde::Serialize>(mut self, name: K, value: V) -> Self {
+        match serde_json::to_value(value) {
+            Err(err) => {
+                self._children.push(Self::error(err));
+                self
+            }
+            Ok(v) => {
+                self._fields.insert(name.to_string(), v);
+                self
+            }
+        }
     }
 }
 
@@ -77,7 +89,11 @@ impl Diagnostic {
         &self._backtrace
     }
 
-    pub fn children(&self) -> &[Arc<dyn Send + Sync + std::error::Error>] {
+    pub fn get(&self, key: impl AsRef<str>) -> Option<&serde_json::Value> {
+        self._fields.get(key.as_ref())
+    }
+
+    pub fn children(&self) -> &[Self] {
         &self._children
     }
 }
@@ -89,7 +105,7 @@ impl<T: Send + Sync + std::error::Error + 'static> From<T> for Diagnostic {
 }
 
 impl IntoIterator for Diagnostic {
-    type Item = Arc<dyn Send + Sync + std::error::Error + 'static>;
+    type Item = Self;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -97,15 +113,10 @@ impl IntoIterator for Diagnostic {
     }
 }
 
-impl<V: Send + Sync + std::error::Error + 'static> FromIterator<V> for Diagnostic {
+impl<V: IntoDiagnostic> FromIterator<V> for Diagnostic {
     fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
         let mut diagnostic = Self::new();
-
-        diagnostic._children.extend(
-            iter.into_iter()
-                .map(|v| Arc::new(v) as Arc<dyn std::error::Error + Send + Sync>),
-        );
-
+        diagnostic._children.extend(iter.into_iter().map(|v| v.into_diagnostic()));
         diagnostic
     }
 }
@@ -117,6 +128,7 @@ impl std::fmt::Debug for Diagnostic {
             .field("source", &self._source)
             .field("location", self._location)
             .field("backtrace", &self._backtrace)
+            .field("fields", &self._fields)
             .field("children", &self._children)
             .finish()
     }
@@ -144,29 +156,14 @@ impl std::fmt::Display for Diagnostic {
 
         let message = self._source.to_string();
         let headline = message.lines().next().unwrap_or("error");
+
         writeln!(f, "{headline_style}× {headline}{reset}")?;
 
         for line in message.lines().skip(1) {
             writeln!(f, "├─▶ {cause_style}{line}{reset}")?;
         }
 
-        let child_count = self._children.len();
-        for (index, error) in self._children.iter().enumerate() {
-            let branch = if index + 1 == child_count { "╰─▶" } else { "├─▶" };
-            let mut current: Option<&(dyn std::error::Error + 'static)> = Some(error.as_ref());
-            let mut first = true;
-
-            while let Some(cause) = current {
-                let prefix = if first { branch } else { "│   ╰─▶" };
-                writeln!(f, "{prefix} {cause_style}{cause}{reset}")?;
-                current = cause.source();
-                first = false;
-            }
-
-            if index + 1 != child_count {
-                writeln!(f, "│")?;
-            }
-        }
+        render(f, self, "", &cause_style, &reset)?;
 
         writeln!(
             f,
@@ -190,4 +187,52 @@ impl std::fmt::Display for Diagnostic {
 
         Ok(())
     }
+}
+
+fn render(f: &mut std::fmt::Formatter<'_>, diagnostic: &Diagnostic, prefix: &str, style: &str, reset: &str) -> std::fmt::Result {
+    let cause = match &diagnostic._source {
+        Source::Error(error) => error.source(),
+        _ => None,
+    };
+    let count = diagnostic._fields.len() + diagnostic._children.len() + usize::from(cause.is_some());
+    let mut index = 0;
+
+    for (name, value) in &diagnostic._fields {
+        index += 1;
+        let branch = if index == count { "╰─▶" } else { "├─▶" };
+        writeln!(f, "{prefix}{branch} {style}{name}: {value}{reset}")?;
+    }
+
+    if let Some(mut cause) = cause {
+        index += 1;
+        let branch = if index == count { "╰─▶" } else { "├─▶" };
+        let mut indent = format!("{prefix}{}", if index == count { "    " } else { "│   " });
+
+        writeln!(f, "{prefix}{branch} {style}{cause}{reset}")?;
+
+        while let Some(next) = cause.source() {
+            writeln!(f, "{indent}╰─▶ {style}{next}{reset}")?;
+            indent.push_str("    ");
+            cause = next;
+        }
+    }
+
+    for child in &diagnostic._children {
+        index += 1;
+        let last = index == count;
+        let branch = if last { "╰─▶" } else { "├─▶" };
+        let indent = format!("{prefix}{}", if last { "    " } else { "│   " });
+        let message = child._source.to_string();
+        let mut lines = message.lines();
+
+        writeln!(f, "{prefix}{branch} {style}{}{reset}", lines.next().unwrap_or("error"))?;
+
+        for line in lines {
+            writeln!(f, "{indent}    {style}{line}{reset}")?;
+        }
+
+        render(f, child, &indent, style, reset)?;
+    }
+
+    Ok(())
 }

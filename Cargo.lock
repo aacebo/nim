@@ -2566,6 +2566,8 @@ name = "nim-error"
 version = "0.0.0"
 dependencies = [
  "anstyle",
+ "serde",
+ "serde_json",
  "tracing",
 ]
 

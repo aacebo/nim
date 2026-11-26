@@ -1,3 +1,5 @@
+use crate::parse::Span;
+
 /// Zero-copy immutable cursor over source text.
 /// Each parse step returns a new advanced cursor.
 /// A copyable cursor over source text during lexing.
@@ -30,6 +32,18 @@ impl<'a> Cursor<'a> {
 
     pub fn starts_with(self, s: &str) -> bool {
         self.src.starts_with(s)
+    }
+
+    pub fn span(&self) -> Span {
+        Span::new(
+            self.offset as usize,
+            self.offset as usize + self.first().map_or(0, char::len_utf8),
+        )
+    }
+
+    /// Create a Span from this cursor to another.
+    pub fn span_to(&self, end: &Cursor<'_>) -> Span {
+        Span::new(self.offset as usize, end.offset as usize)
     }
 
     /// Get a slice of text from the current cursor to the provided end.

@@ -1,4 +1,4 @@
-use crate::{Media, Parse, ParseMode, Parser, widgets};
+use crate::{Media, Parse, ParseMode, Parser, Tag, widgets};
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, serde_valid::Validate)]
@@ -155,14 +155,36 @@ impl Parse for ChatMessageContentPart {
         if let Some(rest) = src.strip_prefix("<think>") {
             if let Some((thinking, remaining)) = rest.split_once("</think>") {
                 p.advance_by(src.len() - remaining.len());
+
                 return Ok(ChatMessageContentPart::Thinking {
                     thinking: thinking.trim().to_string(),
                 });
             }
 
             if *p.mode() == ParseMode::Strict {
-                return Err(nim_error::Diagnostic::message("unterminated Qwen reasoning block"));
+                return Err(nim_error::Diagnostic::message("unterminated reasoning block"));
             }
+        }
+
+        if let Ok(p) = p.parse_open(Tag::Widget) {
+            p.skip_while(char::is_whitespace);
+
+            let serde_json::Value::Object(object) = p.parse_json()? else {
+                return Err(p.error("widget json payload required after opening widget tag"));
+            };
+
+            let Some(serde_json::Value::String(ty)) = object.get("type") else {
+                return Err(nim_error::Diagnostic::message("invalid widget json payload"));
+            };
+
+            if ty != "widget" {
+                return Err(nim_error::Diagnostic::message("invalid widget json payload"));
+            }
+
+            p.skip_while(char::is_whitespace);
+            p.parse_close(Tag::Widget)?;
+            let widget: widgets::Widget = serde_json::from_value(serde_json::Value::Object(object))?;
+            return Ok(ChatMessageContentPart::Widget(widget));
         }
 
         if let Some((len, url)) = p.peek_url() {
@@ -190,7 +212,10 @@ impl Parse for ChatMessageContentPart {
             let boundary = previous.is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_');
 
             if index > 0
-                && (scanner.starts_with("<think>") || boundary && scanner.peek_url().is_some() || scanner.peek_json().is_some())
+                && (scanner.starts_with("<think>")
+                    || scanner.starts_with("<widget>")
+                    || boundary && scanner.peek_url().is_some()
+                    || scanner.peek_json().is_some())
             {
                 break;
             }

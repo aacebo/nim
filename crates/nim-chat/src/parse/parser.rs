@@ -1,27 +1,59 @@
-use crate::{Cursor, ParseMode};
+use crate::{
+    Cursor, ParseMode,
+    parse::{Source, Span},
+};
 
 pub const EOF: char = '\x04';
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Tag {
+    Json,
+    Think,
+    Widget,
+}
+
+impl Tag {
+    pub fn open(self) -> &'static str {
+        match self {
+            Self::Json => "<json>",
+            Self::Think => "<think>",
+            Self::Widget => "<widget>",
+        }
+    }
+
+    pub fn close(self) -> &'static str {
+        match self {
+            Self::Json => "</json>",
+            Self::Think => "</think>",
+            Self::Widget => "</widget>",
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Parser<'a> {
     mode: ParseMode,
     cursor: Cursor<'a>,
+    source: Source<'a>,
+    stack: Vec<Tag>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn from_cursor(cursor: Cursor<'a>, mode: ParseMode) -> Self {
-        Self { mode, cursor }
-    }
-
     pub fn from_src(src: &'a str, mode: ParseMode) -> Self {
         Self {
             mode,
+            source: Source::from_src(src),
             cursor: Cursor::new(src),
+            stack: Default::default(),
         }
     }
 
     pub fn mode(&self) -> &ParseMode {
         &self.mode
+    }
+
+    pub fn tag(&self) -> Option<&Tag> {
+        self.stack.last()
     }
 
     pub fn remaining(&self) -> &'a str {
@@ -30,6 +62,10 @@ impl<'a> Parser<'a> {
 
     pub fn is_eof(&self) -> bool {
         self.cursor.is_empty()
+    }
+
+    pub fn span(&self) -> Span {
+        self.cursor.span()
     }
 
     pub fn curr(&self) -> char {
@@ -64,6 +100,10 @@ impl<'a> Parser<'a> {
     #[track_caller]
     pub fn error(&self, message: impl std::fmt::Display) -> nim_error::Diagnostic {
         nim_error::Diagnostic::message(message)
+            .field("mode", self.mode)
+            .field("start", self.source.location(self.span().start()))
+            .field("end", self.source.location(self.span().end()))
+            .field("text", self.source.slice(self.cursor.span()))
     }
 
     pub fn advance(&mut self) -> &mut Self {
@@ -79,6 +119,29 @@ impl<'a> Parser<'a> {
     pub fn skip_while(&mut self, p: impl FnMut(char) -> bool) -> &mut Self {
         self.cursor = self.cursor.skip_while(p);
         self
+    }
+
+    pub fn parse_open(&mut self, tag: Tag) -> Result<&mut Self, nim_error::Diagnostic> {
+        if self.remaining().starts_with(tag.open()) {
+            self.advance_by(tag.open().len());
+            self.stack.push(tag);
+            Ok(self)
+        } else {
+            Err(self.error(format!("expected '{}'", tag.open())))
+        }
+    }
+
+    pub fn parse_close(&mut self, tag: Tag) -> Result<&mut Self, nim_error::Diagnostic> {
+        if self.remaining().starts_with(tag.close()) {
+            let Some(_) = self.stack.pop_if(|v| tag.eq(v)) else {
+                return Err(self.error(format!("invalid attempt to close a tag of type '{}'", tag.open())));
+            };
+
+            self.advance_by(tag.close().len());
+            Ok(self)
+        } else {
+            Err(self.error(format!("expected '{}'", tag.close())))
+        }
     }
 }
 
@@ -114,6 +177,20 @@ impl<'a> Parser<'a> {
         let mut values = serde_json::Deserializer::from_str(src).into_iter::<serde_json::Value>();
         let value = values.next()?.ok()?;
         Some((values.byte_offset(), value))
+    }
+
+    pub fn parse_json(&mut self) -> Result<serde_json::Value, nim_error::Diagnostic> {
+        let src = self.remaining();
+
+        if !src.starts_with('{') && !src.starts_with('[') {
+            return Err(self.error("expected json object opening '{' or '['"));
+        }
+
+        let mut values = serde_json::Deserializer::from_str(src).into_iter::<serde_json::Value>();
+        let value = values.next().ok_or(self.error("invalid json"))?;
+        let value = value?;
+        self.advance_by(values.byte_offset());
+        Ok(value)
     }
 
     pub fn seek_code_end(&self, offset: usize) -> Option<usize> {

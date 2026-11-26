@@ -12,7 +12,7 @@ pub use content::*;
 pub use event::*;
 pub use media::*;
 pub use message::*;
-pub use parse::*;
+pub use parse::{Cursor, Parse, ParseMode, Parser, Tag};
 pub use tool::*;
 
 pub trait Render<T> {

@@ -8,6 +8,14 @@ pub enum Source {
 }
 
 impl Source {
+    pub fn message(value: impl ToString) -> Self {
+        Self::Message(value.to_string())
+    }
+
+    pub fn error(value: impl Send + Sync + std::error::Error + 'static) -> Self {
+        Self::Error(Arc::new(value))
+    }
+
     pub fn is_none(&self) -> bool {
         matches!(self, Self::None)
     }
@@ -44,7 +52,7 @@ impl std::fmt::Display for Source {
 impl std::error::Error for Source {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Error(v) => Some(v),
+            Self::Error(err) => Some(err),
             _ => None,
         }
     }

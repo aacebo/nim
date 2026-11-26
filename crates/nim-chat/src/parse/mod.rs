@@ -1,11 +1,15 @@
 pub mod chatml;
 mod cursor;
 mod parser;
+mod source;
+mod span;
 
 pub use cursor::*;
 pub use parser::*;
+pub use source::*;
+pub use span::*;
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, serde::Serialize)]
 pub enum ParseMode {
     /// Reject unsupported fields and messages.
     #[default]

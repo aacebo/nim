@@ -1,4 +1,4 @@
-use crate::{ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, Parse, ParseMode, Parser, ToolCall};
+use crate::{ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, Parse, ParseMode, Parser, Tag, ToolCall};
 
 pub fn parse_message(p: &mut Parser<'_>) -> nim_error::Result<ChatMessage> {
     Ok(parse_agent_message(p)?.into())
@@ -34,6 +34,21 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
         if let Some(end) = anchor.seek_code_end(index) {
             index = end;
             continue;
+        }
+
+        if src[index..].starts_with(Tag::Widget.open()) {
+            let mut widget = Parser::from_src(&src[index..], mode);
+            widget.parse_open(Tag::Widget)?;
+            widget.skip_while(char::is_whitespace);
+
+            if widget.parse_json().is_ok() {
+                widget.skip_while(char::is_whitespace);
+
+                if widget.parse_close(Tag::Widget).is_ok() {
+                    index = src.len() - widget.remaining().len();
+                    continue;
+                }
+            }
         }
 
         let Some(remaining) = src[index..].strip_prefix("<tool_call>") else {
@@ -117,12 +132,12 @@ pub fn parse_tool_call(p: &mut Parser<'_>) -> nim_error::Result<ToolCall> {
     let value: serde_json::Value = serde_json::from_str(src.trim())?;
     let object = value
         .as_object()
-        .ok_or_else(|| nim_error::Diagnostic::message("Qwen tool call must be an object"))?;
+        .ok_or_else(|| nim_error::Diagnostic::message("tool call must be an object"))?;
     let name = object
         .get("name")
         .or_else(|| object.get("function").and_then(|v| v.get("name")))
         .and_then(serde_json::Value::as_str)
-        .ok_or_else(|| nim_error::Diagnostic::message("Qwen tool call is missing a name"))?
+        .ok_or_else(|| nim_error::Diagnostic::message("tool call is missing a name"))?
         .to_string();
     let args = object
         .get("arguments")
@@ -133,7 +148,7 @@ pub fn parse_tool_call(p: &mut Parser<'_>) -> nim_error::Result<ToolCall> {
             serde_json::Value::Object(value) => Ok(value.clone()),
             _ => Err(serde_json::Error::io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                "Qwen tool arguments must be an object",
+                "tool arguments must be an object",
             ))),
         })
         .transpose()?

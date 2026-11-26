@@ -218,6 +218,7 @@ impl nim_chat::Render<ChatMessageContentPart> for Qwen3Template {
                 ChatMessageContentPart::Thinking { thinking } => Ok(format!("<think>\n{thinking}\n</think>\n")),
                 ChatMessageContentPart::Json { json } => Ok(serde_json::to_string(&json)?),
                 ChatMessageContentPart::Url { url } => Ok(url.to_string()),
+                ChatMessageContentPart::Widget(widget) => Ok(serde_json::to_string(&widget)?),
                 ChatMessageContentPart::Image { media: value } => Ok(format!("[image: {}]", self.render(&(), value).await?)),
                 ChatMessageContentPart::Audio { media: value } => Ok(format!("[audio: {}]", self.render(&(), value).await?)),
                 ChatMessageContentPart::Video { media: value } => Ok(format!("[video: {}]", self.render(&(), value).await?)),

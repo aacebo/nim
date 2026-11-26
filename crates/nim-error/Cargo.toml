@@ -12,5 +12,8 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+anstyle = "1"
+
 tracing.workspace = true
-anstyle = { version = "1" }
+serde.workspace = true
+serde_json.workspace = true

@@ -152,9 +152,11 @@ impl Parse for ChatMessageContentPart {
     fn parse(p: &mut Parser) -> Result<Self, Self::Error> {
         let src = p.remaining();
 
-        if let Some(rest) = src.strip_prefix("<think>") {
-            if let Some((thinking, remaining)) = rest.split_once("</think>") {
-                p.advance_by(src.len() - remaining.len());
+        if let Some(rest) = src.strip_prefix(Tag::Think.open()) {
+            if let Some((thinking, _)) = rest.split_once(Tag::Think.close()) {
+                p.parse_open(Tag::Think)?;
+                p.advance_by(thinking.len());
+                p.parse_close(Tag::Think)?;
 
                 return Ok(ChatMessageContentPart::Thinking {
                     thinking: thinking.trim().to_string(),
@@ -197,14 +199,14 @@ impl Parse for ChatMessageContentPart {
             return Ok(ChatMessageContentPart::Json { json });
         }
 
-        let mut index = 0;
         let anchor = Parser::from_src(src, *p.mode());
         let mut scanner = anchor.clone();
 
-        while index < src.len() {
+        while !scanner.is_eof() {
+            let index = scanner.span().start();
+
             if let Some(end) = anchor.seek_code_end(index) {
                 scanner.advance_by(end - index);
-                index = end;
                 continue;
             }
 
@@ -220,9 +222,10 @@ impl Parse for ChatMessageContentPart {
                 break;
             }
 
-            index += scanner.curr().len_utf8();
             scanner.advance();
         }
+
+        let index = scanner.span().start();
 
         if index == 0 {
             return Err(nim_error::Diagnostic::message("message content is empty"));

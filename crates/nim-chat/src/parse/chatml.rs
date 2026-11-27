@@ -25,19 +25,28 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
     }
 
     let anchor = Parser::from_src(src, mode);
+    let mut scanner = anchor.clone();
     let mut text = String::new();
     let mut tool_calls = Vec::new();
-    let mut start = 0;
-    let mut index = 0;
 
-    while index < src.len() {
-        if let Some(end) = anchor.seek_code_end(index) {
-            index = end;
+    while !scanner.is_eof() {
+        text.push_str(scanner.take_while(|ch| !matches!(ch, '<' | '`' | '~')));
+
+        if scanner.is_eof() {
+            break;
+        }
+
+        let offset = scanner.span().start();
+
+        if let Some(end) = anchor.seek_code_end(offset) {
+            let len = end - offset;
+            text.push_str(&scanner.remaining()[..len]);
+            scanner.advance_by(len);
             continue;
         }
 
-        if src[index..].starts_with(Tag::Widget.open()) {
-            let mut widget = Parser::from_src(&src[index..], mode);
+        if scanner.starts_with(Tag::Widget.open()) {
+            let mut widget = scanner.clone();
             widget.parse_open(Tag::Widget)?;
             widget.skip_while(char::is_whitespace);
 
@@ -45,26 +54,26 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
                 widget.skip_while(char::is_whitespace);
 
                 if widget.parse_close(Tag::Widget).is_ok() {
-                    index = src.len() - widget.remaining().len();
+                    let len = scanner.remaining().len() - widget.remaining().len();
+                    text.push_str(&scanner.remaining()[..len]);
+                    scanner.advance_by(len);
                     continue;
                 }
             }
         }
 
-        let Some(remaining) = src[index..].strip_prefix("<tool_call>") else {
-            index += src[index..].chars().next().unwrap().len_utf8();
+        let Some(remaining) = scanner.remaining().strip_prefix("<tool_call>") else {
+            text.push(scanner.curr());
+            scanner.advance();
             continue;
         };
-
-        text.push_str(&src[start..index]);
 
         let Some((raw, rest)) = remaining.split_once("</tool_call>") else {
             if mode == ParseMode::Strict {
                 return Err(nim_error::Diagnostic::message("unterminated Qwen tool call"));
             }
 
-            text.push_str(&src[index..]);
-            start = src.len();
+            text.push_str(scanner.remaining());
             break;
         };
 
@@ -86,11 +95,9 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
             }
         }
 
-        index = src.len() - rest.len();
-        start = index;
+        scanner.advance_by(scanner.remaining().len() - rest.len());
     }
 
-    text.push_str(&src[start..]);
     let text = text.trim();
     let content = if text.is_empty() {
         None

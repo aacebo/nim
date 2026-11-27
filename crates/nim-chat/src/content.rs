@@ -205,13 +205,6 @@ impl Parse for ChatMessageContentPart {
         while !scanner.is_eof() {
             let index = scanner.span().start();
 
-            if let Some(end) = anchor.seek_code_end(index) {
-                scanner
-                    .take_to_offset(end)
-                    .ok_or_else(|| scanner.error("invalid code block"))?;
-                continue;
-            }
-
             let previous = scanner.prev();
             let boundary = previous.is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_');
 

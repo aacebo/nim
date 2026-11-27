@@ -2537,6 +2537,7 @@ dependencies = [
 name = "nim-chat"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "futures-util",
  "nim-error",
  "rand 0.10.3",

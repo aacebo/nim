@@ -213,7 +213,9 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let mut end = src.find(|c: char| c.is_whitespace() || c == '<').unwrap_or(src.len());
+        let mut end = src
+            .find(|c: char| c.is_whitespace() || matches!(c, '<' | '`' | '~'))
+            .unwrap_or(src.len());
 
         if let Some((index, _)) = src[..end].match_indices(',').find(|(index, _)| {
             let rest = &src[index + 1..];

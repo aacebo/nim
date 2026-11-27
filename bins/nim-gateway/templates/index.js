@@ -202,7 +202,7 @@ function loadView(name, path = name) {
         const state = template.content.querySelector(".action-view")?.dataset ?? template.dataset;
         const hasArtifacts = name === "memory"
             ? JSON.parse(state?.state ?? "[]").some((record) => record.artifacts?.length)
-            : name === "chat" && JSON.parse(state?.chat ?? "null")?.messages?.some((message) => JSON.stringify(message.content).includes('"type":"artifact"'));
+            : name === "chat" && JSON.parse(state?.chat ?? "null")?.messages?.some((message) => message.artifacts?.length);
         if (hasArtifacts) {
             await loadArtifactView();
         }

@@ -1,7 +1,27 @@
 use nim_chat::{
     ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatUserMessage, Media,
 };
-use nim_state::{ArtifactContent, ArtifactId, Message, Role, Services};
+use nim_state::{ArtifactContent, ArtifactId, ArtifactPartial, Message, Role, Services};
+
+pub fn render_document(artifact: &ArtifactPartial) -> nim_chat::Document {
+    let content = match &artifact.content {
+        ArtifactContent::Text { text } => text.clone(),
+        _ => artifact.summary.clone().unwrap_or_else(|| artifact.content.to_string()),
+    };
+    let mime_type = match &artifact.content {
+        ArtifactContent::Text { .. } => None,
+        ArtifactContent::File { media_type, .. } | ArtifactContent::Resource { media_type, .. } => media_type.clone(),
+    };
+
+    nim_chat::Document {
+        id: Some(artifact.id.to_string()),
+        title: Some(artifact.name.clone()),
+        content,
+        summary: artifact.summary.clone(),
+        mime_type,
+        created_at: Some(artifact.created_at),
+    }
+}
 
 pub async fn render_message(services: &Services<'_>, message: &Message) -> nim_error::Result<ChatMessage> {
     let content = match &message.content {

@@ -49,6 +49,7 @@ pub struct ArtifactPartial {
     pub confidence: f32,
     pub salience: f32,
     pub strength: f32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

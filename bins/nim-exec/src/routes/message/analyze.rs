@@ -15,9 +15,11 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
     messages.sort_by_key(|value| value.created_at);
     messages.push(message.clone());
     let mut history = Vec::with_capacity(messages.len());
+    let mut documents = Vec::new();
 
     for item in &messages {
         history.push(nim::runtime::render_message(&ctx.services(), item).await?);
+        documents.extend(item.artifacts.iter().map(nim::runtime::render_document));
     }
 
     let assistant = ctx
@@ -25,9 +27,15 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
         .pipelines()
         .text()
         .complete(nim::runtime::ai::TextCompleteOptions {
+            instructions: Some(vec![
+                "You are a neural intelligence mesh named `nim`.".into(),
+                format!("Today's current date/time is `{}`", chrono::Utc::now()),
+            ]),
             chat: nim::ai::Chat {
                 messages: history,
+                documents,
                 parse: nim::chat::ParseMode::Lenient,
+                thinking: true,
                 ..Default::default()
             },
             ..Default::default()

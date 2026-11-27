@@ -1,9 +1,11 @@
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Document {
+    pub id: Option<String>,
     pub title: Option<String>,
     pub content: String,
     pub summary: Option<String>,
     pub mime_type: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[non_exhaustive]

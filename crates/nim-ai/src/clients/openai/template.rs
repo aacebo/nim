@@ -24,6 +24,19 @@ impl nim_chat::Render<Chat> for OpenAITemplate {
         Box::pin(async move {
             let mut messages = Vec::new();
 
+            for document in value.documents {
+                let mut message = hf_chat_template::Message::system(document.content.clone());
+                message.extra.insert("document".into(), serde_json::to_value(document)?);
+                let document = message
+                    .extra
+                    .remove("document")
+                    .ok_or_else(|| nim_error::Diagnostic::message("document message is missing document metadata"))?;
+                messages.push(serde_json::json!({
+                    "role": "system",
+                    "content": serde_json::to_string(&document)?,
+                }));
+            }
+
             for message in value.messages {
                 if let Some(message) = self.render(&(), message).await? {
                     messages.push(message);

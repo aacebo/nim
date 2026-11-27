@@ -132,7 +132,10 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         function messageLabel(content, fallback = "") {
             const text = typeof content === "string" ? content : Array.isArray(content)
-                ? content.filter((part) => part?.type === "text").map((part) => part.text).join(" ") : "";
+                ? content
+                    .filter((part) => part?.type === "text" || part?.type === "url")
+                    .map((part) => part.type === "text" ? part.text : part.url)
+                    .join(" ") : "";
             return (text || fallback || "New chat").replace(/\s+/g, " ").trim();
         }
 

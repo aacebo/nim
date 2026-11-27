@@ -29,7 +29,8 @@ impl<'a> MessageStorage<'a> {
                             'summary', artifacts.summary,
                             'confidence', artifacts.confidence,
                             'salience', artifacts.salience,
-                            'strength', artifacts.strength
+                            'strength', artifacts.strength,
+                            'created_at', artifacts.created_at
                         ) || artifacts.content
                         ORDER BY messages_artifacts.created_at, artifacts.id
                     )
@@ -71,7 +72,8 @@ impl<'a> MessageStorage<'a> {
                             'summary', artifacts.summary,
                             'confidence', artifacts.confidence,
                             'salience', artifacts.salience,
-                            'strength', artifacts.strength
+                            'strength', artifacts.strength,
+                            'created_at', artifacts.created_at
                         ) || artifacts.content
                         ORDER BY messages_artifacts.created_at, artifacts.id
                     )
@@ -127,7 +129,8 @@ impl<'a> MessageStorage<'a> {
                             'summary', artifacts.summary,
                             'confidence', artifacts.confidence,
                             'salience', artifacts.salience,
-                            'strength', artifacts.strength
+                            'strength', artifacts.strength,
+                            'created_at', artifacts.created_at
                         ) || artifacts.content
                         ORDER BY messages_artifacts.created_at, artifacts.id
                     )
@@ -175,7 +178,8 @@ impl<'a> MessageStorage<'a> {
                             'summary', artifacts.summary,
                             'confidence', artifacts.confidence,
                             'salience', artifacts.salience,
-                            'strength', artifacts.strength
+                            'strength', artifacts.strength,
+                            'created_at', artifacts.created_at
                         ) || artifacts.content
                         ORDER BY messages_artifacts.created_at, artifacts.id
                     )
@@ -237,7 +241,8 @@ impl<'a> MessageStorage<'a> {
                             'summary', artifacts.summary,
                             'confidence', artifacts.confidence,
                             'salience', artifacts.salience,
-                            'strength', artifacts.strength
+                            'strength', artifacts.strength,
+                            'created_at', artifacts.created_at
                         ) || artifacts.content
                         ORDER BY messages_artifacts.created_at, artifacts.id
                     )

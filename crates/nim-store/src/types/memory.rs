@@ -7,6 +7,7 @@ pub struct MemoryRow {
     pub ty: String,
     pub sources: sqlx::types::JsonValue,
     pub contexts: sqlx::types::JsonValue,
+    pub artifacts: sqlx::types::JsonValue,
     pub summary: Option<String>,
     #[serde(skip)]
     pub embedding: Option<pgvector::Vector>,

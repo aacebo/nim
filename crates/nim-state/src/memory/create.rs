@@ -38,6 +38,7 @@ impl<'a> MemoryService<'a> {
                 ty: value.ty.to_string(),
                 sources: serde_json::to_value(value.sources)?,
                 contexts: serde_json::to_value(value.contexts)?,
+                artifacts: Default::default(),
                 summary: value.summary,
                 embedding: value.embedding.map(Into::into),
                 salience: 0.0,

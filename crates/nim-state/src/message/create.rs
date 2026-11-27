@@ -1,4 +1,4 @@
-use nim_chat::{ChatMessageContent, ChatMessageContentPart};
+use nim_chat::ChatMessageContent;
 use nim_store::MessageRow;
 
 use crate::{ArtifactId, ChatId, Message, MessageId, MessageService, Role};
@@ -9,22 +9,12 @@ pub struct MessageCreate {
     pub reply_to_id: Option<MessageId>,
     pub role: Role,
     pub content: ChatMessageContent,
+    pub artifacts: Vec<ArtifactId>,
 }
 
 impl<'a> MessageService<'a> {
     #[tracing::instrument(skip(self))]
     pub async fn create(&self, value: MessageCreate) -> nim_error::Result<Message> {
-        let artifact_ids = match &value.content {
-            ChatMessageContent::Parts(parts) => parts
-                .iter()
-                .filter_map(|part| match part {
-                    ChatMessageContentPart::Artifact { id, .. } => Some(id.parse::<ArtifactId>()),
-                    _ => None,
-                })
-                .collect::<Result<Vec<_>, _>>()?,
-            _ => Vec::new(),
-        };
-
         let now = chrono::Utc::now();
         let row = self
             .storage
@@ -36,6 +26,7 @@ impl<'a> MessageService<'a> {
                 version: 0,
                 role: value.role.to_string(),
                 content: serde_json::to_value(&value.content)?,
+                artifacts: Default::default(),
                 summary: None,
                 embedding: None,
                 confidence: 0.0,
@@ -49,17 +40,17 @@ impl<'a> MessageService<'a> {
         chat.last_message_at = Some(row.created_at);
         self.storage.chats().update(chat).await?;
 
-        for artifact_id in artifact_ids {
+        for artifact_id in &value.artifacts {
             self.storage
                 .message_artifacts()
                 .create(nim_store::MessageArtifactRow {
                     message_id: row.id,
-                    artifact_id: artifact_id.into(),
+                    artifact_id: (*artifact_id).into(),
                     created_at: now,
                 })
                 .await?;
         }
 
-        row.try_into()
+        self.storage.messages().find_by_id(row.id).await?.try_into()
     }
 }

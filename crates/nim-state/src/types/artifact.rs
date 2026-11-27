@@ -39,6 +39,18 @@ impl TryFrom<nim_store::ArtifactRow> for Artifact {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ArtifactPartial {
+    pub id: ArtifactId,
+    pub name: String,
+    #[serde(flatten)]
+    pub content: ArtifactContent,
+    pub summary: Option<String>,
+    pub confidence: f32,
+    pub salience: f32,
+    pub strength: f32,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ArtifactContent {

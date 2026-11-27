@@ -49,14 +49,6 @@ impl<'a> MemoryService<'a> {
             row.recalled_at = Some(v);
         }
 
-        let row = self.storage.memories().update(row).await?;
-        let artifacts = self.storage.artifacts().find_by_memory_id(id.into()).await?;
-
-        let mut memory: Memory = row.try_into()?;
-        memory.artifacts = artifacts
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<nim_error::Result<_>>()?;
-        Ok(memory)
+        self.storage.memories().update(row).await?.try_into()
     }
 }

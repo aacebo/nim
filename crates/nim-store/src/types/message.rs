@@ -6,6 +6,7 @@ pub struct MessageRow {
     pub version: i32,
     pub role: String,
     pub content: sqlx::types::JsonValue,
+    pub artifacts: sqlx::types::JsonValue,
     pub summary: Option<String>,
     #[serde(skip)]
     pub embedding: Option<pgvector::Vector>,

@@ -6,21 +6,24 @@ pub fn parse_message(p: &mut Parser<'_>) -> nim_error::Result<ChatMessage> {
 
 pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMessage> {
     let mode = *p.mode();
-    let src = p.remaining();
-    p.advance_by(src.len());
+    let src = p.take_remaining();
     let mut src = src.trim();
     let mut thinking = None;
 
-    if let Some(rest) = src.strip_prefix("<think>") {
-        match rest.split_once("</think>") {
-            Some((value, remaining)) => {
+    if src.starts_with(Tag::Think.open()) {
+        let mut parser = Parser::from_src(src, mode);
+        parser.parse_open_tag(Tag::Think)?;
+
+        match parser.take_until_exact(Tag::Think.close()) {
+            Some(value) => {
+                parser.parse_close_tag(Tag::Think)?;
                 thinking = Some(value.trim().to_string());
-                src = remaining;
+                src = parser.remaining();
             }
             None if mode == ParseMode::Strict => {
                 return Err(nim_error::Diagnostic::message("unterminated Qwen reasoning block"));
             }
-            None => src = rest,
+            None => src = parser.remaining(),
         }
     }
 
@@ -39,36 +42,42 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
         let offset = scanner.span().start();
 
         if let Some(end) = anchor.seek_code_end(offset) {
-            let len = end - offset;
-            text.push_str(&scanner.remaining()[..len]);
-            scanner.advance_by(len);
+            let code = scanner
+                .take_to_offset(end)
+                .ok_or_else(|| scanner.error("invalid code block"))?;
+            text.push_str(code);
             continue;
         }
 
         if scanner.starts_with(Tag::Widget.open()) {
             let mut widget = scanner.clone();
-            widget.parse_open(Tag::Widget)?;
-            widget.skip_while(char::is_whitespace);
+            widget.parse_open_tag(Tag::Widget)?;
+            widget.take_while(char::is_whitespace);
 
             if widget.parse_json().is_ok() {
-                widget.skip_while(char::is_whitespace);
+                widget.take_while(char::is_whitespace);
 
-                if widget.parse_close(Tag::Widget).is_ok() {
-                    let len = scanner.remaining().len() - widget.remaining().len();
-                    text.push_str(&scanner.remaining()[..len]);
-                    scanner.advance_by(len);
+                if widget.parse_close_tag(Tag::Widget).is_ok() {
+                    let text_end = widget.span().start();
+                    let widget_text = scanner
+                        .take_to_offset(text_end)
+                        .ok_or_else(|| scanner.error("invalid widget"))?;
+                    text.push_str(widget_text);
+                    scanner = widget;
                     continue;
                 }
             }
         }
 
-        let Some(remaining) = scanner.remaining().strip_prefix("<tool_call>") else {
-            text.push(scanner.curr());
-            scanner.advance();
+        if !scanner.starts_with(Tag::ToolCall.open()) {
+            text.push(scanner.take_char().expect("scanner is not at eof"));
             continue;
-        };
+        }
 
-        let Some((raw, rest)) = remaining.split_once("</tool_call>") else {
+        let mut tool_call = scanner.clone();
+        tool_call.parse_open_tag(Tag::ToolCall)?;
+
+        let Some(raw) = tool_call.take_until_exact(Tag::ToolCall.close()) else {
             if mode == ParseMode::Strict {
                 return Err(nim_error::Diagnostic::message("unterminated Qwen tool call"));
             }
@@ -76,6 +85,8 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
             text.push_str(scanner.remaining());
             break;
         };
+
+        tool_call.parse_close_tag(Tag::ToolCall)?;
 
         let mut parser = Parser::from_src(raw.trim(), mode);
 
@@ -89,13 +100,13 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
             }
             Err(error) if mode == ParseMode::Strict => return Err(error),
             Err(_) => {
-                text.push_str("<tool_call>");
+                text.push_str(Tag::ToolCall.open());
                 text.push_str(raw);
-                text.push_str("</tool_call>");
+                text.push_str(Tag::ToolCall.close());
             }
         }
 
-        scanner.advance_by(scanner.remaining().len() - rest.len());
+        scanner = tool_call;
     }
 
     let text = text.trim();
@@ -134,8 +145,7 @@ pub fn parse_agent_message(p: &mut Parser<'_>) -> nim_error::Result<ChatAgentMes
 }
 
 pub fn parse_tool_call(p: &mut Parser<'_>) -> nim_error::Result<ToolCall> {
-    let src = p.remaining();
-    p.advance_by(src.len());
+    let src = p.take_remaining();
     let value: serde_json::Value = serde_json::from_str(src.trim())?;
     let object = value
         .as_object()

@@ -1,10 +1,10 @@
 customElements.define("nim-message", class extends HTMLElement {
     connectedCallback() {
         const template = document.getElementById("message-template");
-        const { message, annotations, artifacts } = template.dataset;
+        const { message, annotations } = template.dataset;
         this.message = JSON.parse(message);
         this.annotations = JSON.parse(annotations);
-        this.artifacts = JSON.parse(artifacts);
+        this.artifacts = this.message.artifacts || [];
         this.append(template.content.cloneNode(true));
         this.dialog = this.querySelector("dialog");
         this.querySelector("[data-close]")?.addEventListener("click", () => this.dialog.close());
@@ -210,7 +210,7 @@ customElements.define("nim-message", class extends HTMLElement {
             const name = document.createElement("strong");
             const detail = document.createElement("span");
             name.textContent = artifact.name;
-            detail.textContent = [artifact.media_type, artifact.kind === "resource" ? "Resource" : "Artifact"].filter(Boolean).join(" · ");
+            detail.textContent = [artifact.media_type, artifact.type === "resource" ? "Resource" : "Artifact"].filter(Boolean).join(" · ");
             content.append(name, detail);
             const open = document.createElement("span");
             open.className = "message-artifact-open";

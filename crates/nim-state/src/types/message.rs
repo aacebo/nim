@@ -1,4 +1,4 @@
-use crate::{AnnotationId, ChatId, Embedding, Label, Span, Version};
+use crate::{AnnotationId, ArtifactPartial, ChatId, Embedding, Label, Span, Version};
 use nim_chat::ChatMessageContent;
 
 #[non_exhaustive]
@@ -32,6 +32,7 @@ pub struct Message {
     #[serde(skip)]
     pub embedding: Option<Embedding>,
     pub confidence: f32,
+    pub artifacts: Vec<ArtifactPartial>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -41,6 +42,7 @@ pub struct MessagePartial {
     pub id: MessageId,
     pub role: Role,
     pub content: ChatMessageContent,
+    pub artifacts: Vec<ArtifactPartial>,
     pub summary: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -117,6 +119,7 @@ impl TryFrom<nim_store::MessageRow> for Message {
             summary: value.summary,
             embedding: value.embedding.map(Into::into),
             confidence: value.confidence,
+            artifacts: serde_json::from_value(value.artifacts)?,
             created_at: value.created_at,
             updated_at: value.updated_at,
         })

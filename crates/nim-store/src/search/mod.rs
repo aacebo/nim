@@ -28,7 +28,22 @@ impl<'a> SearchStorage<'a> {
             r#"
                 SELECT
                     (1 - LEAST(memories.embedding <=> $1::vector, artifacts.distance, annotations.distance))::real AS similarity,
-                    to_jsonb(memories) AS "inner"
+                    to_jsonb(memories) || jsonb_build_object('artifacts', COALESCE((
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                                'name', artifacts.name,
+                                'summary', artifacts.summary,
+                                'confidence', artifacts.confidence,
+                                'salience', artifacts.salience,
+                                'strength', artifacts.strength
+                            ) || artifacts.content
+                            ORDER BY memories_artifacts.created_at, artifacts.id
+                        )
+                        FROM memories_artifacts
+                        JOIN artifacts ON artifacts.id = memories_artifacts.artifact_id
+                        WHERE memories_artifacts.memory_id = memories.id
+                    ), '[]'::jsonb)) AS "inner"
                 FROM memories
                 LEFT JOIN (
                     SELECT memories_artifacts.memory_id, MIN(artifacts.embedding <=> $1::vector) AS distance
@@ -92,7 +107,25 @@ impl<'a> SearchStorage<'a> {
             r#"
             SELECT
                 (1 - (embedding <=> $1::vector))::real AS similarity,
-                (to_jsonb(messages) || jsonb_build_object('embedding', messages.embedding::text::jsonb)) AS "inner"
+                (to_jsonb(messages) || jsonb_build_object(
+                    'embedding', messages.embedding::text::jsonb,
+                    'artifacts', COALESCE((
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                                'name', artifacts.name,
+                                'summary', artifacts.summary,
+                                'confidence', artifacts.confidence,
+                                'salience', artifacts.salience,
+                                'strength', artifacts.strength
+                            ) || artifacts.content
+                            ORDER BY messages_artifacts.created_at, artifacts.id
+                        )
+                        FROM messages_artifacts
+                        JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                        WHERE messages_artifacts.message_id = messages.id
+                    ), '[]'::jsonb)
+                )) AS "inner"
             FROM messages
             WHERE embedding IS NOT NULL
             AND (1 - (embedding <=> $1::vector))::real >= $2
@@ -165,13 +198,46 @@ impl<'a> SearchStorage<'a> {
                 UNION ALL
                 SELECT 'message'::text AS record_type, messages.id, messages.created_at,
                     (1 - (messages.embedding <=> $1::vector))::real AS similarity,
-                    (to_jsonb(messages) || jsonb_build_object('embedding', messages.embedding::text::jsonb)) AS "inner"
+                    (to_jsonb(messages) || jsonb_build_object(
+                        'embedding', messages.embedding::text::jsonb,
+                        'artifacts', COALESCE((
+                            SELECT jsonb_agg(
+                                jsonb_build_object(
+                                    'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                                    'name', artifacts.name,
+                                    'summary', artifacts.summary,
+                                    'confidence', artifacts.confidence,
+                                    'salience', artifacts.salience,
+                                    'strength', artifacts.strength
+                                ) || artifacts.content
+                                ORDER BY messages_artifacts.created_at, artifacts.id
+                            )
+                            FROM messages_artifacts
+                            JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                            WHERE messages_artifacts.message_id = messages.id
+                        ), '[]'::jsonb)
+                    )) AS "inner"
                 FROM messages
                 WHERE messages.embedding IS NOT NULL
                 UNION ALL
                 SELECT 'memory'::text AS record_type, memories.id, memories.created_at,
                     (1 - LEAST(memories.embedding <=> $1::vector, MIN(artifacts.distance)))::real AS similarity,
-                    to_jsonb(memories) AS "inner"
+                    to_jsonb(memories) || jsonb_build_object('artifacts', COALESCE((
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                                'name', artifacts.name,
+                                'summary', artifacts.summary,
+                                'confidence', artifacts.confidence,
+                                'salience', artifacts.salience,
+                                'strength', artifacts.strength
+                            ) || artifacts.content
+                            ORDER BY memories_artifacts.created_at, artifacts.id
+                        )
+                        FROM memories_artifacts
+                        JOIN artifacts ON artifacts.id = memories_artifacts.artifact_id
+                        WHERE memories_artifacts.memory_id = memories.id
+                    ), '[]'::jsonb)) AS "inner"
                 FROM memories
                 LEFT JOIN memories_artifacts ON memories_artifacts.memory_id = memories.id
                 LEFT JOIN artifact_distances AS artifacts ON artifacts.id = memories_artifacts.artifact_id

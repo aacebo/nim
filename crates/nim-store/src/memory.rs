@@ -21,6 +21,22 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY memories_artifacts.created_at, artifacts.id
+                    )
+                    FROM memories_artifacts
+                    JOIN artifacts ON artifacts.id = memories_artifacts.artifact_id
+                    WHERE memories_artifacts.memory_id = memories.id
+                ), '[]'::jsonb) AS artifacts,
                 summary,
                 embedding,
                 salience,
@@ -62,6 +78,22 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY memories_artifacts.created_at, artifacts.id
+                    )
+                    FROM memories_artifacts
+                    JOIN artifacts ON artifacts.id = memories_artifacts.artifact_id
+                    WHERE memories_artifacts.memory_id = memories.id
+                ), '[]'::jsonb) AS artifacts,
                 summary,
                 embedding,
                 salience,
@@ -90,6 +122,22 @@ impl<'a> MemoryStorage<'a> {
                 memories.type,
                 memories.sources,
                 memories.contexts,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY memories_artifacts.created_at, artifacts.id
+                    )
+                    FROM memories_artifacts
+                    JOIN artifacts ON artifacts.id = memories_artifacts.artifact_id
+                    WHERE memories_artifacts.memory_id = memories.id
+                ), '[]'::jsonb) AS artifacts,
                 memories.summary,
                 memories.embedding,
                 memories.salience,
@@ -120,6 +168,22 @@ impl<'a> MemoryStorage<'a> {
                 memories.type,
                 memories.sources,
                 memories.contexts,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY memories_artifacts.created_at, artifacts.id
+                    )
+                    FROM memories_artifacts
+                    JOIN artifacts ON artifacts.id = memories_artifacts.artifact_id
+                    WHERE memories_artifacts.memory_id = memories.id
+                ), '[]'::jsonb) AS artifacts,
                 memories.summary,
                 memories.embedding,
                 memories.salience,
@@ -182,6 +246,7 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                '[]'::jsonb AS artifacts,
                 summary,
                 embedding,
                 salience,
@@ -213,7 +278,7 @@ impl<'a> MemoryStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::MemoryRow) -> Result<types::MemoryRow, sqlx::Error> {
-        let row = sqlx::query_as(
+        let row: Option<types::MemoryRow> = sqlx::query_as(
             r#"
             UPDATE memories
             SET
@@ -236,6 +301,7 @@ impl<'a> MemoryStorage<'a> {
                 type,
                 sources,
                 contexts,
+                '[]'::jsonb AS artifacts,
                 summary,
                 embedding,
                 salience,
@@ -264,7 +330,7 @@ impl<'a> MemoryStorage<'a> {
         .await?;
 
         match row {
-            Some(row) => Ok(row),
+            Some(row) => self.find_by_id(row.id).await,
             None => self.find_by_id(value.id).await,
         }
     }

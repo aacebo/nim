@@ -30,6 +30,22 @@ impl<'a> ChatStorage<'a> {
                     'id', 'message_' || replace(last_message.id::text, '-', ''),
                     'role', last_message.role,
                     'content', last_message.content,
+                    'artifacts', COALESCE((
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                                'name', artifacts.name,
+                                'summary', artifacts.summary,
+                                'confidence', artifacts.confidence,
+                                'salience', artifacts.salience,
+                                'strength', artifacts.strength
+                            ) || artifacts.content
+                            ORDER BY messages_artifacts.created_at, artifacts.id
+                        )
+                        FROM messages_artifacts
+                        JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                        WHERE messages_artifacts.message_id = last_message.id
+                    ), '[]'::jsonb),
                     'summary', last_message.summary,
                     'created_at', last_message.created_at,
                     'updated_at', last_message.updated_at
@@ -78,6 +94,22 @@ impl<'a> ChatStorage<'a> {
                     'id', 'message_' || replace(last_message.id::text, '-', ''),
                     'role', last_message.role,
                     'content', last_message.content,
+                    'artifacts', COALESCE((
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                                'name', artifacts.name,
+                                'summary', artifacts.summary,
+                                'confidence', artifacts.confidence,
+                                'salience', artifacts.salience,
+                                'strength', artifacts.strength
+                            ) || artifacts.content
+                            ORDER BY messages_artifacts.created_at, artifacts.id
+                        )
+                        FROM messages_artifacts
+                        JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                        WHERE messages_artifacts.message_id = last_message.id
+                    ), '[]'::jsonb),
                     'summary', last_message.summary,
                     'created_at', last_message.created_at,
                     'updated_at', last_message.updated_at
@@ -113,6 +145,22 @@ impl<'a> ChatStorage<'a> {
                     'id', 'message_' || replace(last_message.id::text, '-', ''),
                     'role', last_message.role,
                     'content', last_message.content,
+                    'artifacts', COALESCE((
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                                'name', artifacts.name,
+                                'summary', artifacts.summary,
+                                'confidence', artifacts.confidence,
+                                'salience', artifacts.salience,
+                                'strength', artifacts.strength
+                            ) || artifacts.content
+                            ORDER BY messages_artifacts.created_at, artifacts.id
+                        )
+                        FROM messages_artifacts
+                        JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                        WHERE messages_artifacts.message_id = last_message.id
+                    ), '[]'::jsonb),
                     'summary', last_message.summary,
                     'created_at', last_message.created_at,
                     'updated_at', last_message.updated_at

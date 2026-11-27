@@ -1,4 +1,4 @@
-use crate::{Artifact, Context, Embedding, Source, Version};
+use crate::{ArtifactPartial, Context, Embedding, Source, Version};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Memory {
@@ -14,7 +14,7 @@ pub struct Memory {
     pub sources: Vec<Source>,
 
     /// any files/text associated with the memory.
-    pub artifacts: Vec<Artifact>,
+    pub artifacts: Vec<ArtifactPartial>,
 
     /// semantic/episodic links
     pub relations: Vec<MemoryId>,
@@ -68,7 +68,7 @@ impl TryFrom<nim_store::MemoryRow> for Memory {
             version: value.version.into(),
             ty: serde_json::from_value(serde_json::Value::String(value.ty))?,
             sources: serde_json::from_value(value.sources)?,
-            artifacts: Default::default(),
+            artifacts: serde_json::from_value(value.artifacts)?,
             relations: Default::default(),
             contexts: serde_json::from_value(value.contexts)?,
             summary: value.summary,

@@ -64,14 +64,8 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         return DOMPurify.sanitize(marked.parse(content, { gfm: true, renderer }));
     }
 
-    messageArtifacts(content) {
-        if (Array.isArray(content)) return content.flatMap((item) => this.messageArtifacts(item));
-        return content?.type === "artifact" ? [{
-            id: content.id,
-            name: content.name,
-            size: content.size,
-            media_type: content.media_type,
-        }] : [];
+    messageArtifacts(artifacts) {
+        return Array.isArray(artifacts) ? artifacts : [];
     }
 
     messageOrder(message) {
@@ -208,7 +202,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
                 link.rel = "noopener noreferrer";
             }
             if (content) bubble.append(text);
-            const attachments = this.messageArtifacts(message.content);
+            const attachments = this.messageArtifacts(message.artifacts);
             if (attachments.length && window.nimArtifact) body.append(window.nimArtifact.list(attachments));
             if (content) body.append(bubble);
             body.append(metadata);

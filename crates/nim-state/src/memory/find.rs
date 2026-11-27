@@ -10,13 +10,8 @@ impl<'a> MemoryService<'a> {
 
         for row in rows.data {
             let id = row.id;
-            let artifacts = self.storage.artifacts().find_by_memory_id(id).await?;
             let mut memory: Memory = row.try_into()?;
 
-            memory.artifacts = artifacts
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<nim_error::Result<_>>()?;
             memory.relations = relations
                 .iter()
                 .filter_map(|relation| {

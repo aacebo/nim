@@ -317,7 +317,13 @@ customElements.define("nim-chat", class extends HTMLElement {
         }
 
         function renderChatTranscript() {
-            host.querySelector("nim-chat-transcript").render({
+            const transcript = host.querySelector("nim-chat-transcript");
+            const hasArtifacts = [...chatMessages.values()]
+                .some((message) => transcript.messageArtifacts(message.artifacts).length);
+            if (hasArtifacts && !window.nimArtifact) {
+                void loadArtifactView().then(renderChatTranscript).catch(() => {});
+            }
+            transcript.render({
                 open: isChatOpen(), chatMessages, historyLoading, historyError, activity,
             });
         }
@@ -359,10 +365,6 @@ customElements.define("nim-chat", class extends HTMLElement {
                     updateActivity(signal.content);
                 }
                 if (mergeChatMessage(signal?.content)) {
-                    if (host.querySelector("nim-chat-transcript").messageArtifacts(signal.content.content).length) {
-                        await loadArtifactView();
-                        void loadChatArtifacts(chatId).then(renderChatTranscript).catch(() => {});
-                    }
                     renderChatTranscript();
                 }
                 if (response) {
@@ -431,103 +433,6 @@ customElements.define("nim-chat", class extends HTMLElement {
             renderAttachments();
         }
 
-        function parseContent(text) {
-            const content = [];
-            let start = 0;
-            let index = 0;
-
-            const pushText = (value) => {
-                if (!value) return;
-                const previous = content.at(-1);
-                if (previous?.type === "text") previous.text += value;
-                else content.push({ type: "text", text: value });
-            };
-            const fencedEnd = (offset) => {
-                const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
-                if (text.slice(lineStart, offset).trim()) return null;
-                const marker = text.slice(offset).match(/^(`{3,}|~{3,})/)?.[1];
-                if (!marker) return null;
-                const lineEnd = text.indexOf("\n", offset);
-                let cursor = lineEnd < 0 ? text.length : lineEnd + 1;
-                while (cursor < text.length) {
-                    const end = text.indexOf("\n", cursor);
-                    const line = text.slice(cursor, end < 0 ? text.length : end).replace(/\r$/, "");
-                    if (line.match(new RegExp(`^[ \\t]{0,3}${marker[0]}{${marker.length},}[ \\t]*$`))) {
-                        return end < 0 ? text.length : end + 1;
-                    }
-                    cursor = end < 0 ? text.length : end + 1;
-                }
-                return text.length;
-            };
-            const inlineCodeEnd = (offset) => {
-                const marker = text.slice(offset).match(/^`+/)?.[0];
-                if (!marker) return null;
-                const end = text.indexOf(marker, offset + marker.length);
-                return end < 0 ? text.length : end + marker.length;
-            };
-            const jsonEnd = (offset) => {
-                const stack = [];
-                let quoted = false;
-                let escaped = false;
-                for (let cursor = offset; cursor < text.length; cursor++) {
-                    const character = text[cursor];
-                    if (quoted) {
-                        if (escaped) escaped = false;
-                        else if (character === "\\") escaped = true;
-                        else if (character === '"') quoted = false;
-                    } else if (character === '"') quoted = true;
-                    else if (character === "{" || character === "[") stack.push(character);
-                    else if (character === "}" || character === "]") {
-                        if (!stack.length) return null;
-                        stack.pop();
-                        if (!stack.length) return cursor + 1;
-                    }
-                }
-                return null;
-            };
-
-            while (index < text.length) {
-                const fence = fencedEnd(index);
-                if (fence) {
-                    index = fence;
-                    continue;
-                }
-                const inlineCode = inlineCodeEnd(index);
-                if (inlineCode) {
-                    index = inlineCode;
-                    continue;
-                }
-                const boundary = index === 0 || !/[A-Za-z0-9_]/.test(text[index - 1]);
-                if (boundary && (text.startsWith("http://", index) || text.startsWith("https://", index))) {
-                    const match = text.slice(index).match(/^https?:\/\/[^\s<]+/);
-                    const url = match?.[0].replace(/[.,;:!?)}\]]+$/, "");
-                    if (url) {
-                        pushText(text.slice(start, index));
-                        content.push({ type: "url", url });
-                        index += url.length;
-                        start = index;
-                        continue;
-                    }
-                }
-                if (text[index] === "{" || text[index] === "[") {
-                    const end = jsonEnd(index);
-                    if (end) {
-                        try {
-                            const json = JSON.parse(text.slice(index, end));
-                            pushText(text.slice(start, index));
-                            content.push({ type: "json", json });
-                            index = end;
-                            start = index;
-                            continue;
-                        } catch {}
-                    }
-                }
-                index++;
-            }
-            pushText(text.slice(start));
-            return content;
-        }
-
         async function uploadAttachment(attachment) {
             if (attachment.artifactId) return;
             // Some text extensions have an empty or application/* browser MIME type.
@@ -561,8 +466,8 @@ customElements.define("nim-chat", class extends HTMLElement {
             const state = window.Alpine.$data(orbScene);
             const text = state.draft.trim();
 
-            if (!text && pendingAttachments.length === 0) {
-                setChatError("Enter a message or attach a file.");
+            if (!text) {
+                setChatError("Enter a message.");
                 chatInput.focus();
                 return;
             }
@@ -580,21 +485,13 @@ customElements.define("nim-chat", class extends HTMLElement {
                 for (const [index, attachment] of uploads.entries()) {
                     await uploadAttachment(attachment);
                 }
-                const parts = parseContent(text);
-                parts.push(...pendingAttachments.map(({ artifactId, name, size, mediaType }) => ({
-                    type: "artifact",
-                    id: artifactId,
-                    name,
-                    size,
-                    media_type: mediaType,
-                })));
-                const content = parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts;
+                const artifacts = pendingAttachments.map(({ artifactId }) => artifactId);
                 const path = chatId ? `/chats/${encodeURIComponent(chatId)}/messages` : "/chats/messages";
                 setAwaitingResponse(true);
                 const response = await fetch(path, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ role: "user", content }),
+                    body: JSON.stringify({ content: text, artifacts }),
                 });
 
                 if (!response.ok) {

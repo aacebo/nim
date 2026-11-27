@@ -151,16 +151,17 @@ impl Parse for ChatMessageContentPart {
 
     fn parse(p: &mut Parser) -> Result<Self, Self::Error> {
         let src = p.remaining();
+        let start = p.span().start();
 
-        if let Some(rest) = src.strip_prefix(Tag::Think.open()) {
-            if let Some((thinking, _)) = rest.split_once(Tag::Think.close()) {
-                p.parse_open(Tag::Think)?;
-                p.advance_by(thinking.len());
-                p.parse_close(Tag::Think)?;
+        if p.starts_with(Tag::Think.open()) {
+            let mut parser = p.clone();
+            parser.parse_open_tag(Tag::Think)?;
 
-                return Ok(ChatMessageContentPart::Thinking {
-                    thinking: thinking.trim().to_string(),
-                });
+            if let Some(thinking) = parser.take_until_exact(Tag::Think.close()) {
+                let thinking = thinking.trim().to_string();
+                parser.parse_close_tag(Tag::Think)?;
+                *p = parser;
+                return Ok(ChatMessageContentPart::Thinking { thinking });
             }
 
             if *p.mode() == ParseMode::Strict {
@@ -168,8 +169,8 @@ impl Parse for ChatMessageContentPart {
             }
         }
 
-        if let Ok(p) = p.parse_open(Tag::Widget) {
-            p.skip_while(char::is_whitespace);
+        if let Ok(p) = p.parse_open_tag(Tag::Widget) {
+            p.take_while(char::is_whitespace);
 
             let serde_json::Value::Object(object) = p.parse_json()? else {
                 return Err(p.error("widget json payload required after opening widget tag"));
@@ -183,19 +184,18 @@ impl Parse for ChatMessageContentPart {
                 return Err(nim_error::Diagnostic::message("invalid widget json payload"));
             }
 
-            p.skip_while(char::is_whitespace);
-            p.parse_close(Tag::Widget)?;
+            p.take_while(char::is_whitespace);
+            p.parse_close_tag(Tag::Widget)?;
             let widget: widgets::Widget = serde_json::from_value(serde_json::Value::Object(object))?;
             return Ok(ChatMessageContentPart::Widget(widget));
         }
 
-        if let Some((len, url)) = p.peek_url() {
-            p.advance_by(len);
+        if let Some(url) = p.parse_url() {
             return Ok(ChatMessageContentPart::Url { url });
         }
 
-        if let Some((len, json)) = p.peek_json() {
-            p.advance_by(len);
+        if p.peek_json().is_some() {
+            let json = p.parse_json()?;
             return Ok(ChatMessageContentPart::Json { json });
         }
 
@@ -206,23 +206,25 @@ impl Parse for ChatMessageContentPart {
             let index = scanner.span().start();
 
             if let Some(end) = anchor.seek_code_end(index) {
-                scanner.advance_by(end - index);
+                scanner
+                    .take_to_offset(end)
+                    .ok_or_else(|| scanner.error("invalid code block"))?;
                 continue;
             }
 
-            let previous = src[..index].chars().next_back();
+            let previous = scanner.prev();
             let boundary = previous.is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_');
 
             if index > 0
-                && (scanner.starts_with("<think>")
-                    || scanner.starts_with("<widget>")
+                && (scanner.starts_with(Tag::Think.open())
+                    || scanner.starts_with(Tag::Widget.open())
                     || boundary && scanner.peek_url().is_some()
                     || scanner.peek_json().is_some())
             {
                 break;
             }
 
-            scanner.advance();
+            scanner.take_char();
         }
 
         let index = scanner.span().start();
@@ -231,8 +233,10 @@ impl Parse for ChatMessageContentPart {
             return Err(nim_error::Diagnostic::message("message content is empty"));
         }
 
-        let text = src[..index].to_string();
-        p.advance_by(index);
+        let text = p
+            .take_to_offset(start + index)
+            .ok_or_else(|| p.error("invalid message content"))?
+            .to_string();
         Ok(ChatMessageContentPart::Text { text })
     }
 }

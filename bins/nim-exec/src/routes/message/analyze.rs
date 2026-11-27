@@ -45,6 +45,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
             reply_to_id: message.reply_to_id,
             role: nim::state::Role::Agent,
             content,
+            artifacts: Default::default(),
         })
         .await?;
 

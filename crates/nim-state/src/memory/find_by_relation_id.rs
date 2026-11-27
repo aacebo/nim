@@ -7,14 +7,7 @@ impl<'a> MemoryService<'a> {
         let mut memories = Vec::with_capacity(rows.len());
 
         for row in rows {
-            let artifacts = self.storage.artifacts().find_by_memory_id(row.id).await?;
-            let mut memory: Memory = row.try_into()?;
-
-            memory.artifacts = artifacts
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<nim_error::Result<_>>()?;
-            memories.push(memory);
+            memories.push(row.try_into()?);
         }
 
         Ok(memories)

@@ -9,6 +9,7 @@ pub const EOF: char = '\x04';
 pub enum Tag {
     Json,
     Think,
+    ToolCall,
     Widget,
 }
 
@@ -17,6 +18,7 @@ impl Tag {
         match self {
             Self::Json => "<json>",
             Self::Think => "<think>",
+            Self::ToolCall => "<tool_call>",
             Self::Widget => "<widget>",
         }
     }
@@ -25,6 +27,7 @@ impl Tag {
         match self {
             Self::Json => "</json>",
             Self::Think => "</think>",
+            Self::ToolCall => "</tool_call>",
             Self::Widget => "</widget>",
         }
     }
@@ -75,8 +78,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn starts_with(&self, s: &str) -> bool {
-        self.cursor.starts_with(s)
+    pub fn starts_with(&self, s: impl AsRef<str>) -> bool {
+        self.cursor.starts_with(s.as_ref())
     }
 
     pub fn peek(&self) -> Option<char> {
@@ -85,6 +88,10 @@ impl<'a> Parser<'a> {
 
     pub fn peek_n(&self, offset: usize) -> Option<char> {
         self.cursor.src().chars().nth(offset)
+    }
+
+    pub fn prev(&self) -> Option<char> {
+        self.source.text()[..self.cursor.offset() as usize].chars().next_back()
     }
 
     pub fn seek(&self, c: char) -> Option<usize> {
@@ -121,10 +128,32 @@ impl<'a> Parser<'a> {
         self
     }
 
+    pub fn take_exact(&mut self, text: impl AsRef<str>) -> Option<&'a str> {
+        let text = text.as_ref();
+
+        if self.starts_with(text) {
+            let start = self.cursor;
+            self.advance_by(text.len());
+            Some(self.source.slice(start.span_to(&self.cursor)))
+        } else {
+            None
+        }
+    }
+
+    pub fn take_char(&mut self) -> Option<char> {
+        let ch = self.cursor.first()?;
+        self.advance();
+        Some(ch)
+    }
+
     pub fn take_while(&mut self, p: impl FnMut(char) -> bool) -> &'a str {
         let start = self.cursor;
         self.skip_while(p);
         self.source.slice(start.span_to(&self.cursor))
+    }
+
+    pub fn take_remaining(&mut self) -> &'a str {
+        self.take_while(|_| true)
     }
 
     pub fn take_until(&mut self, delim: char) -> Option<&'a str> {
@@ -140,27 +169,39 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_open(&mut self, tag: Tag) -> Result<&mut Self, nim_error::Diagnostic> {
-        if self.remaining().starts_with(tag.open()) {
-            self.advance_by(tag.open().len());
-            self.stack.push(tag);
-            Ok(self)
-        } else {
-            Err(self.error(format!("expected '{}'", tag.open())))
-        }
+    pub fn take_until_exact(&mut self, delim: impl AsRef<str>) -> Option<&'a str> {
+        let index = self.remaining().find(delim.as_ref())?;
+        self.take_to_offset(self.cursor.offset() as usize + index)
     }
 
-    pub fn parse_close(&mut self, tag: Tag) -> Result<&mut Self, nim_error::Diagnostic> {
-        if self.remaining().starts_with(tag.close()) {
-            let Some(_) = self.stack.pop_if(|v| tag.eq(v)) else {
-                return Err(self.error(format!("invalid attempt to close a tag of type '{}'", tag.open())));
-            };
+    pub fn take_to_offset(&mut self, offset: usize) -> Option<&'a str> {
+        let start = self.cursor.offset() as usize;
+        let len = offset.checked_sub(start)?;
+        let text = self.remaining().get(..len)?;
+        self.take_exact(text)
+    }
 
-            self.advance_by(tag.close().len());
-            Ok(self)
-        } else {
-            Err(self.error(format!("expected '{}'", tag.close())))
+    pub fn parse_open_tag(&mut self, tag: Tag) -> Result<&mut Self, nim_error::Diagnostic> {
+        if !self.starts_with(tag.open()) {
+            return Err(self.error(format!("expected '{}'", tag.open())));
         }
+
+        self.take_exact(tag.open());
+        self.stack.push(tag);
+        Ok(self)
+    }
+
+    pub fn parse_close_tag(&mut self, tag: Tag) -> Result<&mut Self, nim_error::Diagnostic> {
+        if !self.starts_with(tag.close()) {
+            return Err(self.error(format!("expected '{}'", tag.close())));
+        }
+
+        let Some(_) = self.stack.pop_if(|v| tag.eq(v)) else {
+            return Err(self.error(format!("invalid attempt to close a tag of type '{}'", tag.open())));
+        };
+
+        self.take_exact(tag.close());
+        Ok(self)
     }
 }
 
@@ -184,6 +225,13 @@ impl<'a> Parser<'a> {
         let value = src[..end].trim_end_matches(['.', ',', ';', ':', '!', '?', ')', '}', ']']);
         let url = url::Url::parse(value).ok()?;
         Some((value.len(), url))
+    }
+
+    pub fn parse_url(&mut self) -> Option<url::Url> {
+        let (len, url) = self.peek_url()?;
+        let value = self.remaining().get(..len)?;
+        self.take_exact(value)?;
+        Some(url)
     }
 
     pub fn peek_json(&self) -> Option<(usize, serde_json::Value)> {

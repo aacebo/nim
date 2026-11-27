@@ -21,6 +21,22 @@ impl<'a> MessageStorage<'a> {
                 version,
                 role,
                 content,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY messages_artifacts.created_at, artifacts.id
+                    )
+                    FROM messages_artifacts
+                    JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                    WHERE messages_artifacts.message_id = messages.id
+                ), '[]'::jsonb) AS artifacts,
                 summary,
                 embedding,
                 confidence,
@@ -47,6 +63,22 @@ impl<'a> MessageStorage<'a> {
                 version,
                 role,
                 content,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY messages_artifacts.created_at, artifacts.id
+                    )
+                    FROM messages_artifacts
+                    JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                    WHERE messages_artifacts.message_id = messages.id
+                ), '[]'::jsonb) AS artifacts,
                 summary,
                 embedding,
                 confidence,
@@ -87,6 +119,22 @@ impl<'a> MessageStorage<'a> {
                 version,
                 role,
                 content,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY messages_artifacts.created_at, artifacts.id
+                    )
+                    FROM messages_artifacts
+                    JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                    WHERE messages_artifacts.message_id = messages.id
+                ), '[]'::jsonb) AS artifacts,
                 summary,
                 embedding,
                 confidence,
@@ -119,6 +167,22 @@ impl<'a> MessageStorage<'a> {
                 version,
                 role,
                 content,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY messages_artifacts.created_at, artifacts.id
+                    )
+                    FROM messages_artifacts
+                    JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                    WHERE messages_artifacts.message_id = messages.id
+                ), '[]'::jsonb) AS artifacts,
                 summary,
                 embedding,
                 confidence,
@@ -165,6 +229,22 @@ impl<'a> MessageStorage<'a> {
                 version,
                 role,
                 content,
+                COALESCE((
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'id', 'artifact_' || replace(artifacts.id::text, '-', ''),
+                            'name', artifacts.name,
+                            'summary', artifacts.summary,
+                            'confidence', artifacts.confidence,
+                            'salience', artifacts.salience,
+                            'strength', artifacts.strength
+                        ) || artifacts.content
+                        ORDER BY messages_artifacts.created_at, artifacts.id
+                    )
+                    FROM messages_artifacts
+                    JOIN artifacts ON artifacts.id = messages_artifacts.artifact_id
+                    WHERE messages_artifacts.message_id = messages.id
+                ), '[]'::jsonb) AS artifacts,
                 summary,
                 embedding,
                 confidence,
@@ -231,6 +311,7 @@ impl<'a> MessageStorage<'a> {
                 version,
                 role,
                 content,
+                '[]'::jsonb AS artifacts,
                 summary,
                 embedding,
                 confidence,
@@ -255,7 +336,7 @@ impl<'a> MessageStorage<'a> {
 
     #[tracing::instrument(skip(self))]
     pub async fn update(&self, value: types::MessageRow) -> Result<types::MessageRow, sqlx::Error> {
-        let row = sqlx::query_as(
+        let row: Option<types::MessageRow> = sqlx::query_as(
             r#"
             UPDATE messages
             SET
@@ -273,6 +354,7 @@ impl<'a> MessageStorage<'a> {
                 version,
                 role,
                 content,
+                '[]'::jsonb AS artifacts,
                 summary,
                 embedding,
                 confidence,
@@ -291,7 +373,7 @@ impl<'a> MessageStorage<'a> {
         .await?;
 
         match row {
-            Some(row) => Ok(row),
+            Some(row) => self.find_by_id(row.id).await,
             None => self.find_by_id(value.id).await,
         }
     }

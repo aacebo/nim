@@ -58,12 +58,19 @@ customElements.define("nim-chat", class extends HTMLElement {
         let awaitingResponse = false;
         let activity;
         let activityTimer;
+        let pendingResponses = [];
         let orbCenterFrame;
         const drawerPreferenceKey = "nim.chat.drawer-open";
         const pushDrawer = matchMedia("(min-width: 701px) and (min-height: 421px)");
         const orbTrigger = orbScene.querySelector("#orb-trigger");
         const orbResizeObserver = new ResizeObserver(syncOrbCenter);
         orbResizeObserver.observe(orbTrigger);
+        signal.addEventListener("abort", () => {
+            clearInterval(activityTimer);
+            clearTimeout(chatErrorTimer);
+            cancelAnimationFrame(orbCenterFrame);
+            orbResizeObserver.disconnect();
+        }, { once: true });
 
         function syncOrbCenter() {
             const sceneBounds = orbScene.getBoundingClientRect();
@@ -223,9 +230,6 @@ customElements.define("nim-chat", class extends HTMLElement {
             void openMessageView(event.detail.id, event.detail.trigger).catch(() => setChatError("Unable to load message details."));
         }, { signal });
         host.addEventListener("nim-chat-history", () => { void loadChatHistory(); }, { signal });
-        host.addEventListener("nim-chat-activity-toggle", (event) => {
-            if (activity) activity.expanded = event.detail.expanded;
-        }, { signal });
 
         function setChatError(text) {
             clearTimeout(chatErrorTimer);
@@ -251,7 +255,8 @@ customElements.define("nim-chat", class extends HTMLElement {
             orbScene.dataset.reasoning = String(value);
             reasoningOverlay.style.opacity = value ? "1" : "0";
             if (value) {
-                activity = { active: true, elapsed: "", expanded: false, startedAt: Date.now(), updates: [] };
+                pendingResponses = [];
+                activity = { active: true, elapsed: "", startedAt: Date.now(), updates: [] };
                 activityTimer = setInterval(() => {
                     activity.elapsed = formatElapsed(activity.startedAt);
                     renderChatTranscript();
@@ -263,7 +268,6 @@ customElements.define("nim-chat", class extends HTMLElement {
                 else if (activity) {
                     activity.active = false;
                     activity.elapsed = formatElapsed(activity.startedAt);
-                    activity.expanded = false;
                 }
             }
             renderChatTranscript();
@@ -363,17 +367,25 @@ customElements.define("nim-chat", class extends HTMLElement {
             try {
                 const payload = typeof event.data === "string" ? event.data : signalDecoder.decode(event.data);
                 const signal = JSON.parse(payload);
-                const response = signal?.subject === "nim.message.response" && signal.content?.chat_id === chatId;
+                const response = signal?.subject === "nim.message.response";
+
+                if (response && awaitingResponse && !activity?.messageId) {
+                    pendingResponses.push(signal.content);
+                }
+
+                const matchesActivity = response && signal.content?.chat_id === chatId
+                    && activity?.messageId && signal.content?.reply_to_id === activity.messageId;
                 if (signal?.subject === "nim.message.progress" && signal.content?.chat_id === chatId) {
                     updateActivity(signal.content);
                 }
-                if (mergeChatMessage(signal?.content)) {
-                    renderChatTranscript();
-                }
-                if (response) {
-                    setAwaitingResponse(false);
+                const changed = mergeChatMessage(signal?.content);
+                if (matchesActivity) {
+                    if (awaitingResponse) setAwaitingResponse(false);
+                    else if (changed) renderChatTranscript();
                     updateActiveChatPreview(signal.content);
                     void loadChatList();
+                } else if (changed) {
+                    renderChatTranscript();
                 }
             } catch {
                 return;
@@ -515,6 +527,14 @@ customElements.define("nim-chat", class extends HTMLElement {
                 renderAttachments();
                 mergeChatMessage(message);
                 if (activity) activity.messageId = message.id;
+                const pending = pendingResponses.find((value) => value?.chat_id === chatId && value.reply_to_id === message.id);
+                pendingResponses = [];
+                if (pending) {
+                    mergeChatMessage(pending);
+                    setAwaitingResponse(false);
+                    updateActiveChatPreview(pending);
+                    void loadChatList();
+                }
                 renderChatTranscript();
 
                 if (firstMessage) {
@@ -541,7 +561,7 @@ customElements.define("nim-chat", class extends HTMLElement {
 
         return {
             openAction, renderChatTranscript, submitChatMessage, handleChatFiles, setChatError,
-            clearAwaitingResponse: () => setAwaitingResponse(false), closeDrawer, dismissOverlayDrawer,
+            closeDrawer, dismissOverlayDrawer,
         };
     }
 

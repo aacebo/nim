@@ -249,7 +249,6 @@ document.addEventListener("alpine:init", () => {
         setHud(view) {
             if (this.hud === "memory" && view !== "memory") this.memory?.close();
             if (view !== "panel" || this.activeAction !== "chat") {
-                this.chat?.clearAwaitingResponse();
                 this.chat?.closeDrawer();
             }
             document.documentElement.classList.toggle("chat-route", view === "panel" && this.activeAction === "chat");

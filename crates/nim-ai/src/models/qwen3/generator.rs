@@ -5,10 +5,12 @@ use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::qwen3::Config;
 use candle_transformers::models::{quantized_qwen3, qwen3};
-use nim_chat::{Chat, ChatAgentMessage, ChatMessageContent, ChatUserMessage, Format, Parser, format::chatml::ChatML};
+use nim_chat::{
+    Chat, ChatAgentMessage, ChatMessage, ChatMessageContent, ChatUserMessage, Format, Parser, format::chatml::ChatML,
+};
 
 use crate::types::TextOutput;
-use crate::{Complete, Context, Summarize, SummarizeOptions};
+use crate::{Complete, Context, Summarize, SummarizeOptions, models::qwen::QwenSampler};
 
 pub struct Qwen3Generator {
     model: Mutex<Qwen3Runtime>,
@@ -65,7 +67,24 @@ impl Qwen3Generator {
     async fn one(&self, ctx: &Context<'_>, chat: Chat) -> nim_error::Result<ChatAgentMessage> {
         let tokenizer = ctx.tokenizer()?;
         let max_tokens = chat.max_tokens;
-        let text = ChatML.render(&chat)?;
+        let sampling_thinking = chat.thinking;
+        let temperature = chat.temperature.unwrap_or(if sampling_thinking { 0.6 } else { 0.7 });
+        let top_p = chat.top_p.unwrap_or(if sampling_thinking { 0.95 } else { 0.8 });
+        let respond = chat
+            .messages
+            .last()
+            .is_none_or(|message| !matches!(message, ChatMessage::Agent(_)));
+        let thinking = chat.thinking && respond;
+        let mut text = ChatML.render(&chat)?;
+
+        if respond {
+            if thinking {
+                text.push_str("<think>\n");
+            } else {
+                text.push_str("<think>\n\n</think>\n\n");
+            }
+        }
+
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_tokens = crate::models::output_limit("Qwen3", self.context_limit, ids.len(), max_tokens)?;
@@ -89,32 +108,22 @@ impl Qwen3Generator {
                 let mut input = Tensor::from_slice(ids, (1, ids.len()), ctx.device())?;
                 let mut offset = 0;
                 let mut tokens = Vec::new();
-                let mut sum = 0.0;
+                let mut sampler = QwenSampler::new(temperature, top_p);
 
                 for _ in 0..max_tokens {
                     let logits = model.forward(&input, offset)?;
-                    let token = logits.argmax(0)?.to_scalar::<u32>()?;
+                    let token = sampler.sample(&logits)?;
 
                     if stops.contains(&token) {
                         break;
                     }
 
-                    let log_probs = candle_nn::ops::log_softmax(&logits, 0)?.to_vec1::<f32>()?;
-                    sum += log_probs[token as usize] as f64;
                     tokens.push(token);
                     offset += input.dim(1)?;
                     input = Tensor::from_slice(&[token], (1, 1), ctx.device())?;
                 }
 
-                let confidence = if tokens.is_empty() || !sum.is_finite() {
-                    None
-                } else {
-                    let value = (sum / tokens.len() as f64).exp();
-                    value.is_finite().then(|| value.clamp(0.0, 1.0))
-                };
-
-                let text = tokenizer.decode(&tokens, true).map_err(nim_error::Diagnostic::message)?;
-                let _ = confidence;
+                let text = tokenizer.decode(&tokens, false).map_err(nim_error::Diagnostic::message)?;
 
                 Ok(text)
             })();
@@ -123,7 +132,16 @@ impl Qwen3Generator {
             result
         };
 
-        let text = result?;
+        let mut text = result?;
+
+        if thinking {
+            text.insert_str(0, "<think>\n");
+
+            if !text.contains("</think>") {
+                text.push_str("</think>");
+            }
+        }
+
         nim_chat::format::chatml::parse_agent_message(&mut Parser::from_src(&text))
     }
 }

@@ -94,6 +94,8 @@ impl OpenAI {
         messages: Vec<serde_json::Value>,
         tools: Vec<serde_json::Value>,
         max_tokens: Option<usize>,
+        temperature: Option<f64>,
+        top_p: Option<f64>,
     ) -> nim_error::Result<nim_chat::ChatAgentMessage> {
         if max_tokens == Some(0) {
             return Err(nim_error::Diagnostic::message("max_tokens must be greater than zero"));
@@ -106,6 +108,14 @@ impl OpenAI {
 
         if !tools.is_empty() {
             body["tools"] = serde_json::Value::Array(tools);
+        }
+
+        if let Some(temperature) = temperature {
+            body["temperature"] = serde_json::json!(temperature);
+        }
+
+        if let Some(top_p) = top_p {
+            body["top_p"] = serde_json::json!(top_p);
         }
 
         let max_tokens = max_tokens.unwrap_or(crate::models::DEFAULT_MAX_TOKENS);

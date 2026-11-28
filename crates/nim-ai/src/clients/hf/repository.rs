@@ -28,6 +28,17 @@ impl HuggingFaceRepository {
             id,
         })
     }
+
+    pub async fn files(&self) -> nim_error::Result<Vec<String>> {
+        Ok(self
+            .repo
+            .info()
+            .await?
+            .siblings
+            .into_iter()
+            .map(|file| file.rfilename)
+            .collect())
+    }
 }
 
 impl Repository for HuggingFaceRepository {

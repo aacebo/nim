@@ -120,6 +120,10 @@ nim-chat-transcript {
     border-radius: 7px;
     box-shadow: 0 5px 14px rgb(0 0 0 / 18%), inset 0 1px rgb(255 255 255 / 4%);
 }
+.chat-message-thinking { box-sizing: border-box; width: 100%; margin: 0 0 10px; color: #8f9bab; font-size: 12px; overflow-wrap: anywhere; }
+.chat-message-thinking summary { padding: 2px 0; color: #8995a4; cursor: pointer; }
+.chat-message-thinking .chat-message-text { margin: 8px 0 0; color: inherit; }
+.chat-message-thinking .chat-message-text :is(h1, h2, h3, h4, h5, h6) { color: inherit; }
 #chat-messages > .chat-message-agent .chat-message-bubble { background: rgb(37 42 51 / 96%); }
 #chat-messages > .chat-message-user .chat-message-bubble { background: #276ed5; }
 .chat-message-footer {
@@ -195,37 +199,8 @@ nim-chat-transcript {
     font-size: 14px;
     line-height: 1.5;
 }
-.chat-activity details { min-width: 0; }
-.chat-activity summary {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #6d747e;
-    font-size: 12px;
-    cursor: pointer;
-    list-style: none;
-}
-.chat-activity.is-active summary { color: #e1e3e7; font-size: 14px; }
-.chat-activity summary::-webkit-details-marker { display: none; }
-.chat-activity summary::after {
-    width: 8px;
-    height: 8px;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: rotate(-45deg);
-    content: "";
-    transition: transform 140ms ease;
-}
-.chat-activity details[open] summary::after { transform: rotate(45deg) translate(-2px, 2px); }
-.chat-activity-current { margin: 8px 0 0; color: #d1d4d9; }
-.chat-activity-updates {
-    display: grid;
-    margin: 8px 0 0;
-    padding: 0;
-    gap: 5px;
-    list-style: none;
-}
-.chat-activity-updates li { padding: 0; border: 0; color: #8f949e; }
+.chat-activity > .chat-activity-label { color: #6d747e; font-size: 12px; }
+.chat-activity.is-active > .chat-activity-label { color: #e1e3e7; font-size: 14px; }
 .chat-message-loading {
     width: min(72%, 320px);
     margin-top: 10px;

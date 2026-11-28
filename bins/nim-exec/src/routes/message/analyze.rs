@@ -27,6 +27,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
         .pipelines()
         .text()
         .complete(nim::runtime::ai::TextCompleteOptions {
+            model: "Qwen/Qwen3-1.7B-GGUF".parse()?,
             instructions: Some(vec![
                 "You are a neural intelligence mesh named `nim`.".into(),
                 format!("Today's current date/time is `{}`", chrono::Utc::now()),
@@ -35,6 +36,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
                 messages: history,
                 documents,
                 thinking: true,
+                temperature: Some(0.2),
                 ..Default::default()
             },
             ..Default::default()
@@ -49,7 +51,7 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
         .messages()
         .create(nim::state::MessageCreate {
             chat_id: message.chat_id,
-            reply_to_id: message.reply_to_id,
+            reply_to_id: Some(message.id),
             role: nim::state::Role::Agent,
             content,
             artifacts: Default::default(),

@@ -72,9 +72,24 @@ customElements.define("nim-message", class extends HTMLElement {
     contentView() {
         const section = document.createElement("section");
         section.className = "message-content";
+        const thinking = Array.isArray(this.message.content)
+            ? this.message.content.filter((part) => part?.type === "thinking" && part.thinking?.trim()).map((part) => part.thinking).join("\n\n")
+            : "";
         const content = document.createElement("div");
         content.className = "message-content-markdown";
-        content.innerHTML = this.renderMarkdown(this.messageText(this.message.content));
+        if (thinking) {
+            const details = document.createElement("details");
+            const summary = document.createElement("summary");
+            const reasoning = document.createElement("div");
+            details.className = "message-content-thinking";
+            summary.textContent = "Thinking";
+            reasoning.innerHTML = this.renderMarkdown(thinking);
+            details.append(summary, reasoning);
+            content.append(details);
+        }
+        const answer = document.createElement("div");
+        answer.innerHTML = this.renderMarkdown(this.messageText(this.message.content));
+        content.append(answer);
         for (const link of content.querySelectorAll("a")) {
             link.target = "_blank";
             link.rel = "noopener noreferrer";

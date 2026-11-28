@@ -13,6 +13,26 @@ pub fn render_document(artifact: &ArtifactPartial) -> nim_chat::Document {
         ArtifactContent::Text { .. } => None,
         ArtifactContent::File { media_type, .. } | ArtifactContent::Resource { media_type, .. } => media_type.clone(),
     };
+    let mut extra = std::collections::BTreeMap::new();
+
+    extra.insert("confidence".to_string(), serde_json::json!(artifact.confidence));
+    extra.insert("salience".to_string(), serde_json::json!(artifact.salience));
+    extra.insert("strength".to_string(), serde_json::json!(artifact.strength));
+
+    match &artifact.content {
+        ArtifactContent::Text { .. } => {}
+        ArtifactContent::File { path, size, .. } => {
+            extra.insert("path".to_string(), serde_json::json!(path));
+            extra.insert("size".to_string(), serde_json::json!(size));
+        }
+        ArtifactContent::Resource { url, size, .. } => {
+            extra.insert("url".to_string(), serde_json::json!(url));
+
+            if let Some(size) = size {
+                extra.insert("size".to_string(), serde_json::json!(size));
+            }
+        }
+    }
 
     nim_chat::Document {
         id: Some(artifact.id.to_string()),
@@ -21,6 +41,7 @@ pub fn render_document(artifact: &ArtifactPartial) -> nim_chat::Document {
         summary: artifact.summary.clone(),
         mime_type,
         created_at: Some(artifact.created_at),
+        extra,
     }
 }
 

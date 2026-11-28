@@ -3,6 +3,8 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
         super();
         this.followLatest = true;
         this.scrollPosition = 0;
+        this.expandedThinking = new Set();
+        this.renderedMessages = new WeakMap();
 
         this.addEventListener("scroll", (event) => {
             const scroll = event.target;
@@ -87,45 +89,14 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
 
     activityRow(activity) {
         const row = document.createElement("li");
-        const details = document.createElement("details");
-        const summary = document.createElement("summary");
         const label = document.createElement("span");
 
         row.className = "chat-activity";
         row.classList.toggle("is-active", activity.active);
-        details.open = activity.expanded;
-        summary.addEventListener("click", () => {
-            setTimeout(() => this.dispatchEvent(new CustomEvent("nim-chat-activity-toggle", {
-                bubbles: true,
-                detail: { expanded: details.open },
-            })));
-        });
         label.className = "chat-activity-label";
         label.textContent = activity.active ? activity.elapsed ? `Working for ${activity.elapsed}` : "Working…"
             : `Worked for ${activity.elapsed}`;
-        summary.append(label);
-        details.append(summary);
-
-        if (activity.active || activity.updates.length) {
-            const current = document.createElement("p");
-            current.className = "chat-activity-current";
-            current.setAttribute("aria-live", "polite");
-            current.textContent = activity.updates.at(-1)?.text || "Working…";
-            details.append(current);
-        }
-
-        if (activity.updates.length > 1) {
-            const updates = document.createElement("ol");
-            updates.className = "chat-activity-updates";
-            for (const update of activity.updates.slice(0, -1)) {
-                const item = document.createElement("li");
-                item.textContent = update.text;
-                updates.append(item);
-            }
-            details.append(updates);
-        }
-
-        row.append(details);
+        row.append(label);
 
         if (activity.active) {
             const bubble = document.createElement("div");
@@ -171,6 +142,14 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             const timestamp = document.createElement("time");
             const actions = document.createElement("div");
             const content = this.messageText(message.content);
+            const thinking = Array.isArray(message.content)
+                ? message.content.filter((part) => part?.type === "thinking" && part.thinking?.trim()).map((part) => part.thinking).join("\n\n")
+                : "";
+            let rendered = this.renderedMessages.get(message);
+            if (!rendered) {
+                rendered = { content: this.renderMarkdown(content), thinking: thinking ? this.renderMarkdown(thinking) : "" };
+                this.renderedMessages.set(message, rendered);
+            }
             const text = document.createElement("div");
             const isUser = message.role === "user";
             row.className = isUser ? "chat-message-user" : "chat-message-agent";
@@ -196,7 +175,7 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             actions.append(copy, inspect);
             metadata.append(timestamp, actions);
             text.className = "chat-message-text";
-            text.innerHTML = this.renderMarkdown(content);
+            text.innerHTML = rendered.content;
             for (const link of text.querySelectorAll("a")) {
                 link.target = "_blank";
                 link.rel = "noopener noreferrer";
@@ -204,6 +183,26 @@ customElements.define("nim-chat-transcript", class extends HTMLElement {
             if (content) bubble.append(text);
             const attachments = this.messageArtifacts(message.artifacts);
             if (attachments.length && window.nimArtifact) body.append(window.nimArtifact.list(attachments));
+            if (thinking) {
+                const details = document.createElement("details");
+                const summary = document.createElement("summary");
+                const reasoning = document.createElement("div");
+                details.className = "chat-message-thinking";
+                details.open = this.expandedThinking.has(message.id);
+                details.addEventListener("toggle", () => {
+                    if (details.open) this.expandedThinking.add(message.id);
+                    else this.expandedThinking.delete(message.id);
+                });
+                summary.textContent = "Thinking";
+                reasoning.className = "chat-message-text";
+                reasoning.innerHTML = rendered.thinking;
+                for (const link of reasoning.querySelectorAll("a")) {
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                }
+                details.append(summary, reasoning);
+                body.append(details);
+            }
             if (content) body.append(bubble);
             body.append(metadata);
             row.append(body);

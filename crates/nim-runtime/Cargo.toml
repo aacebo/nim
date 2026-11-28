@@ -23,6 +23,7 @@ tracing = { workspace = true }
 futures-util = { workspace = true }
 url = { workspace = true }
 mime_guess = { workspace = true }
+serde_json = { workspace = true }
 
 nim-ai = { workspace = true }
 nim-chat = { workspace = true }

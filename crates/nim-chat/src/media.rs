@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Document {
     pub id: Option<String>,
@@ -6,6 +8,9 @@ pub struct Document {
     pub summary: Option<String>,
     pub mime_type: Option<String>,
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, serde_json::Value>,
 }
 
 #[non_exhaustive]

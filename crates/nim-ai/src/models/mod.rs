@@ -14,6 +14,7 @@ pub mod git;
 pub mod mobilenet;
 #[cfg(feature = "audio")]
 pub mod parler;
+pub mod qwen;
 pub mod qwen2;
 pub mod qwen3;
 #[cfg(feature = "audio")]
@@ -285,44 +286,38 @@ impl Model {
         let repo = model.loader(device, dtype)?;
         let device = repo.device().clone();
 
-        if matches!(model, LocalModel::Hub(id) if id.to_string() == qwen2::QUANTIZED_MODEL) {
-            let companion = LocalModel::Hub(qwen2::MODEL.parse()?);
+        if let LocalModel::Hub(id) = model
+            && let Some(base) = id.to_string().strip_suffix("-GGUF")
+        {
+            let companion = LocalModel::Hub(base.parse()?);
             let companion = companion.loader(device.clone(), dtype)?;
-            let model = TextCompleter::quantized(&repo, &companion, ModelType::Qwen2, qwen2::WEIGHTS).await?;
+            let config: ModelConfig = companion.config().await?;
+            let weights = match id.to_string().as_str() {
+                qwen2::QUANTIZED_MODEL => qwen2::WEIGHTS.to_string(),
+                qwen3::QUANTIZED_MODEL => qwen3::WEIGHTS.to_string(),
+                qwen3::COMPLETION_QUANTIZED_MODEL => qwen3::COMPLETION_WEIGHTS.to_string(),
+                _ => {
+                    let files = crate::clients::hf::HuggingFaceRepository::new(id)?.files().await?;
 
-            return Ok(Self::loaded(
-                name,
-                model.into(),
-                device,
-                Some(companion.tokenizer().await?),
-                Some(companion.config().await?),
-            ));
-        }
+                    files
+                        .into_iter()
+                        .filter(|file| file.to_ascii_lowercase().ends_with(".gguf"))
+                        .filter(|file| !file.contains("-of-"))
+                        .min_by_key(|file| {
+                            let name = file.to_ascii_lowercase();
 
-        let qwen3_completion = matches!(model, LocalModel::Hub(id) if id.to_string() == qwen3::COMPLETION_QUANTIZED_MODEL);
-        let qwen3_quantized = matches!(model, LocalModel::Hub(id) if {
-            let id = id.to_string();
-            id == qwen3::QUANTIZED_MODEL || id == qwen3::COMPLETION_QUANTIZED_MODEL
-        });
-
-        if qwen3_quantized {
-            let companion = LocalModel::Hub(
-                if qwen3_completion {
-                    qwen3::COMPLETION_MODEL
-                } else {
-                    qwen3::MODEL
+                            if name.ends_with("q4_k_m.gguf") {
+                                (0, name)
+                            } else if name.ends_with("q8_0.gguf") {
+                                (1, name)
+                            } else {
+                                (2, name)
+                            }
+                        })
+                        .ok_or_else(|| nim_error::Diagnostic::message(format!("{id} has no supported GGUF weights")))?
                 }
-                .parse()?,
-            );
-            let companion = companion.loader(device.clone(), dtype)?;
-
-            let weights = if qwen3_completion {
-                qwen3::COMPLETION_WEIGHTS
-            } else {
-                qwen3::WEIGHTS
             };
-
-            let model = TextCompleter::quantized(&repo, &companion, ModelType::Qwen3, weights).await?;
+            let model = TextCompleter::quantized(&repo, &companion, config.model_type, &weights).await?;
 
             return Ok(Self::loaded(
                 name,

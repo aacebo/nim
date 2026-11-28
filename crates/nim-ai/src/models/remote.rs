@@ -282,6 +282,8 @@ impl Complete for RemoteModel {
             }
 
             let max_tokens = chat.max_tokens;
+            let temperature = chat.temperature;
+            let top_p = chat.top_p;
             let tools = chat
                 .tools
                 .into_iter()
@@ -313,7 +315,7 @@ impl Complete for RemoteModel {
                 }
             }
 
-            self.client().complete(messages, tools, max_tokens).await
+            self.client().complete(messages, tools, max_tokens, temperature, top_p).await
         })
     }
 }

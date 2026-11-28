@@ -102,19 +102,6 @@ impl Loader {
         Ok(tokio::fs::read_to_string(self.resolve(Path::new(file)).await?).await?)
     }
 
-    pub async fn chat_template(&self) -> nim_error::Result<hf_chat_template::ChatTemplate> {
-        let config: hf_chat_template::TokenizerConfig = self.json("tokenizer_config.json").await?;
-
-        if self.repo.exists(Path::new("chat_template.jinja")).await {
-            return Ok(hf_chat_template::ChatTemplate::from_template_and_config(
-                &self.string("chat_template.jinja").await?,
-                &config,
-            )?);
-        }
-
-        Ok(hf_chat_template::ChatTemplate::from_tokenizer_config(&config)?)
-    }
-
     pub(crate) async fn resolve(&self, path: &Path) -> nim_error::Result<PathBuf> {
         Ok(self.repo.resolve(path).await?.local_path()?.to_path_buf())
     }

@@ -1,30 +1,22 @@
 mod annotation;
+mod chat;
 mod content;
 mod event;
+pub mod format;
 mod media;
 mod message;
 pub mod parse;
+pub mod render;
 mod tool;
 pub mod widgets;
 
 pub use annotation::*;
+pub use chat::*;
 pub use content::*;
 pub use event::*;
+pub use format::*;
 pub use media::*;
 pub use message::*;
-pub use parse::{Cursor, Parse, ParseMode, Parser, Tag};
+pub use parse::*;
+pub use render::*;
 pub use tool::*;
-
-pub trait Render<T> {
-    type Error;
-    type Output;
-    type Context<'a>
-    where
-        Self: 'a;
-
-    fn render<'a>(
-        &'a self,
-        ctx: &'a Self::Context<'a>,
-        v: T,
-    ) -> futures_util::future::BoxFuture<'a, Result<Self::Output, Self::Error>>;
-}

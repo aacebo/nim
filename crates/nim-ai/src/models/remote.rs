@@ -1,11 +1,11 @@
-use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, ParseMode, Render};
+use nim_chat::{Chat, ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatUserMessage, Media};
 
 use crate::tasks::{anchor, zero_shot};
 use crate::types::TextOutput;
 use crate::types::{Classification, Offset, Span};
 
 use super::RemoteModel;
-use crate::{Chat, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, Summarize, SummarizeOptions};
+use crate::{Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, Summarize, SummarizeOptions};
 
 const CLASSIFY: &str = "Classify the text the user gives you. Respond with JSON matching the \
                         schema: `label` is your chosen class and `score` is your confidence from \
@@ -281,26 +281,168 @@ impl Complete for RemoteModel {
                 return Err(nim_error::Diagnostic::message("hosted completion does not support beams"));
             }
 
-            if chat.thinking || chat.vision || chat.audio {
-                if chat.parse == ParseMode::Strict {
-                    return Err(nim_error::Diagnostic::message(
-                        "remote completion does not support requested render options",
-                    ));
+            let max_tokens = chat.max_tokens;
+            let tools = chat
+                .tools
+                .into_iter()
+                .map(|tool| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.params,
+                        },
+                    })
+                })
+                .collect();
+            let mut messages = chat
+                .documents
+                .into_iter()
+                .map(|document| {
+                    Ok(serde_json::json!({
+                        "role": "system",
+                        "content": serde_json::to_string(&document)?,
+                    }))
+                })
+                .collect::<nim_error::Result<Vec<_>>>()?;
+
+            for message in chat.messages {
+                if let Some(message) = render_message(message)? {
+                    messages.push(message);
                 }
             }
 
-            let template = crate::clients::openai::OpenAITemplate::new(chat.parse);
-            let mut tools = Vec::with_capacity(chat.tools.len());
-
-            for tool in &chat.tools {
-                tools.push(template.render(&(), tool.clone()).await?);
-            }
-
-            let max_tokens = chat.max_tokens;
-            let messages = template.render(&(), chat).await?;
             self.client().complete(messages, tools, max_tokens).await
         })
     }
+}
+
+fn render_message(message: ChatMessage) -> nim_error::Result<Option<serde_json::Value>> {
+    match message {
+        ChatMessage::System(message) => {
+            Ok(render_content(message.content)?.map(|content| serde_json::json!({ "role": "system", "content": content })))
+        }
+        ChatMessage::User(message) => {
+            Ok(render_content(message.content)?.map(|content| serde_json::json!({ "role": "user", "content": content })))
+        }
+        ChatMessage::Agent(message) => {
+            let mut thinking = Vec::new();
+            let content = match message.content {
+                Some(ChatMessageContent::Parts(parts)) => {
+                    let mut content = Vec::new();
+
+                    for part in parts {
+                        match part {
+                            ChatMessageContentPart::Thinking { thinking: value } => thinking.push(value),
+                            value => content.push(value),
+                        }
+                    }
+
+                    (!content.is_empty()).then_some(ChatMessageContent::Parts(content))
+                }
+                content => content,
+            };
+            let content = content.map(render_content).transpose()?.flatten();
+            let tool_calls = message
+                .tool_calls
+                .into_iter()
+                .map(|call| {
+                    Ok(serde_json::json!({
+                        "id": call.id,
+                        "type": "function",
+                        "function": {
+                            "name": call.name,
+                            "arguments": serde_json::to_string(&call.args)?,
+                        },
+                    }))
+                })
+                .collect::<nim_error::Result<Vec<_>>>()?;
+            let mut value = serde_json::json!({
+                "role": "assistant",
+                "content": content,
+                "tool_calls": tool_calls,
+            });
+
+            if !thinking.is_empty() {
+                value["reasoning_content"] = serde_json::json!(thinking.join("\n"));
+            }
+
+            Ok(Some(value))
+        }
+        ChatMessage::Tool(message) => {
+            let content = message.content.map(render_content).transpose()?.flatten();
+
+            Ok(Some(serde_json::json!({
+                "role": "tool",
+                "tool_call_id": message.tool_call_id,
+                "content": content,
+            })))
+        }
+        _ => Err(nim_error::Diagnostic::message("unsupported message role")),
+    }
+}
+
+fn render_content(content: ChatMessageContent) -> nim_error::Result<Option<serde_json::Value>> {
+    match content {
+        ChatMessageContent::String(text) => Ok(Some(serde_json::json!(text))),
+        ChatMessageContent::Parts(parts) => {
+            let mut content = Vec::new();
+
+            for part in parts {
+                if let Some(part) = render_content_part(part)? {
+                    content.push(part);
+                }
+            }
+
+            Ok((!content.is_empty()).then_some(serde_json::json!(content)))
+        }
+        _ => Err(nim_error::Diagnostic::message("unsupported message content")),
+    }
+}
+
+fn render_content_part(part: ChatMessageContentPart) -> nim_error::Result<Option<serde_json::Value>> {
+    let text = |text| Ok(Some(serde_json::json!({ "type": "text", "text": text })));
+
+    match part {
+        ChatMessageContentPart::Text { text: value } => text(value),
+        ChatMessageContentPart::Json { json } => text(serde_json::to_string(&json)?),
+        ChatMessageContentPart::Url { url } => text(url.to_string()),
+        ChatMessageContentPart::Image { media } => render_media("image", media),
+        ChatMessageContentPart::Video { media } => render_media("video", media),
+        ChatMessageContentPart::Audio { media } => render_media("audio", media),
+        _ => Ok(None),
+    }
+}
+
+fn render_media(kind: &str, media: Media) -> nim_error::Result<Option<serde_json::Value>> {
+    let (name, value, size, mime_type, summary) = match media {
+        Media::Url {
+            name,
+            url,
+            size,
+            mime_type,
+            summary,
+        } => (name, serde_json::to_value(url)?, size, mime_type, summary),
+        Media::Path {
+            name,
+            path,
+            size,
+            mime_type,
+            summary,
+        } => (name, serde_json::to_value(path)?, size, mime_type, summary),
+        Media::Data { .. } | _ => return Ok(None),
+    };
+    let mut output = serde_json::Map::new();
+
+    output.insert("type".into(), serde_json::json!(kind));
+    output.insert("name".into(), serde_json::to_value(name)?);
+    output.insert("size".into(), serde_json::to_value(size)?);
+    output.insert("mime_type".into(), serde_json::to_value(mime_type)?);
+    output.insert(kind.into(), value);
+    output.insert("summary".into(), serde_json::to_value(summary)?);
+
+    Ok(Some(serde_json::Value::Object(output)))
 }
 
 fn classify_schema() -> serde_json::Value {

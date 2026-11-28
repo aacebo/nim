@@ -1,5 +1,5 @@
 use crate::{
-    Cursor, ParseMode,
+    Cursor,
     parse::{Source, Span},
 };
 
@@ -10,7 +10,13 @@ pub enum Tag {
     Json,
     Think,
     ToolCall,
+    ToolResponse,
     Widget,
+    Image,
+    Audio,
+    Video,
+    Speak,
+    Artifact,
 }
 
 impl Tag {
@@ -19,7 +25,13 @@ impl Tag {
             Self::Json => "<json>",
             Self::Think => "<think>",
             Self::ToolCall => "<tool_call>",
+            Self::ToolResponse => "<tool_response>",
             Self::Widget => "<widget>",
+            Self::Image => "<image>",
+            Self::Audio => "<audio>",
+            Self::Video => "<video>",
+            Self::Speak => "<speak>",
+            Self::Artifact => "<artifact>",
         }
     }
 
@@ -28,31 +40,31 @@ impl Tag {
             Self::Json => "</json>",
             Self::Think => "</think>",
             Self::ToolCall => "</tool_call>",
+            Self::ToolResponse => "</tool_response>",
             Self::Widget => "</widget>",
+            Self::Image => "</image>",
+            Self::Audio => "</audio>",
+            Self::Video => "</video>",
+            Self::Speak => "</speak>",
+            Self::Artifact => "</artifact>",
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Parser<'a> {
-    mode: ParseMode,
     cursor: Cursor<'a>,
     source: Source<'a>,
     stack: Vec<Tag>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn from_src(src: &'a str, mode: ParseMode) -> Self {
+    pub fn from_src(src: &'a str) -> Self {
         Self {
-            mode,
             source: Source::from_src(src),
             cursor: Cursor::new(src),
             stack: Default::default(),
         }
-    }
-
-    pub fn mode(&self) -> &ParseMode {
-        &self.mode
     }
 
     pub fn tag(&self) -> Option<&Tag> {
@@ -82,6 +94,23 @@ impl<'a> Parser<'a> {
         self.cursor.starts_with(s.as_ref())
     }
 
+    pub fn starts_with_tag(&self) -> bool {
+        [
+            Tag::Think,
+            Tag::Json,
+            Tag::ToolCall,
+            Tag::ToolResponse,
+            Tag::Widget,
+            Tag::Image,
+            Tag::Audio,
+            Tag::Video,
+            Tag::Speak,
+            Tag::Artifact,
+        ]
+        .into_iter()
+        .any(|tag| self.starts_with(tag.open()))
+    }
+
     pub fn peek(&self) -> Option<char> {
         self.peek_n(1)
     }
@@ -107,7 +136,6 @@ impl<'a> Parser<'a> {
     #[track_caller]
     pub fn error(&self, message: impl std::fmt::Display) -> nim_error::Diagnostic {
         nim_error::Diagnostic::message(message)
-            .field("mode", self.mode)
             .field("start", self.source.location(self.span().start()))
             .field("end", self.source.location(self.span().end()))
             .field("text", self.source.slice(self.cursor.span()))
@@ -126,6 +154,18 @@ impl<'a> Parser<'a> {
     pub fn skip_while(&mut self, p: impl FnMut(char) -> bool) -> &mut Self {
         self.cursor = self.cursor.skip_while(p);
         self
+    }
+
+    pub fn take_n(&mut self, n: usize) -> Option<&'a str> {
+        let start = self.cursor.span();
+        let cursor = self.cursor.advance_by(n);
+
+        if cursor.is_empty() {
+            None
+        } else {
+            self.cursor = cursor;
+            Some(self.source.slice(start.join(cursor.span())))
+        }
     }
 
     pub fn take_exact(&mut self, text: impl AsRef<str>) -> Option<&'a str> {

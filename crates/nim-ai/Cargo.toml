@@ -39,7 +39,6 @@ candle-transformers = { version = "0.11" }
 tokenizers = { version = "0.22" }
 unicode_categories = "0.1"
 hf-hub = { version = "0.5", default-features = false, features = ["tokio", "default-tls"] }
-hf-chat-template = { version = "1" }
 
 image = { version = "0.25", default-features = false, features = ["bmp", "gif", "ico", "jpeg", "png", "tiff", "webp"], optional = true }
 hound = { version = "3.5", optional = true }

@@ -1,10 +1,7 @@
-use nim_chat::ChatAgentMessage;
+use nim_chat::{Chat, ChatAgentMessage};
 
+use crate::models::{ModelRef, load};
 use crate::tasks;
-use crate::{
-    Chat,
-    models::{ModelRef, load},
-};
 
 #[derive(Debug, Clone)]
 pub struct Options {

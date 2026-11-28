@@ -3,10 +3,12 @@ use std::collections::BTreeMap;
 use crate::{Annotation, ChatMessageContent, ToolCall};
 
 #[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChatMessageRole {
+    #[default]
     System,
+    Developer,
     Agent,
     User,
     Tool,
@@ -16,6 +18,7 @@ impl std::fmt::Display for ChatMessageRole {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::System => write!(f, "system"),
+            Self::Developer => write!(f, "developer"),
             Self::Agent => write!(f, "agent"),
             Self::User => write!(f, "user"),
             Self::Tool => write!(f, "tool"),
@@ -36,7 +39,7 @@ pub enum ChatMessage {
 impl ChatMessage {
     pub fn role(&self) -> ChatMessageRole {
         match self {
-            Self::System(_) => ChatMessageRole::System,
+            Self::System(value) => value.role,
             Self::User(_) => ChatMessageRole::User,
             Self::Agent(_) => ChatMessageRole::Agent,
             Self::Tool(_) => ChatMessageRole::Tool,
@@ -79,6 +82,8 @@ impl From<ChatToolMessage> for ChatMessage {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatSystemMessage {
+    #[serde(skip, default)]
+    pub role: ChatMessageRole,
     pub name: Option<String>,
     pub content: ChatMessageContent,
 

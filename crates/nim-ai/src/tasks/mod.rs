@@ -8,9 +8,11 @@ mod keybert;
 mod scorer;
 mod stopwords;
 
+use nim_chat::Chat;
+
 use crate::types::{Classification, Keyword, Offset, Polarity, Span, TextOutput, Word};
 use crate::{
-    Caption, CaptionOptions, Chat, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, EmbedOptions, Summarize,
+    Caption, CaptionOptions, Classify, ClassifyMode, ClassifyOptions, Complete, Context, Embed, EmbedOptions, Summarize,
     SummarizeOptions,
 };
 #[cfg(feature = "audio")]

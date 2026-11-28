@@ -1,5 +1,4 @@
 mod generator;
-mod template;
 
 use candle_core::Tensor;
 use candle_transformers::models::qwen3::Config;
@@ -7,7 +6,6 @@ use candle_transformers::models::qwen3::Config;
 use crate::{Context, Embed, EmbedMode, EmbedOptions, models::Loader};
 
 pub use generator::Qwen3Generator;
-pub use template::Qwen3Template;
 
 pub const MODEL: &str = "Qwen/Qwen3-32B";
 pub const QUANTIZED_MODEL: &str = "Qwen/Qwen3-32B-GGUF";

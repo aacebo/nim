@@ -5,16 +5,13 @@ use candle_core::{DType, Device, Tensor, quantized::gguf_file};
 use candle_nn::VarBuilder;
 use candle_transformers::models::qwen2::Config;
 use candle_transformers::models::{quantized_qwen2, qwen2};
-use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatUserMessage, Parser, Render};
+use nim_chat::{Chat, ChatAgentMessage, ChatMessageContent, ChatUserMessage, Format, Parser, format::chatml::ChatML};
 
-use crate::{Chat, Complete, Context, Summarize, SummarizeOptions, types::TextOutput};
-
-use super::Qwen2Template;
+use crate::{Complete, Context, Summarize, SummarizeOptions, types::TextOutput};
 
 pub struct Qwen2Generator {
     model: Mutex<Qwen2Runtime>,
     context_limit: usize,
-    template: Qwen2Template,
 }
 
 enum Qwen2Runtime {
@@ -45,7 +42,6 @@ impl Qwen2Generator {
         Ok(Self {
             model: Mutex::new(Qwen2Runtime::Safetensors(qwen2::ModelForCausalLM::new(config, vars)?)),
             context_limit: config.max_position_embeddings,
-            template: Qwen2Template::new(),
         })
     }
 
@@ -62,15 +58,13 @@ impl Qwen2Generator {
         Ok(Self {
             model: Mutex::new(Qwen2Runtime::Quantized(model)),
             context_limit: config.max_position_embeddings.min(context_limit),
-            template: Qwen2Template::new(),
         })
     }
 
     async fn one(&self, ctx: &Context<'_>, chat: Chat) -> nim_error::Result<ChatAgentMessage> {
         let tokenizer = ctx.tokenizer()?;
-        let parse = chat.parse;
         let max_tokens = chat.max_tokens;
-        let text = self.template.render(&(), chat).await?;
+        let text = ChatML.render(&chat)?;
         let encoding = tokenizer.encode(text, false).map_err(nim_error::Diagnostic::message)?;
         let ids = encoding.get_ids();
         let max_tokens = crate::models::output_limit("Qwen", self.context_limit, ids.len(), max_tokens)?;
@@ -129,7 +123,7 @@ impl Qwen2Generator {
         };
 
         let text = result?;
-        nim_chat::parse::chatml::parse_agent_message(&mut Parser::from_src(&text, parse))
+        nim_chat::format::chatml::parse_agent_message(&mut Parser::from_src(&text))
     }
 }
 

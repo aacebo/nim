@@ -1,5 +1,6 @@
 use nim_chat::{
-    ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSystemMessage, ChatUserMessage, Media,
+    ChatAgentMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatMessageRole, ChatSystemMessage,
+    ChatUserMessage, Media,
 };
 use nim_state::{ArtifactContent, ArtifactId, ArtifactPartial, Message, Role, Services};
 
@@ -48,6 +49,7 @@ pub async fn render_message(services: &Services<'_>, message: &Message) -> nim_e
 
     match message.role {
         Role::System => Ok(ChatSystemMessage {
+            role: ChatMessageRole::System,
             name: None,
             content,
             extra: Default::default(),

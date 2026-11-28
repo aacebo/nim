@@ -3,6 +3,7 @@ use crate::ChatMessageContent;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChatMessageEvent {
     pub sequence: usize,
+
     #[serde(flatten)]
     pub content: ChatMessageEventContent,
 }

@@ -31,10 +31,9 @@ pub async fn run(ctx: SignalContext, signal: Signal<Message>) -> nim::error::Res
                 "You are a neural intelligence mesh named `nim`.".into(),
                 format!("Today's current date/time is `{}`", chrono::Utc::now()),
             ]),
-            chat: nim::ai::Chat {
+            chat: nim::chat::Chat {
                 messages: history,
                 documents,
-                parse: nim::chat::ParseMode::Lenient,
                 thinking: true,
                 ..Default::default()
             },

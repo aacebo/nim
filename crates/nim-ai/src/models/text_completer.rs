@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::{Chat, Complete, Context};
+use nim_chat::Chat;
+
+use crate::{Complete, Context};
 
 use super::{AnyModel, Loader, ModelType, qwen2, qwen3};
 

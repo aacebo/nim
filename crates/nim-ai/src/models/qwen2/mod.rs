@@ -1,8 +1,6 @@
 mod generator;
-mod template;
 
 pub use generator::Qwen2Generator;
-pub use template::Qwen2Template;
 
 pub const MODEL: &str = "Qwen/Qwen2.5-1.5B-Instruct";
 pub const QUANTIZED_MODEL: &str = "Qwen/Qwen2.5-1.5B-Instruct-GGUF";

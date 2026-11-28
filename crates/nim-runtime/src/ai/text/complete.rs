@@ -1,5 +1,5 @@
-use nim_ai::{Chat, models::ModelRef};
-use nim_chat::{ChatAgentMessage, ChatMessageContent, ChatSystemMessage};
+use nim_ai::models::ModelRef;
+use nim_chat::{Chat, ChatAgentMessage, ChatMessageContent, ChatMessageRole, ChatSystemMessage};
 
 use crate::{TaskOptions, TaskSource, ai::TextPipelines, task_run};
 
@@ -45,6 +45,7 @@ impl<'a> TextPipelines<'a> {
         if let Some(instructions) = &options.instructions {
             let mut messages = vec![
                 ChatSystemMessage {
+                    role: ChatMessageRole::System,
                     name: None,
                     content: ChatMessageContent::String(instructions.join("\n")),
                     extra: Default::default(),
